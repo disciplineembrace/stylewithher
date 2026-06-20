@@ -1,0 +1,734 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect } from 'react'
+     4→import { useStore } from '@/store/use-store'
+     5→import { Button } from '@/components/ui/button'
+     6→import { Input } from '@/components/ui/input'
+     7→import { Label } from '@/components/ui/label'
+     8→import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+     9→import { Textarea } from '@/components/ui/textarea'
+    10→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    11→import { Separator } from '@/components/ui/separator'
+    12→import { Badge } from '@/components/ui/badge'
+    13→import { Skeleton } from '@/components/ui/skeleton'
+    14→import { MapPin, CreditCard, Truck, Tag, ArrowLeft, Check, Shield, Lock } from 'lucide-react'
+    15→import type { AddressData } from '@/store/use-store'
+    16→
+    17→interface CouponValidation {
+    18→  valid: boolean
+    19→  code: string
+    20→  discountType: 'percentage' | 'fixed'
+    21→  discountValue: number
+    22→  maxDiscount?: number
+    23→  message: string
+    24→}
+    25→
+    26→export default function CheckoutPage() {
+    27→  const {
+    28→    navigate,
+    29→    isAuthenticated,
+    30→    user,
+    31→    cart,
+    32→    getCartTotal,
+    33→    showToast,
+    34→    setCart,
+    35→    addToCartOptimistic,
+    36→  } = useStore()
+    37→
+    38→  // Address state
+    39→  const [addresses, setAddresses] = useState<AddressData[]>([])
+    40→  const [selectedAddressId, setSelectedAddressId] = useState<string>('')
+    41→  const [addressesLoading, setAddressesLoading] = useState(true)
+    42→  const [showNewAddress, setShowNewAddress] = useState(false)
+    43→  const [newAddress, setNewAddress] = useState({
+    44→    fullName: '',
+    45→    phone: '',
+    46→    addressLine1: '',
+    47→    addressLine2: '',
+    48→    city: '',
+    49→    state: '',
+    50→    pincode: '',
+    51→  })
+    52→  const [savingAddress, setSavingAddress] = useState(false)
+    53→
+    54→  // Payment state
+    55→  const [paymentMethod, setPaymentMethod] = useState('cod')
+    56→  const [simulatedPayment, setSimulatedPayment] = useState(false)
+    57→
+    58→  // Coupon state
+    59→  const [couponCode, setCouponCode] = useState('')
+    60→  const [couponValidation, setCouponValidation] = useState<CouponValidation | null>(null)
+    61→  const [validatingCoupon, setValidatingCoupon] = useState(false)
+    62→
+    63→  // Order notes
+    64→  const [notes, setNotes] = useState('')
+    65→
+    66→  // Placing order
+    67→  const [placingOrder, setPlacingOrder] = useState(false)
+    68→
+    69→  // Redirect if not authenticated
+    70→  useEffect(() => {
+    71→    if (!isAuthenticated) {
+    72→      navigate('login')
+    73→    }
+    74→  }, [isAuthenticated, navigate])
+    75→
+    76→  // Fetch addresses
+    77→  useEffect(() => {
+    78→    if (!isAuthenticated || !user?.token) return
+    79→    const fetchAddresses = async () => {
+    80→      try {
+    81→        setAddressesLoading(true)
+    82→        const res = await fetch('/api/addresses', {
+    83→          headers: { Authorization: `Bearer ${user.token}` },
+    84→        })
+    85→        if (res.ok) {
+    86→          const data = await res.json()
+    87→          setAddresses(data.addresses || [])
+    88→          const defaultAddr = (data.addresses || []).find((a: AddressData) => a.isDefault)
+    89→          if (defaultAddr) setSelectedAddressId(defaultAddr.id)
+    90→          else if (data.addresses?.length > 0) setSelectedAddressId(data.addresses[0].id)
+    91→        }
+    92→      } catch {
+    93→        showToast('Failed to load addresses', 'error')
+    94→      } finally {
+    95→        setAddressesLoading(false)
+    96→      }
+    97→    }
+    98→    fetchAddresses()
+    99→  }, [isAuthenticated, user?.token, showToast])
+   100→
+   101→  const subtotal = getCartTotal()
+   102→  const tax = Math.round(subtotal * 0.18)
+   103→  const shipping = subtotal >= 999 ? 0 : 99
+   104→  const discountAmount = couponValidation?.valid
+   105→    ? couponValidation.discountType === 'percentage'
+   106→      ? Math.min(Math.round(subtotal * couponValidation.discountValue / 100), couponValidation.maxDiscount || Infinity)
+   107→      : couponValidation.discountValue
+   108→    : 0
+   109→  const total = subtotal + tax + shipping - discountAmount
+   110→
+   111→  if (!isAuthenticated) return null
+   112→
+   113→  if (cart.length === 0) {
+   114→    return (
+   115→      <div className="min-h-[60vh] flex flex-col items-center justify-center px-4">
+   116→        <div className="w-20 h-20 bg-[#FFF5F7] rounded-full flex items-center justify-center mb-6">
+   117→          <Truck className="w-10 h-10 text-[#D96C8A]" />
+   118→        </div>
+   119→        <h2 className="text-2xl font-bold text-[#0B1F3A] mb-2">Your Cart is Empty</h2>
+   120→        <p className="text-[#222222]/60 mb-6 text-center max-w-md">
+   121→          Looks like you haven&apos;t added anything to your cart yet. Browse our collection and find something you love!
+   122→        </p>
+   123→        <Button
+   124→          onClick={() => navigate('products')}
+   125→          className="bg-[#0B1F3A] hover:bg-[#0B1F3A]/90 text-white px-8"
+   126→        >
+   127→          Shop Now
+   128→        </Button>
+   129→      </div>
+   130→    )
+   131→  }
+   132→
+   133→  const handleSaveNewAddress = async () => {
+   134→    if (!user?.token) return
+   135→    if (!newAddress.fullName || !newAddress.phone || !newAddress.addressLine1 || !newAddress.city || !newAddress.state || !newAddress.pincode) {
+   136→      showToast('Please fill in all required fields', 'error')
+   137→      return
+   138→    }
+   139→    try {
+   140→      setSavingAddress(true)
+   141→      const res = await fetch('/api/addresses', {
+   142→        method: 'POST',
+   143→        headers: {
+   144→          'Content-Type': 'application/json',
+   145→          Authorization: `Bearer ${user.token}`,
+   146→        },
+   147→        body: JSON.stringify({
+   148→          ...newAddress,
+   149→          country: 'India',
+   150→          isDefault: addresses.length === 0,
+   151→        }),
+   152→      })
+   153→      if (res.ok) {
+   154→        const data = await res.json()
+   155→        setAddresses((prev) => [...prev, data.address])
+   156→        setSelectedAddressId(data.address.id)
+   157→        setShowNewAddress(false)
+   158→        setNewAddress({ fullName: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '' })
+   159→        showToast('Address saved successfully!', 'success')
+   160→      } else {
+   161→        const err = await res.json()
+   162→        showToast(err.error || 'Failed to save address', 'error')
+   163→      }
+   164→    } catch {
+   165→      showToast('Failed to save address', 'error')
+   166→    } finally {
+   167→      setSavingAddress(false)
+   168→    }
+   169→  }
+   170→
+   171→  const handleValidateCoupon = async () => {
+   172→    if (!couponCode.trim() || !user?.token) return
+   173→    try {
+   174→      setValidatingCoupon(true)
+   175→      const res = await fetch('/api/coupons/validate', {
+   176→        method: 'POST',
+   177→        headers: {
+   178→          'Content-Type': 'application/json',
+   179→          Authorization: `Bearer ${user.token}`,
+   180→        },
+   181→        body: JSON.stringify({ code: couponCode.trim(), orderAmount: subtotal }),
+   182→      })
+   183→      const data = await res.json()
+   184→      if (res.ok && data.valid) {
+   185→        setCouponValidation(data)
+   186→        showToast(`Coupon applied! ${data.message}`, 'success')
+   187→      } else {
+   188→        setCouponValidation(null)
+   189→        showToast(data.error || 'Invalid coupon code', 'error')
+   190→      }
+   191→    } catch {
+   192→      showToast('Failed to validate coupon', 'error')
+   193→    } finally {
+   194→      setValidatingCoupon(false)
+   195→    }
+   196→  }
+   197→
+   198→  const handleRemoveCoupon = () => {
+   199→    setCouponCode('')
+   200→    setCouponValidation(null)
+   201→  }
+   202→
+   203→  const getItemPrice = (item: typeof cart[0]) => {
+   204→    if (item.variantId) {
+   205→      const variant = item.product.variants.find((v) => v.id === item.variantId)
+   206→      return variant?.price ?? item.product.salePrice ?? item.product.basePrice
+   207→    }
+   208→    return item.product.salePrice ?? item.product.basePrice
+   209→  }
+   210→
+   211→  const getItemVariant = (item: typeof cart[0]) => {
+   212→    if (!item.variantId) return null
+   213→    return item.product.variants.find((v) => v.id === item.variantId)
+   214→  }
+   215→
+   216→  const handlePlaceOrder = async () => {
+   217→    if (!user?.token) return
+   218→    if (!selectedAddressId) {
+   219→      showToast('Please select or add a shipping address', 'error')
+   220→      return
+   221→    }
+   222→
+   223→    if (paymentMethod !== 'cod') {
+   224→      setSimulatedPayment(true)
+   225→      // Simulate payment processing
+   226→      await new Promise((resolve) => setTimeout(resolve, 2000))
+   227→      setSimulatedPayment(false)
+   228→    }
+   229→
+   230→    try {
+   231→      setPlacingOrder(true)
+   232→      const res = await fetch('/api/orders', {
+   233→        method: 'POST',
+   234→        headers: {
+   235→          'Content-Type': 'application/json',
+   236→          Authorization: `Bearer ${user.token}`,
+   237→        },
+   238→        body: JSON.stringify({
+   239→          addressId: selectedAddressId,
+   240→          paymentMethod,
+   241→          couponCode: couponValidation?.valid ? couponCode : null,
+   242→          notes: notes || null,
+   243→        }),
+   244→      })
+   245→      if (res.ok) {
+   246→        setCart([])
+   247→        setCouponCode('')
+   248→        setCouponValidation(null)
+   249→        showToast('Order placed successfully! 🎉', 'success')
+   250→        navigate('orders')
+   251→      } else {
+   252→        const err = await res.json()
+   253→        showToast(err.error || 'Failed to place order', 'error')
+   254→      }
+   255→    } catch {
+   256→      showToast('Failed to place order. Please try again.', 'error')
+   257→    } finally {
+   258→      setPlacingOrder(false)
+   259→    }
+   260→  }
+   261→
+   262→  const paymentMethods = [
+   263→    { id: 'cod', label: 'Cash on Delivery', description: 'Pay when your order is delivered', icon: Truck },
+   264→    { id: 'razorpay', label: 'Razorpay (Online Payment)', description: 'Pay securely via Razorpay gateway', icon: CreditCard },
+   265→    { id: 'upi', label: 'UPI', description: 'Google Pay, PhonePe, Paytm, etc.', icon: CreditCard },
+   266→    { id: 'card', label: 'Credit / Debit Card', description: 'Visa, Mastercard, RuPay', icon: CreditCard },
+   267→  ]
+   268→
+   269→  return (
+   270→    <div className="min-h-screen bg-white">
+   271→      {/* Header */}
+   272→      <div className="bg-[#0B1F3A] py-6 px-4">
+   273→        <div className="max-w-7xl mx-auto">
+   274→          <button
+   275→            onClick={() => navigate('cart')}
+   276→            className="flex items-center gap-2 text-[#F7C8D0] hover:text-white transition-colors mb-4"
+   277→          >
+   278→            <ArrowLeft className="w-4 h-4" />
+   279→            <span className="text-sm">Back to Cart</span>
+   280→          </button>
+   281→          <h1 className="text-2xl sm:text-3xl font-bold text-white">Checkout</h1>
+   282→          <p className="text-[#F7C8D0] text-sm mt-1">Complete your order</p>
+   283→        </div>
+   284→      </div>
+   285→
+   286→      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+   287→        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+   288→          {/* Left Column - Forms */}
+   289→          <div className="lg:col-span-2 space-y-6">
+   290→            {/* Shipping Address */}
+   291→            <Card className="border-[#F7C8D0]/30 shadow-sm">
+   292→              <CardHeader className="pb-4">
+   293→                <CardTitle className="flex items-center gap-2 text-[#0B1F3A] text-lg">
+   294→                  <MapPin className="w-5 h-5 text-[#D96C8A]" />
+   295→                  Shipping Address
+   296→                </CardTitle>
+   297→              </CardHeader>
+   298→              <CardContent className="space-y-4">
+   299→                {addressesLoading ? (
+   300→                  <div className="space-y-3">
+   301→                    <Skeleton className="h-24 w-full" />
+   302→                    <Skeleton className="h-24 w-full" />
+   303→                  </div>
+   304→                ) : addresses.length > 0 ? (
+   305→                  <>
+   306→                    <div className="space-y-3">
+   307→                      {addresses.map((addr) => (
+   308→                        <button
+   309→                          key={addr.id}
+   310→                          onClick={() => { setSelectedAddressId(addr.id); setShowNewAddress(false) }}
+   311→                          className={`w-full text-left p-4 rounded-xl border-2 transition-all duration-200 ${
+   312→                            selectedAddressId === addr.id
+   313→                              ? 'border-[#D96C8A] bg-[#FFF5F7]'
+   314→                              : 'border-gray-200 hover:border-[#F7C8D0] bg-white'
+   315→                          }`}
+   316→                        >
+   317→                          <div className="flex items-start justify-between">
+   318→                            <div className="flex-1">
+   319→                              <div className="flex items-center gap-2 mb-1">
+   320→                                <span className="font-semibold text-[#222222] text-sm">{addr.fullName}</span>
+   321→                                {addr.isDefault && (
+   322→                                  <Badge className="bg-[#D96C8A]/10 text-[#D96C8A] border-0 text-[10px] px-2 py-0">
+   323→                                    Default
+   324→                                  </Badge>
+   325→                                )}
+   326→                                {addr.label && (
+   327→                                  <Badge variant="outline" className="text-[10px] px-2 py-0 border-[#F7C8D0] text-[#222222]/60">
+   328→                                    {addr.label}
+   329→                                  </Badge>
+   330→                                )}
+   331→                              </div>
+   332→                              <p className="text-sm text-[#222222]/70">{addr.phone}</p>
+   333→                              <p className="text-sm text-[#222222]/70 mt-1">
+   334→                                {addr.addressLine1}
+   335→                                {addr.addressLine2 ? `, ${addr.addressLine2}` : ''}
+   336→                              </p>
+   337→                              <p className="text-sm text-[#222222]/70">
+   338→                                {addr.city}, {addr.state} - {addr.pincode}
+   339→                              </p>
+   340→                            </div>
+   341→                            {selectedAddressId === addr.id && (
+   342→                              <div className="w-5 h-5 bg-[#D96C8A] rounded-full flex items-center justify-center shrink-0 ml-2">
+   343→                                <Check className="w-3 h-3 text-white" />
+   344→                              </div>
+   345→                            )}
+   346→                          </div>
+   347→                        </button>
+   348→                      ))}
+   349→                    </div>
+   350→                    <Button
+   351→                      variant="outline"
+   352→                      onClick={() => setShowNewAddress(!showNewAddress)}
+   353→                      className="w-full border-dashed border-2 border-[#F7C8D0] text-[#D96C8A] hover:bg-[#FFF5F7] hover:text-[#D96C8A] py-3"
+   354→                    >
+   355→                      + Add New Address
+   356→                    </Button>
+   357→                  </>
+   358→                ) : (
+   359→                  <p className="text-sm text-[#222222]/60 mb-3">No saved addresses. Please add a new one.</p>
+   360→                )}
+   361→
+   362→                {showNewAddress && (
+   363→                  <div className="border-2 border-[#F7C8D0]/50 rounded-xl p-4 sm:p-6 bg-[#FFF5F7]/30 space-y-4">
+   364→                    <h4 className="font-semibold text-[#0B1F3A] text-sm">New Address</h4>
+   365→                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   366→                      <div className="space-y-1.5">
+   367→                        <Label htmlFor="fullName" className="text-xs font-medium text-[#222222]">Full Name *</Label>
+   368→                        <Input
+   369→                          id="fullName"
+   370→                          value={newAddress.fullName}
+   371→                          onChange={(e) => setNewAddress({ ...newAddress, fullName: e.target.value })}
+   372→                          placeholder="John Doe"
+   373→                          className="bg-white border-[#F7C8D0]/50 focus-visible:ring-[#D96C8A]/30"
+   374→                        />
+   375→                      </div>
+   376→                      <div className="space-y-1.5">
+   377→                        <Label htmlFor="phone" className="text-xs font-medium text-[#222222]">Phone Number *</Label>
+   378→                        <Input
+   379→                          id="phone"
+   380→                          value={newAddress.phone}
+   381→                          onChange={(e) => setNewAddress({ ...newAddress, phone: e.target.value })}
+   382→                          placeholder="9876543210"
+   383→                          className="bg-white border-[#F7C8D0]/50 focus-visible:ring-[#D96C8A]/30"
+   384→                        />
+   385→                      </div>
+   386→                    </div>
+   387→                    <div className="space-y-1.5">
+   388→                      <Label htmlFor="addressLine1" className="text-xs font-medium text-[#222222]">Address Line 1 *</Label>
+   389→                      <Input
+   390→                        id="addressLine1"
+   391→                        value={newAddress.addressLine1}
+   392→                        onChange={(e) => setNewAddress({ ...newAddress, addressLine1: e.target.value })}
+   393→                        placeholder="House/Flat No., Building, Street"
+   394→                        className="bg-white border-[#F7C8D0]/50 focus-visible:ring-[#D96C8A]/30"
+   395→                      />
+   396→                    </div>
+   397→                    <div className="space-y-1.5">
+   398→                      <Label htmlFor="addressLine2" className="text-xs font-medium text-[#222222]">Address Line 2</Label>
+   399→                      <Input
+   400→                        id="addressLine2"
+   401→                        value={newAddress.addressLine2}
+   402→                        onChange={(e) => setNewAddress({ ...newAddress, addressLine2: e.target.value })}
+   403→                        placeholder="Landmark, Area (optional)"
+   404→                        className="bg-white border-[#F7C8D0]/50 focus-visible:ring-[#D96C8A]/30"
+   405→                      />
+   406→                    </div>
+   407→                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+   408→                      <div className="space-y-1.5">
+   409→                        <Label htmlFor="city" className="text-xs font-medium text-[#222222]">City *</Label>
+   410→                        <Input
+   411→                          id="city"
+   412→                          value={newAddress.city}
+   413→                          onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
+   414→                          placeholder="Mumbai"
+   415→                          className="bg-white border-[#F7C8D0]/50 focus-visible:ring-[#D96C8A]/30"
+   416→                        />
+   417→                      </div>
+   418→                      <div className="space-y-1.5">
+   419→                        <Label htmlFor="state" className="text-xs font-medium text-[#222222]">State *</Label>
+   420→                        <Input
+   421→                          id="state"
+   422→                          value={newAddress.state}
+   423→                          onChange={(e) => setNewAddress({ ...newAddress, state: e.target.value })}
+   424→                          placeholder="Maharashtra"
+   425→                          className="bg-white border-[#F7C8D0]/50 focus-visible:ring-[#D96C8A]/30"
+   426→                        />
+   427→                      </div>
+   428→                      <div className="space-y-1.5">
+   429→                        <Label htmlFor="pincode" className="text-xs font-medium text-[#222222]">Pincode *</Label>
+   430→                        <Input
+   431→                          id="pincode"
+   432→                          value={newAddress.pincode}
+   433→                          onChange={(e) => setNewAddress({ ...newAddress, pincode: e.target.value })}
+   434→                          placeholder="400001"
+   435→                          className="bg-white border-[#F7C8D0]/50 focus-visible:ring-[#D96C8A]/30"
+   436→                        />
+   437→                      </div>
+   438→                    </div>
+   439→                    <div className="flex gap-3 pt-2">
+   440→                      <Button
+   441→                        onClick={handleSaveNewAddress}
+   442→                        disabled={savingAddress}
+   443→                        className="bg-[#0B1F3A] hover:bg-[#0B1F3A]/90 text-white"
+   444→                      >
+   445→                        {savingAddress ? 'Saving...' : 'Save Address'}
+   446→                      </Button>
+   447→                      <Button
+   448→                        variant="ghost"
+   449→                        onClick={() => setShowNewAddress(false)}
+   450→                        className="text-[#222222]/60 hover:text-[#222222]"
+   451→                      >
+   452→                        Cancel
+   453→                      </Button>
+   454→                    </div>
+   455→                  </div>
+   456→                )}
+   457→              </CardContent>
+   458→            </Card>
+   459→
+   460→            {/* Payment Method */}
+   461→            <Card className="border-[#F7C8D0]/30 shadow-sm">
+   462→              <CardHeader className="pb-4">
+   463→                <CardTitle className="flex items-center gap-2 text-[#0B1F3A] text-lg">
+   464→                  <CreditCard className="w-5 h-5 text-[#D96C8A]" />
+   465→                  Payment Method
+   466→                </CardTitle>
+   467→              </CardHeader>
+   468→              <CardContent className="space-y-4">
+   469→                <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod} className="space-y-3">
+   470→                  {paymentMethods.map((method) => {
+   471→                    const Icon = method.icon
+   472→                    return (
+   473→                      <label
+   474→                        key={method.id}
+   475→                        htmlFor={`payment-${method.id}`}
+   476→                        className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+   477→                          paymentMethod === method.id
+   478→                            ? 'border-[#D96C8A] bg-[#FFF5F7]'
+   479→                            : 'border-gray-200 hover:border-[#F7C8D0] bg-white'
+   480→                        }`}
+   481→                      >
+   482→                        <RadioGroupItem value={method.id} id={`payment-${method.id}`} className="data-[state=checked]:border-[#D96C8A]" />
+   483→                        <Icon className="w-5 h-5 text-[#D96C8A] shrink-0" />
+   484→                        <div className="flex-1 min-w-0">
+   485→                          <p className="font-medium text-[#222222] text-sm">{method.label}</p>
+   486→                          <p className="text-xs text-[#222222]/50">{method.description}</p>
+   487→                        </div>
+   488→                        {paymentMethod === method.id && (
+   489→                          <div className="w-5 h-5 bg-[#D96C8A] rounded-full flex items-center justify-center shrink-0">
+   490→                            <Check className="w-3 h-3 text-white" />
+   491→                          </div>
+   492→                        )}
+   493→                      </label>
+   494→                    )
+   495→                  })}
+   496→                </RadioGroup>
+   497→
+   498→                {/* Simulated Payment Area */}
+   499→                {paymentMethod !== 'cod' && (
+   500→                  <div className="mt-4 border-2 border-[#F7C8D0]/50 rounded-xl p-4 sm:p-6 bg-[#FFF5F7]/30">
+   501→                    <div className="flex items-center gap-2 mb-4">
+   502→                      <Lock className="w-4 h-4 text-[#D96C8A]" />
+   503→                      <h4 className="font-semibold text-[#0B1F3A] text-sm">Simulated Payment</h4>
+   504→                      <Badge className="bg-amber-100 text-amber-700 border-0 text-[10px] px-2 py-0">
+   505→                        Demo Mode
+   506→                      </Badge>
+   507→                    </div>
+   508→                    {simulatedPayment ? (
+   509→                      <div className="flex flex-col items-center gap-3 py-6">
+   510→                        <div className="w-10 h-10 border-3 border-[#D96C8A] border-t-transparent rounded-full animate-spin" />
+   511→                        <p className="text-sm font-medium text-[#222222]">Processing payment...</p>
+   512→                        <p className="text-xs text-[#222222]/50">Please do not close this page</p>
+   513→                      </div>
+   514→                    ) : (
+   515→                      <div className="space-y-3">
+   516→                        <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-green-200">
+   517→                          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center shrink-0">
+   518→                            <Shield className="w-4 h-4 text-green-600" />
+   519→                          </div>
+   520→                          <div>
+   521→                            <p className="text-sm font-medium text-green-700">Secure Payment Simulation</p>
+   522→                            <p className="text-xs text-green-600/70">
+   523→                              In production, this would redirect to {paymentMethod === 'razorpay' ? 'Razorpay' : paymentMethod === 'upi' ? 'your UPI app' : 'the card payment gateway'}
+   524→                            </p>
+   525→                          </div>
+   526→                        </div>
+   527→                        <div className="p-3 bg-white rounded-lg border border-gray-100">
+   528→                          <p className="text-xs text-[#222222]/50">
+   529→                            {paymentMethod === 'razorpay' && 'Razorpay supports cards, UPI, wallets, and netbanking. A secure popup would appear for authentication.'}
+   530→                            {paymentMethod === 'upi' && 'You would be redirected to your UPI app (GPay, PhonePe, Paytm) to complete the payment.'}
+   531→                            {paymentMethod === 'card' && 'Enter your card details in a secure iframe. We never store your card information.'}
+   532→                          </p>
+   533→                        </div>
+   534→                        <div className="flex items-center gap-2 text-xs text-[#222222]/40">
+   535→                          <Lock className="w-3 h-3" />
+   536→                          <span>256-bit SSL encrypted</span>
+   537→                        </div>
+   538→                      </div>
+   539→                    )}
+   540→                  </div>
+   541→                )}
+   542→
+   543→                {paymentMethod === 'cod' && (
+   544→                  <div className="mt-3 flex items-center gap-2 p-3 bg-amber-50 rounded-lg border border-amber-200">
+   545→                    <Truck className="w-4 h-4 text-amber-600 shrink-0" />
+   546→                    <p className="text-xs text-amber-700">Cash will be collected at the time of delivery. Please keep exact change ready.</p>
+   547→                  </div>
+   548→                )}
+   549→              </CardContent>
+   550→            </Card>
+   551→
+   552→            {/* Order Notes */}
+   553→            <Card className="border-[#F7C8D0]/30 shadow-sm">
+   554→              <CardHeader className="pb-4">
+   555→                <CardTitle className="text-[#0B1F3A] text-lg">Order Notes (Optional)</CardTitle>
+   556→              </CardHeader>
+   557→              <CardContent>
+   558→                <Textarea
+   559→                  value={notes}
+   560→                  onChange={(e) => setNotes(e.target.value)}
+   561→                  placeholder="Any special instructions for delivery (e.g., leave at reception, ring doorbell twice)..."
+   562→                  className="min-h-[80px] border-[#F7C8D0]/50 focus-visible:ring-[#D96C8A]/30 resize-none"
+   563→                  maxLength={500}
+   564→                />
+   565→                <p className="text-[10px] text-[#222222]/40 mt-1 text-right">{notes.length}/500</p>
+   566→              </CardContent>
+   567→            </Card>
+   568→          </div>
+   569→
+   570→          {/* Right Column - Order Summary */}
+   571→          <div className="lg:col-span-1">
+   572→            <Card className="border-[#F7C8D0]/30 shadow-sm sticky top-24">
+   573→              <CardHeader className="pb-4">
+   574→                <CardTitle className="text-[#0B1F3A] text-lg">Order Summary</CardTitle>
+   575→                <p className="text-xs text-[#222222]/50">{cart.length} item{cart.length !== 1 ? 's' : ''} in cart</p>
+   576→              </CardHeader>
+   577→              <CardContent className="space-y-4">
+   578→                {/* Cart Items */}
+   579→                <div className="max-h-72 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
+   580→                  {cart.map((item) => {
+   581→                    const variant = getItemVariant(item)
+   582→                    const price = getItemPrice(item)
+   583→                    const image = item.product.images?.[0]?.url
+   584→                    return (
+   585→                      <div key={item.id} className="flex gap-3 py-2">
+   586→                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden bg-[#FFF5F7] shrink-0">
+   587→                          {image ? (
+   588→                            <img src={image} alt={item.product.name} className="w-full h-full object-cover" />
+   589→                          ) : (
+   590→                            <div className="w-full h-full flex items-center justify-center text-[#D96C8A]/30">
+   591→                              <Truck className="w-6 h-6" />
+   592→                            </div>
+   593→                          )}
+   594→                        </div>
+   595→                        <div className="flex-1 min-w-0">
+   596→                          <p className="text-sm font-medium text-[#222222] truncate">{item.product.name}</p>
+   597→                          {variant && (
+   598→                            <p className="text-[11px] text-[#222222]/50">
+   599→                              {variant.color && <span className="text-[#D96C8A]">{variant.color}</span>}
+   600→                              {variant.color && variant.size && ' / '}
+   601→                              {variant.size && <span>{variant.size}</span>}
+   602→                            </p>
+   603→                          )}
+   604→                          <div className="flex items-center justify-between mt-1">
+   605→                            <span className="text-xs text-[#222222]/50">Qty: {item.quantity}</span>
+   606→                            <span className="text-sm font-semibold text-[#0B1F3A]">
+   607→                              ₹{(price * item.quantity).toLocaleString('en-IN')}
+   608→                            </span>
+   609→                          </div>
+   610→                        </div>
+   611→                      </div>
+   612→                    )
+   613→                  })}
+   614→                </div>
+   615→
+   616→                <Separator className="bg-[#F7C8D0]/30" />
+   617→
+   618→                {/* Coupon */}
+   619→                <div className="space-y-2">
+   620→                  <div className="flex items-center gap-2">
+   621→                    <Tag className="w-4 h-4 text-[#D96C8A]" />
+   622→                    <span className="text-sm font-medium text-[#222222]">Coupon Code</span>
+   623→                  </div>
+   624→                  {couponValidation?.valid ? (
+   625→                    <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+   626→                      <div>
+   627→                        <p className="text-sm font-medium text-green-700">{couponCode.toUpperCase()}</p>
+   628→                        <p className="text-xs text-green-600/70">{couponValidation.message}</p>
+   629→                      </div>
+   630→                      <Button
+   631→                        variant="ghost"
+   632→                        size="sm"
+   633→                        onClick={handleRemoveCoupon}
+   634→                        className="text-red-500 hover:text-red-600 hover:bg-red-50 text-xs h-7 px-2"
+   635→                      >
+   636→                        Remove
+   637→                      </Button>
+   638→                    </div>
+   639→                  ) : (
+   640→                    <div className="flex gap-2">
+   641→                      <Input
+   642→                        value={couponCode}
+   643→                        onChange={(e) => setCouponCode(e.target.value)}
+   644→                        placeholder="Enter coupon code"
+   645→                        className="flex-1 h-9 text-sm border-[#F7C8D0]/50 focus-visible:ring-[#D96C8A]/30"
+   646→                        onKeyDown={(e) => e.key === 'Enter' && handleValidateCoupon()}
+   647→                      />
+   648→                      <Button
+   649→                        variant="outline"
+   650→                        onClick={handleValidateCoupon}
+   651→                        disabled={!couponCode.trim() || validatingCoupon}
+   652→                        className="border-[#D96C8A] text-[#D96C8A] hover:bg-[#FFF5F7] hover:text-[#D96C8A] h-9 px-3 text-sm shrink-0"
+   653→                      >
+   654→                        {validatingCoupon ? '...' : 'Apply'}
+   655→                      </Button>
+   656→                    </div>
+   657→                  )}
+   658→                </div>
+   659→
+   660→                <Separator className="bg-[#F7C8D0]/30" />
+   661→
+   662→                {/* Price Breakdown */}
+   663→                <div className="space-y-2.5">
+   664→                  <div className="flex items-center justify-between text-sm">
+   665→                    <span className="text-[#222222]/70">Subtotal</span>
+   666→                    <span className="text-[#222222]">₹{subtotal.toLocaleString('en-IN')}</span>
+   667→                  </div>
+   668→                  <div className="flex items-center justify-between text-sm">
+   669→                    <span className="text-[#222222]/70">Tax (18% GST)</span>
+   670→                    <span className="text-[#222222]">₹{tax.toLocaleString('en-IN')}</span>
+   671→                  </div>
+   672→                  <div className="flex items-center justify-between text-sm">
+   673→                    <span className="text-[#222222]/70">Shipping</span>
+   674→                    {shipping === 0 ? (
+   675→                      <span className="text-green-600 font-medium text-xs">FREE</span>
+   676→                    ) : (
+   677→                      <span className="text-[#222222]">₹{shipping.toLocaleString('en-IN')}</span>
+   678→                    )}
+   679→                  </div>
+   680→                  {discountAmount > 0 && (
+   681→                    <div className="flex items-center justify-between text-sm">
+   682→                      <span className="text-green-600">Discount</span>
+   683→                      <span className="text-green-600 font-medium">-₹{discountAmount.toLocaleString('en-IN')}</span>
+   684→                    </div>
+   685→                  )}
+   686→                  <Separator className="bg-[#F7C8D0]/30" />
+   687→                  <div className="flex items-center justify-between pt-1">
+   688→                    <span className="font-bold text-[#0B1F3A] text-base">Total</span>
+   689→                    <span className="font-bold text-[#0B1F3A] text-xl">₹{total.toLocaleString('en-IN')}</span>
+   690→                  </div>
+   691→                </div>
+   692→
+   693→                {subtotal < 999 && (
+   694→                  <div className="p-3 bg-[#FFF5F7] rounded-lg border border-[#F7C8D0]/30">
+   695→                    <p className="text-xs text-[#D96C8A] text-center font-medium">
+   696→                      Add ₹{(999 - subtotal).toLocaleString('en-IN')} more for FREE shipping! 🚚
+   697→                    </p>
+   698→                  </div>
+   699→                )}
+   700→
+   701→                {/* Place Order Button */}
+   702→                <Button
+   703→                  onClick={handlePlaceOrder}
+   704→                  disabled={placingOrder || simulatedPayment || !selectedAddressId}
+   705→                  className="w-full bg-[#D96C8A] hover:bg-[#D96C8A]/90 text-white py-6 text-base font-semibold rounded-xl transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+   706→                >
+   707→                  {placingOrder ? (
+   708→                    <span className="flex items-center gap-2">
+   709→                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+   710→                      Placing Order...
+   711→                    </span>
+   712→                  ) : simulatedPayment ? (
+   713→                    <span className="flex items-center gap-2">
+   714→                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+   715→                      Processing Payment...
+   716→                    </span>
+   717→                  ) : (
+   718→                    `Place Order — ₹${total.toLocaleString('en-IN')}`
+   719→                  )}
+   720→                </Button>
+   721→
+   722→                {/* Security Badge */}
+   723→                <div className="flex items-center justify-center gap-2 text-[10px] text-[#222222]/40 pt-1">
+   724→                  <Shield className="w-3.5 h-3.5" />
+   725→                  <span>100% Secure Checkout · SSL Encrypted</span>
+   726→                </div>
+   727→              </CardContent>
+   728→            </Card>
+   729→          </div>
+   730→        </div>
+   731→      </div>
+   732→    </div>
+   733→  )
+   734→}

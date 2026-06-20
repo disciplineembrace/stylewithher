@@ -5,7 +5,7 @@ import { useStore, ProductData, CategoryData } from '@/store/use-store'
 import ProductCard from '@/components/shared/ProductCard'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
-import { Star, Shield, Truck, RotateCcw, CreditCard, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Star, Shield, Truck, RotateCcw, CreditCard, ArrowRight, ChevronLeft, ChevronRight, Heart, Instagram } from 'lucide-react'
 
 // ─── Hero Carousel Data ──────────────────────────────────────────────────────
 const heroSlides = [
@@ -552,6 +552,61 @@ function TrustBadges() {
   )
 }
 
+// ─── 10. Instagram Feed Section ─────────────────────────────────────────────
+function InstagramFeedSection() {
+  const posts = [
+    { id: 1, image: 'https://placehold.co/400x400/0B1F3A/F7C8D0?text=Post+1', alt: 'StyleWithHer Instagram post 1' },
+    { id: 2, image: 'https://placehold.co/400x400/D96C8A/FFFFFF?text=Post+2', alt: 'StyleWithHer Instagram post 2' },
+    { id: 3, image: 'https://placehold.co/400x400/F7C8D0/0B1F3A?text=Post+3', alt: 'StyleWithHer Instagram post 3' },
+    { id: 4, image: 'https://placehold.co/400x400/0B1F3A/D96C8A?text=Post+4', alt: 'StyleWithHer Instagram post 4' },
+    { id: 5, image: 'https://placehold.co/400x400/D96C8A/F7C8D0?text=Post+5', alt: 'StyleWithHer Instagram post 5' },
+    { id: 6, image: 'https://placehold.co/400x400/FFF5F7/D96C8A?text=Post+6', alt: 'StyleWithHer Instagram post 6' },
+  ]
+
+  return (
+    <section className="py-16 sm:py-20 bg-[#0B1F3A] animate-fadeIn">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="text-center mb-10">
+          <div className="flex items-center justify-center gap-2 mb-3">
+            <Instagram className="h-6 w-6 text-[#F7C8D0]" />
+            <span className="text-[#F7C8D0] text-sm font-medium tracking-widest uppercase">Follow Us</span>
+          </div>
+          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-3">@Style_withher01</h2>
+          <p className="text-white/60 text-base max-w-md mx-auto">Follow our journey and get inspired by couple fashion, behind-the-scenes, and exclusive previews</p>
+          <div className="flex items-center justify-center gap-2 mt-4">
+            <span className="w-8 h-[2px] bg-[#F7C8D0]" />
+            <span className="w-2 h-2 rounded-full bg-[#D96C8A]" />
+            <span className="w-8 h-[2px] bg-[#F7C8D0]" />
+          </div>
+        </div>
+        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
+          {posts.map((post) => (
+            <a
+              key={post.id}
+              href="https://instagram.com/Style_withher01"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group relative aspect-square rounded-lg overflow-hidden"
+            >
+              <img
+                src={post.image}
+                alt={post.alt}
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                loading="lazy"
+              />
+              <div className="absolute inset-0 bg-[#D96C8A]/0 group-hover:bg-[#D96C8A]/50 transition-colors duration-300 flex items-center justify-center">
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center gap-2 text-white">
+                  <Heart className="h-6 w-6 fill-white" />
+                </div>
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 // ─── Main HomePage Component ─────────────────────────────────────────────────
 export default function HomePage() {
   return (
@@ -603,6 +658,9 @@ export default function HomePage() {
 
       {/* 9. Trust Badges */}
       <TrustBadges />
+
+      {/* 10. Instagram Feed */}
+      <InstagramFeedSection />
     </main>
   )
 }

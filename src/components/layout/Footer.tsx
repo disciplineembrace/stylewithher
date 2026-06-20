@@ -50,19 +50,13 @@ export default function Footer() {
           {/* Brand */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 bg-[#F7C8D0] rounded-full flex items-center justify-center">
-                <span className="text-[#0B1F3A] font-bold text-lg">S</span>
-              </div>
-              <div>
-                <h3 className="font-bold text-lg">StyleWithHer</h3>
-                <p className="text-[#F7C8D0] text-[10px] tracking-wider">STYLE TOGETHER, STAY TOGETHER</p>
-              </div>
+              <img src="/logo.png" alt="StyleWithHer" className="h-10 w-auto object-contain" />
             </div>
             <p className="text-gray-400 text-sm leading-relaxed mb-4">India&apos;s premium couple fashion brand. Express your love through matching fashion crafted with premium quality fabrics and modern designs.</p>
             <div className="flex gap-3">
-              <button className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#D96C8A] transition-colors"><Instagram className="h-4 w-4" /></button>
-              <button className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#D96C8A] transition-colors"><Facebook className="h-4 w-4" /></button>
-              <button className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#D96C8A] transition-colors"><Twitter className="h-4 w-4" /></button>
+              <a href="https://instagram.com/Style_withher01" target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#D96C8A] transition-colors" aria-label="Instagram"><Instagram className="h-4 w-4" /></a>
+              <a href="https://facebook.com/stylewithher" target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#D96C8A] transition-colors" aria-label="Facebook"><Facebook className="h-4 w-4" /></a>
+              <a href="https://twitter.com/stylewithher" target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#D96C8A] transition-colors" aria-label="Twitter"><Twitter className="h-4 w-4" /></a>
             </div>
           </div>
 
@@ -105,6 +99,7 @@ export default function Footer() {
               <li className="flex items-start gap-2 text-gray-400 text-sm"><MapPin className="h-4 w-4 mt-0.5 shrink-0 text-[#D96C8A]" />42 Fashion Street, Andheri West, Mumbai 400053</li>
               <li className="flex items-center gap-2 text-gray-400 text-sm"><Phone className="h-4 w-4 shrink-0 text-[#D96C8A]" />+91 98765 43210</li>
               <li className="flex items-center gap-2 text-gray-400 text-sm"><Mail className="h-4 w-4 shrink-0 text-[#D96C8A]" />hello@stylewithher.com</li>
+              <li className="flex items-center gap-2 text-gray-400 text-sm"><Instagram className="h-4 w-4 shrink-0 text-[#D96C8A]" /><a href="https://instagram.com/Style_withher01" target="_blank" rel="noopener noreferrer" className="hover:text-[#F7C8D0] transition-colors">@Style_withher01</a></li>
             </ul>
             <div className="mt-4 flex items-center gap-3 text-xs text-gray-500">
               <div className="flex items-center gap-1"><ShoppingBag className="h-3 w-3" /> Free Shipping 999+</div>

@@ -291,3 +291,53 @@ Created two comprehensive product page components for the StyleWithHer e-commerc
 
 ### Lint Result
 All files pass `bun run lint` with zero errors.
+
+---
+
+## Task: Instagram & Social Media Integration
+
+**Task ID:** instagram-social
+**Date:** 2025-07-10
+
+### Summary
+Added comprehensive Instagram and social media integration across the entire StyleWithHer e-commerce site: updated footer with clickable social links, added Instagram icon to the header top bar, created an Instagram feed section on the homepage, and added an Instagram management tab in the admin panel.
+
+### Files Modified
+
+1. **`/src/components/layout/Footer.tsx`**
+   - Converted all social icon `<button>` elements to `<a>` tags with real URLs
+   - Instagram: `https://instagram.com/Style_withher01`
+   - Facebook: `https://facebook.com/stylewithher`
+   - Twitter: `https://twitter.com/stylewithher`
+   - All links open in new tab (`target="_blank"`, `rel="noopener noreferrer"`)
+   - Added Instagram handle `@Style_withher01` to the Contact section with clickable link
+
+2. **`/src/components/layout/Header.tsx`**
+   - Imported `Instagram` from lucide-react
+   - Added Instagram icon link on the right side of the top announcement bar
+   - Positioned absolutely within the max-w container, links to `https://instagram.com/Style_withher01`
+
+3. **`/src/components/home/HomePage.tsx`**
+   - Imported `Heart` and `Instagram` icons
+   - Created new `InstagramFeedSection` component with:
+     - "Follow Us @Style_withher01" heading with Instagram icon
+     - 6-column grid of Instagram-style post placeholders (3 cols mobile, 4 tablet, 6 desktop)
+     - Each post uses `https://placehold.co/400x400/...` with brand colors
+     - Hover overlay with heart icon and scale animation
+     - All posts link to `https://instagram.com/Style_withher01`
+   - Added section after Trust Badges, before newsletter/footer
+
+4. **`/src/components/admin/AdminPanel.tsx`**
+   - Added `Instagram`, `ExternalLink`, `BarChart3`, `PlusCircle` to lucide-react imports
+   - Added `{ key: 'instagram', label: 'Instagram', icon: Instagram }` to NAV_ITEMS
+   - Added `case 'instagram': return <InstagramTab />` to renderContent switch
+   - Created `InstagramTab` component with:
+     - Connected Account card showing @Style_withher01 with gradient Instagram icon and green "Connected" badge
+     - Profile URL link with external link icon
+     - Quick Actions: "Open Instagram", "View Profile", "Create Post" buttons (teal & gold theme)
+     - Stats placeholder cards for Followers, Posts, Engagement Rate
+     - Info note about Meta Business Account requirement for full API integration
+     - Uses admin panel teal (#1e9ba6) and gold (#f9b233) color scheme
+
+### Lint Result
+All files pass `bun run lint` with zero errors.

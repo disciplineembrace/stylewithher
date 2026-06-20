@@ -1,0 +1,666 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useCallback, useRef } from 'react'
+     4→import { useStore, ProductData, CategoryData } from '@/store/use-store'
+     5→import ProductCard from '@/components/shared/ProductCard'
+     6→import { Skeleton } from '@/components/ui/skeleton'
+     7→import { Button } from '@/components/ui/button'
+     8→import { Star, Shield, Truck, RotateCcw, CreditCard, ArrowRight, ChevronLeft, ChevronRight, Heart, Instagram } from 'lucide-react'
+     9→
+    10→// ─── Hero Carousel Data ──────────────────────────────────────────────────────
+    11→const heroSlides = [
+    12→  {
+    13→    headline: 'Match Together,',
+    14→    subtitle: 'Love Together',
+    15→    description: 'Discover our curated collection of premium couple clothing designed to make every moment together special.',
+    16→    cta: 'Shop Couples Collection',
+    17→    gradient: 'from-[#0B1F3A] via-[#0B1F3A]/95 to-[#0B1F3A]/80',
+    18→    accent: '#F7C8D0',
+    19→    image: 'https://placehold.co/600x800/0B1F3A/F7C8D0?text=Her+%26+Him',
+    20→  },
+    21→  {
+    22→    headline: 'New Arrivals',
+    23→    subtitle: 'Spring 2025 Collection',
+    24→    description: 'Trendy matching sets that celebrate your unique bond. Premium fabrics, timeless designs.',
+    25→    cta: 'Explore New Arrivals',
+    26→    gradient: 'from-[#D96C8A] via-[#D96C8A]/90 to-[#F7C8D0]/80',
+    27→    accent: '#FFFFFF',
+    28→    image: 'https://placehold.co/600x800/D96C8A/FFFFFF?text=Spring+2025',
+    29→  },
+    30→  {
+    31→    headline: 'Premium Quality,',
+    32→    subtitle: 'Perfect Fit',
+    33→    description: 'Crafted with love for couples who appreciate the finest materials and impeccable style.',
+    34→    cta: 'Shop Best Sellers',
+    35→    gradient: 'from-[#F7C8D0] via-[#F7C8D0]/90 to-[#FFF5F7]/80',
+    36→    accent: '#0B1F3A',
+    37→    image: 'https://placehold.co/600x800/F7C8D0/0B1F3A?text=Premium+Style',
+    38→  },
+    39→]
+    40→
+    41→// ─── Testimonials Data ───────────────────────────────────────────────────────
+    42→const testimonials = [
+    43→  {
+    44→    names: 'Priya & Arjun',
+    45→    location: 'Mumbai',
+    46→    rating: 5,
+    47→    text: 'We ordered matching outfits for our anniversary and the quality exceeded all expectations. The fabric is incredibly soft and the fit is perfect. StyleWithHer is now our go-to for couple fashion!',
+    48→    avatar: 'P&A',
+    49→  },
+    50→  {
+    51→    names: 'Sneha & Rohit',
+    52→    location: 'Delhi',
+    53→    rating: 5,
+    54→    text: 'Absolutely love this brand! The matching coordinates are so unique and stylish. We received so many compliments at our friend\'s wedding. Will definitely be ordering more.',
+    55→    avatar: 'S&R',
+    56→  },
+    57→  {
+    58→    names: 'Ananya & Vikram',
+    59→    location: 'Bangalore',
+    60→    rating: 4,
+    61→    text: 'The customer service is outstanding and the delivery was super fast. The couple tees we got are our favorites now — comfortable, trendy, and the colors haven\'t faded even after multiple washes.',
+    62→    avatar: 'A&V',
+    63→  },
+    64→]
+    65→
+    66→// ─── Section Heading ─────────────────────────────────────────────────────────
+    67→function SectionHeading({ title, subtitle, light = false }: { title: string; subtitle?: string; light?: boolean }) {
+    68→  return (
+    69→    <div className="text-center mb-10">
+    70→      <h2 className={`text-3xl sm:text-4xl font-bold mb-3 ${light ? 'text-white' : 'text-gradient'}`}>
+    71→        {title}
+    72→      </h2>
+    73→      {subtitle && (
+    74→        <p className={`text-base sm:text-lg max-w-xl mx-auto ${light ? 'text-white/80' : 'text-gray-500'}`}>
+    75→          {subtitle}
+    76→        </p>
+    77→      )}
+    78→      <div className="flex items-center justify-center gap-2 mt-4">
+    79→        <span className="w-8 h-[2px] bg-[#F7C8D0]" />
+    80→        <span className="w-2 h-2 rounded-full bg-[#D96C8A]" />
+    81→        <span className="w-8 h-[2px] bg-[#F7C8D0]" />
+    82→      </div>
+    83→    </div>
+    84→  )
+    85→}
+    86→
+    87→// ─── Product Skeleton Grid ───────────────────────────────────────────────────
+    88→function ProductSkeletonGrid({ count = 4, columns = 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4' }: { count?: number; columns?: string }) {
+    89→  return (
+    90→    <div className={`grid ${columns} gap-6`}>
+    91→      {Array.from({ length: count }).map((_, i) => (
+    92→        <div key={i} className="bg-white rounded-xl overflow-hidden border border-gray-100">
+    93→          <Skeleton className="aspect-[3/4] w-full" />
+    94→          <div className="p-4 space-y-2">
+    95→            <Skeleton className="h-3 w-16" />
+    96→            <Skeleton className="h-4 w-full" />
+    97→            <Skeleton className="h-3 w-24" />
+    98→            <Skeleton className="h-5 w-20" />
+    99→          </div>
+   100→        </div>
+   101→      ))}
+   102→    </div>
+   103→  )
+   104→}
+   105→
+   106→// ─── Featured Horizontal Scroll Skeleton ─────────────────────────────────────
+   107→function FeaturedSkeletonRow() {
+   108→  return (
+   109→    <div className="flex gap-6 overflow-hidden">
+   110→      {Array.from({ length: 4 }).map((_, i) => (
+   111→        <div key={i} className="flex-shrink-0 w-[240px] bg-white rounded-xl overflow-hidden border border-gray-100">
+   112→          <Skeleton className="aspect-[3/4] w-full" />
+   113→          <div className="p-4 space-y-2">
+   114→            <Skeleton className="h-3 w-16" />
+   115→            <Skeleton className="h-4 w-full" />
+   116→            <Skeleton className="h-3 w-24" />
+   117→            <Skeleton className="h-5 w-20" />
+   118→          </div>
+   119→        </div>
+   120→      ))}
+   121→    </div>
+   122→  )
+   123→}
+   124→
+   125→// ─── Category Skeleton Grid ──────────────────────────────────────────────────
+   126→function CategorySkeletonGrid() {
+   127→  return (
+   128→    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+   129→      {Array.from({ length: 4 }).map((_, i) => (
+   130→        <div key={i} className="bg-white rounded-xl overflow-hidden border border-gray-100">
+   131→          <Skeleton className="aspect-square w-full" />
+   132→          <div className="p-4 space-y-2">
+   133→            <Skeleton className="h-4 w-24 mx-auto" />
+   134→            <Skeleton className="h-3 w-16 mx-auto" />
+   135→          </div>
+   136→        </div>
+   137→      ))}
+   138→    </div>
+   139→  )
+   140→}
+   141→
+   142→// ─── 1. Hero Banner Carousel ────────────────────────────────────────────────
+   143→function HeroBanner() {
+   144→  const [current, setCurrent] = useState(0)
+   145→  const [isTransitioning, setIsTransitioning] = useState(false)
+   146→  const navigate = useStore((s) => s.navigate)
+   147→  const timerRef = useRef<NodeJS.Timeout | null>(null)
+   148→
+   149→  const goTo = useCallback((index: number) => {
+   150→    if (isTransitioning) return
+   151→    setIsTransitioning(true)
+   152→    setCurrent(index)
+   153→    setTimeout(() => setIsTransitioning(false), 600)
+   154→  }, [isTransitioning])
+   155→
+   156→  const next = useCallback(() => goTo((current + 1) % heroSlides.length), [current, goTo])
+   157→  const prev = useCallback(() => goTo((current - 1 + heroSlides.length) % heroSlides.length), [current, goTo])
+   158→
+   159→  useEffect(() => {
+   160→    timerRef.current = setInterval(next, 5000)
+   161→    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+   162→  }, [next])
+   163→
+   164→  const slide = heroSlides[current]
+   165→
+   166→  return (
+   167→    <section className="relative w-full h-[500px] sm:h-[560px] lg:h-[620px] overflow-hidden bg-[#0B1F3A]">
+   168→      {/* Slides */}
+   169→      {heroSlides.map((s, i) => (
+   170→        <div
+   171→          key={i}
+   172→          className={`absolute inset-0 bg-gradient-to-r ${s.gradient} transition-all duration-700 ease-in-out ${
+   173→            i === current ? 'opacity-100 translate-x-0' : i < current ? 'opacity-0 -translate-x-full' : 'opacity-0 translate-x-full'
+   174→          }`}
+   175→        >
+   176→          <div className="max-w-7xl mx-auto px-4 sm:px-6 h-full flex items-center">
+   177→            <div className="grid lg:grid-cols-2 gap-8 items-center w-full">
+   178→              <div className={`space-y-6 transition-all duration-700 delay-200 ${
+   179→                i === current ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+   180→              }`}>
+   181→                <p className="text-sm sm:text-base font-medium tracking-widest uppercase" style={{ color: s.accent }}>
+   182→                  StyleWithHer
+   183→                </p>
+   184→                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight text-white">
+   185→                  {s.headline}
+   186→                  <br />
+   187→                  <span style={{ color: s.accent }}>{s.subtitle}</span>
+   188→                </h1>
+   189→                <p className="text-white/80 text-base sm:text-lg max-w-md leading-relaxed">
+   190→                  {s.description}
+   191→                </p>
+   192→                <div className="flex gap-4 pt-2">
+   193→                  <Button
+   194→                    onClick={() => navigate('products')}
+   195→                    size="lg"
+   196→                    className="btn-glow bg-white text-[#0B1F3A] hover:bg-white/90 font-semibold px-8 h-12 rounded-full text-base"
+   197→                  >
+   198→                    {s.cta} <ArrowRight className="ml-2 h-4 w-4" />
+   199→                  </Button>
+   200→                </div>
+   201→              </div>
+   202→              <div className={`hidden lg:flex justify-center transition-all duration-700 delay-300 ${
+   203→                i === current ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
+   204→              }`}>
+   205→                <div className="relative">
+   206→                  <div className="w-72 h-96 rounded-2xl overflow-hidden shadow-2xl border border-white/10">
+   207→                    <img src={s.image} alt={s.headline} className="w-full h-full object-cover" />
+   208→                  </div>
+   209→                  <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-[#D96C8A]/20 rounded-full blur-2xl" />
+   210→                  <div className="absolute -top-4 -left-4 w-32 h-32 bg-[#F7C8D0]/20 rounded-full blur-2xl" />
+   211→                </div>
+   212→              </div>
+   213→            </div>
+   214→          </div>
+   215→        </div>
+   216→      ))}
+   217→
+   218→      {/* Navigation Arrows */}
+   219→      <button
+   220→        onClick={prev}
+   221→        className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all z-10"
+   222→        aria-label="Previous slide"
+   223→      >
+   224→        <ChevronLeft className="h-5 w-5" />
+   225→      </button>
+   226→      <button
+   227→        onClick={next}
+   228→        className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all z-10"
+   229→        aria-label="Next slide"
+   230→      >
+   231→        <ChevronRight className="h-5 w-5" />
+   232→      </button>
+   233→
+   234→      {/* Dots */}
+   235→      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2.5 z-10">
+   236→        {heroSlides.map((_, i) => (
+   237→          <button
+   238→            key={i}
+   239→            onClick={() => goTo(i)}
+   240→            className={`h-2.5 rounded-full transition-all duration-300 ${
+   241→              i === current ? 'w-8 bg-white' : 'w-2.5 bg-white/40 hover:bg-white/60'
+   242→            }`}
+   243→            aria-label={`Go to slide ${i + 1}`}
+   244→          />
+   245→        ))}
+   246→      </div>
+   247→    </section>
+   248→  )
+   249→}
+   250→
+   251→// ─── 2. Categories Section ───────────────────────────────────────────────────
+   252→function CategoriesSection() {
+   253→  const [categories, setCategories] = useState<CategoryData[]>([])
+   254→  const [loading, setLoading] = useState(true)
+   255→  const navigate = useStore((s) => s.navigate)
+   256→
+   257→  useEffect(() => {
+   258→    fetch('/api/categories')
+   259→      .then((r) => r.json())
+   260→      .then((data) => setCategories(data.categories || []))
+   261→      .catch(() => {})
+   262→      .finally(() => setLoading(false))
+   263→  }, [])
+   264→
+   265→  return (
+   266→    <section className="py-16 sm:py-20 animate-fadeIn">
+   267→      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+   268→        <SectionHeading title="Shop by Category" subtitle="Find the perfect match for every occasion" />
+   269→        {loading ? (
+   270→          <CategorySkeletonGrid />
+   271→        ) : (
+   272→          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+   273→            {categories.map((cat) => (
+   274→              <button
+   275→                key={cat.id}
+   276→                onClick={() => navigate('products', { gender: cat.gender, category: cat.slug })}
+   277→                className="group cursor-pointer text-left bg-white rounded-xl overflow-hidden border border-gray-100 card-premium"
+   278→              >
+   279→                <div className="aspect-square bg-[#FFF5F7] overflow-hidden relative">
+   280→                  <img
+   281→                    src={cat.image || `https://placehold.co/400x400/FFF5F7/0B1F3A?text=${encodeURIComponent(cat.name)}`}
+   282→                    alt={cat.name}
+   283→                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+   284→                    loading="lazy"
+   285→                  />
+   286→                  <div className="absolute inset-0 bg-gradient-to-t from-[#0B1F3A]/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+   287→                </div>
+   288→                <div className="p-4 text-center">
+   289→                  <h3 className="font-semibold text-[#222222] text-sm sm:text-base group-hover:text-[#D96C8A] transition-colors">
+   290→                    {cat.name}
+   291→                  </h3>
+   292→                  <p className="text-xs text-gray-400 mt-1">
+   293→                    {cat.productCount || cat._count?.products || 0} Products
+   294→                  </p>
+   295→                </div>
+   296→              </button>
+   297→            ))}
+   298→          </div>
+   299→        )}
+   300→      </div>
+   301→    </section>
+   302→  )
+   303→}
+   304→
+   305→// ─── 3. Featured Products (Horizontal Scroll) ────────────────────────────────
+   306→function FeaturedSection() {
+   307→  const [products, setProducts] = useState<ProductData[]>([])
+   308→  const [loading, setLoading] = useState(true)
+   309→  const scrollRef = useRef<HTMLDivElement>(null)
+   310→
+   311→  useEffect(() => {
+   312→    fetch('/api/products?featured=true&limit=8')
+   313→      .then((r) => r.json())
+   314→      .then((data) => setProducts(data.products || []))
+   315→      .catch(() => {})
+   316→      .finally(() => setLoading(false))
+   317→  }, [])
+   318→
+   319→  const scroll = (dir: 'left' | 'right') => {
+   320→    if (!scrollRef.current) return
+   321→    const amount = dir === 'left' ? -280 : 280
+   322→    scrollRef.current.scrollBy({ left: amount, behavior: 'smooth' })
+   323→  }
+   324→
+   325→  return (
+   326→    <section className="py-16 sm:py-20 bg-[#FFF5F7] animate-fadeIn">
+   327→      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+   328→        <div className="flex items-end justify-between mb-10">
+   329→          <div>
+   330→            <h2 className="text-3xl sm:text-4xl font-bold text-gradient">Featured Collection</h2>
+   331→            <p className="text-gray-500 text-base mt-2">Handpicked favorites for the season</p>
+   332→            <div className="flex items-center gap-2 mt-3">
+   333→              <span className="w-8 h-[2px] bg-[#F7C8D0]" />
+   334→              <span className="w-2 h-2 rounded-full bg-[#D96C8A]" />
+   335→              <span className="w-8 h-[2px] bg-[#F7C8D0]" />
+   336→            </div>
+   337→          </div>
+   338→          <div className="hidden sm:flex gap-2">
+   339→            <button
+   340→              onClick={() => scroll('left')}
+   341→              className="w-10 h-10 rounded-full border border-[#D96C8A]/30 flex items-center justify-center text-[#D96C8A] hover:bg-[#D96C8A] hover:text-white transition-all"
+   342→              aria-label="Scroll left"
+   343→            >
+   344→              <ChevronLeft className="h-5 w-5" />
+   345→            </button>
+   346→            <button
+   347→              onClick={() => scroll('right')}
+   348→              className="w-10 h-10 rounded-full border border-[#D96C8A]/30 flex items-center justify-center text-[#D96C8A] hover:bg-[#D96C8A] hover:text-white transition-all"
+   349→              aria-label="Scroll right"
+   350→            >
+   351→              <ChevronRight className="h-5 w-5" />
+   352→            </button>
+   353→          </div>
+   354→        </div>
+   355→        {loading ? (
+   356→          <FeaturedSkeletonRow />
+   357→        ) : (
+   358→          <div
+   359→            ref={scrollRef}
+   360→            className="flex gap-5 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide"
+   361→            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+   362→          >
+   363→            {products.map((product) => (
+   364→              <div key={product.id} className="flex-shrink-0 w-[220px] sm:w-[250px] snap-start">
+   365→                <ProductCard product={product} />
+   366→              </div>
+   367→            ))}
+   368→          </div>
+   369→        )}
+   370→      </div>
+   371→    </section>
+   372→  )
+   373→}
+   374→
+   375→// ─── 4. Promotional Banner ───────────────────────────────────────────────────
+   376→function PromoBanner() {
+   377→  const navigate = useStore((s) => s.navigate)
+   378→  return (
+   379→    <section className="py-16 sm:py-20 animate-fadeIn">
+   380→      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+   381→        <div className="relative rounded-2xl overflow-hidden bg-gradient-to-r from-[#0B1F3A] via-[#142d50] to-[#D96C8A] p-10 sm:p-14 lg:p-16">
+   382→          {/* Decorative elements */}
+   383→          <div className="absolute top-0 right-0 w-64 h-64 bg-[#F7C8D0]/10 rounded-full -translate-y-1/2 translate-x-1/4 blur-3xl" />
+   384→          <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/4 blur-2xl" />
+   385→          <div className="absolute top-1/2 right-1/4 w-3 h-3 bg-[#F7C8D0] rounded-full opacity-60" />
+   386→          <div className="absolute top-1/3 right-1/3 w-2 h-2 bg-white rounded-full opacity-40" />
+   387→          <div className="absolute bottom-1/3 left-1/3 w-2 h-2 bg-[#D96C8A] rounded-full opacity-50" />
+   388→
+   389→          <div className="relative z-10 text-center max-w-2xl mx-auto">
+   390→            <p className="text-[#F7C8D0] text-sm font-medium tracking-widest uppercase mb-4">Limited Time Offer</p>
+   391→            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight mb-4">
+   392→              Complete Your
+   393→              <span className="block text-[#F7C8D0]">Couple Look</span>
+   394→            </h2>
+   395→            <p className="text-white/70 text-base sm:text-lg mb-8 leading-relaxed">
+   396→              Shop matching sets for him & her and get an exclusive 20% off on your first couple order. 
+   397→              Because love looks better when you match.
+   398→            </p>
+   399→            <Button
+   400→              onClick={() => navigate('products')}
+   401→              size="lg"
+   402→              className="btn-glow bg-[#F7C8D0] text-[#0B1F3A] hover:bg-[#F7C8D0]/90 font-semibold px-10 h-12 rounded-full text-base"
+   403→            >
+   404→              Shop Matching Sets <ArrowRight className="ml-2 h-4 w-4" />
+   405→            </Button>
+   406→          </div>
+   407→        </div>
+   408→      </div>
+   409→    </section>
+   410→  )
+   411→}
+   412→
+   413→// ─── Product Grid Section (reusable for Trending, New, Best Sellers) ─────────
+   414→function ProductGridSection({
+   415→  title,
+   416→  subtitle,
+   417→  query,
+   418→  limit = 8,
+   419→  columns = 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
+   420→  bgClass = '',
+   421→  viewAllParams,
+   422→}: {
+   423→  title: string
+   424→  subtitle: string
+   425→  query: string
+   426→  limit?: number
+   427→  columns?: string
+   428→  bgClass?: string
+   429→  viewAllParams?: Record<string, string>
+   430→}) {
+   431→  const [products, setProducts] = useState<ProductData[]>([])
+   432→  const [loading, setLoading] = useState(true)
+   433→  const navigate = useStore((s) => s.navigate)
+   434→
+   435→  useEffect(() => {
+   436→    fetch(`/api/products?${query}&limit=${limit}`)
+   437→      .then((r) => r.json())
+   438→      .then((data) => setProducts(data.products || []))
+   439→      .catch(() => {})
+   440→      .finally(() => setLoading(false))
+   441→  }, [query, limit])
+   442→
+   443→  return (
+   444→    <section className={`py-16 sm:py-20 animate-fadeIn ${bgClass}`}>
+   445→      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+   446→        <SectionHeading title={title} subtitle={subtitle} />
+   447→        {loading ? (
+   448→          <ProductSkeletonGrid count={limit <= 4 ? 4 : 8} columns={columns} />
+   449→        ) : (
+   450→          <>
+   451→            <div className={`grid ${columns} gap-6`}>
+   452→              {products.map((product) => (
+   453→                <ProductCard key={product.id} product={product} />
+   454→              ))}
+   455→            </div>
+   456→            <div className="text-center mt-10">
+   457→              <Button
+   458→                onClick={() => navigate('products', viewAllParams || {})}
+   459→                variant="outline"
+   460→                className="border-[#D96C8A]/30 text-[#D96C8A] hover:bg-[#D96C8A] hover:text-white rounded-full px-8 h-11 font-medium transition-all"
+   461→              >
+   462→                View All <ArrowRight className="ml-2 h-4 w-4" />
+   463→              </Button>
+   464→            </div>
+   465→          </>
+   466→        )}
+   467→      </div>
+   468→    </section>
+   469→  )
+   470→}
+   471→
+   472→// ─── 8. Testimonials Section ─────────────────────────────────────────────────
+   473→function TestimonialsSection() {
+   474→  return (
+   475→    <section className="py-16 sm:py-20 bg-[#FFF5F7] animate-fadeIn">
+   476→      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+   477→        <SectionHeading
+   478→          title="What Our Couples Say"
+   479→          subtitle="Real stories from real couples who love StyleWithHer"
+   480→        />
+   481→        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
+   482→          {testimonials.map((t, i) => (
+   483→            <div
+   484→              key={i}
+   485→              className="bg-white rounded-xl p-6 sm:p-8 border border-gray-100 card-premium relative"
+   486→            >
+   487→              {/* Quote mark */}
+   488→              <div className="absolute -top-3 left-8 w-8 h-8 bg-[#D96C8A] rounded-full flex items-center justify-center">
+   489→                <span className="text-white text-lg font-serif leading-none">&ldquo;</span>
+   490→              </div>
+   491→              {/* Stars */}
+   492→              <div className="flex items-center gap-1 mb-4 pt-2">
+   493→                {[1, 2, 3, 4, 5].map((s) => (
+   494→                  <Star
+   495→                    key={s}
+   496→                    className={`h-4 w-4 ${
+   497→                      s <= t.rating ? 'fill-amber-400 text-amber-400' : 'text-gray-200 fill-gray-200'
+   498→                    }`}
+   499→                  />
+   500→                ))}
+   501→              </div>
+   502→              {/* Text */}
+   503→              <p className="text-gray-600 text-sm sm:text-base leading-relaxed mb-6">
+   504→                &ldquo;{t.text}&rdquo;
+   505→              </p>
+   506→              {/* Author */}
+   507→              <div className="flex items-center gap-3">
+   508→                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#D96C8A] to-[#F7C8D0] flex items-center justify-center text-white text-xs font-bold">
+   509→                  {t.avatar}
+   510→                </div>
+   511→                <div>
+   512→                  <p className="font-semibold text-[#0B1F3A] text-sm">{t.names}</p>
+   513→                  <p className="text-xs text-gray-400">{t.location}</p>
+   514→                </div>
+   515→              </div>
+   516→            </div>
+   517→          ))}
+   518→        </div>
+   519→      </div>
+   520→    </section>
+   521→  )
+   522→}
+   523→
+   524→// ─── 9. Trust Badges ─────────────────────────────────────────────────────────
+   525→function TrustBadges() {
+   526→  const badges = [
+   527→    { icon: Shield, title: 'Premium Quality', description: 'Finest fabrics & craftsmanship' },
+   528→    { icon: Truck, title: 'Free Shipping', description: 'On orders above Rs.999' },
+   529→    { icon: RotateCcw, title: 'Easy Returns', description: '7-day hassle-free returns' },
+   530→    { icon: CreditCard, title: 'Secure Payment', description: '100% secure checkout' },
+   531→  ]
+   532→
+   533→  return (
+   534→    <section className="py-16 sm:py-20 animate-fadeIn">
+   535→      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+   536→        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
+   537→          {badges.map((badge, i) => (
+   538→            <div
+   539→              key={i}
+   540→              className="flex flex-col items-center text-center p-6 rounded-xl bg-white border border-gray-100 card-premium group"
+   541→            >
+   542→              <div className="w-14 h-14 rounded-full bg-[#FFF5F7] flex items-center justify-center mb-4 group-hover:bg-[#D96C8A] transition-colors duration-300">
+   543→                <badge.icon className="h-6 w-6 text-[#D96C8A] group-hover:text-white transition-colors duration-300" />
+   544→              </div>
+   545→              <h3 className="font-semibold text-[#0B1F3A] text-sm sm:text-base mb-1">{badge.title}</h3>
+   546→              <p className="text-xs sm:text-sm text-gray-400">{badge.description}</p>
+   547→            </div>
+   548→          ))}
+   549→        </div>
+   550→      </div>
+   551→    </section>
+   552→  )
+   553→}
+   554→
+   555→// ─── 10. Instagram Feed Section ─────────────────────────────────────────────
+   556→function InstagramFeedSection() {
+   557→  const posts = [
+   558→    { id: 1, image: 'https://placehold.co/400x400/0B1F3A/F7C8D0?text=Post+1', alt: 'StyleWithHer Instagram post 1' },
+   559→    { id: 2, image: 'https://placehold.co/400x400/D96C8A/FFFFFF?text=Post+2', alt: 'StyleWithHer Instagram post 2' },
+   560→    { id: 3, image: 'https://placehold.co/400x400/F7C8D0/0B1F3A?text=Post+3', alt: 'StyleWithHer Instagram post 3' },
+   561→    { id: 4, image: 'https://placehold.co/400x400/0B1F3A/D96C8A?text=Post+4', alt: 'StyleWithHer Instagram post 4' },
+   562→    { id: 5, image: 'https://placehold.co/400x400/D96C8A/F7C8D0?text=Post+5', alt: 'StyleWithHer Instagram post 5' },
+   563→    { id: 6, image: 'https://placehold.co/400x400/FFF5F7/D96C8A?text=Post+6', alt: 'StyleWithHer Instagram post 6' },
+   564→  ]
+   565→
+   566→  return (
+   567→    <section className="py-16 sm:py-20 bg-[#0B1F3A] animate-fadeIn">
+   568→      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+   569→        <div className="text-center mb-10">
+   570→          <div className="flex items-center justify-center gap-2 mb-3">
+   571→            <Instagram className="h-6 w-6 text-[#F7C8D0]" />
+   572→            <span className="text-[#F7C8D0] text-sm font-medium tracking-widest uppercase">Follow Us</span>
+   573→          </div>
+   574→          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-3">@Style_withher01</h2>
+   575→          <p className="text-white/60 text-base max-w-md mx-auto">Follow our journey and get inspired by couple fashion, behind-the-scenes, and exclusive previews</p>
+   576→          <div className="flex items-center justify-center gap-2 mt-4">
+   577→            <span className="w-8 h-[2px] bg-[#F7C8D0]" />
+   578→            <span className="w-2 h-2 rounded-full bg-[#D96C8A]" />
+   579→            <span className="w-8 h-[2px] bg-[#F7C8D0]" />
+   580→          </div>
+   581→        </div>
+   582→        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
+   583→          {posts.map((post) => (
+   584→            <a
+   585→              key={post.id}
+   586→              href="https://instagram.com/Style_withher01"
+   587→              target="_blank"
+   588→              rel="noopener noreferrer"
+   589→              className="group relative aspect-square rounded-lg overflow-hidden"
+   590→            >
+   591→              <img
+   592→                src={post.image}
+   593→                alt={post.alt}
+   594→                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+   595→                loading="lazy"
+   596→              />
+   597→              <div className="absolute inset-0 bg-[#D96C8A]/0 group-hover:bg-[#D96C8A]/50 transition-colors duration-300 flex items-center justify-center">
+   598→                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center gap-2 text-white">
+   599→                  <Heart className="h-6 w-6 fill-white" />
+   600→                </div>
+   601→              </div>
+   602→            </a>
+   603→          ))}
+   604→        </div>
+   605→      </div>
+   606→    </section>
+   607→  )
+   608→}
+   609→
+   610→// ─── Main HomePage Component ─────────────────────────────────────────────────
+   611→export default function HomePage() {
+   612→  return (
+   613→    <main>
+   614→      {/* 1. Hero Banner */}
+   615→      <HeroBanner />
+   616→
+   617→      {/* 2. Categories */}
+   618→      <CategoriesSection />
+   619→
+   620→      {/* 3. Featured Products - Horizontal Scroll */}
+   621→      <FeaturedSection />
+   622→
+   623→      {/* 4. Promotional Banner */}
+   624→      <PromoBanner />
+   625→
+   626→      {/* 5. Trending Products */}
+   627→      <ProductGridSection
+   628→        title="Trending Now"
+   629→        subtitle="The hottest picks loved by couples everywhere"
+   630→        query="trending=true"
+   631→        limit={8}
+   632→        columns="grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
+   633→      />
+   634→
+   635→      {/* 6. New Arrivals */}
+   636→      <ProductGridSection
+   637→        title="New Arrivals"
+   638→        subtitle="Fresh styles just dropped for you and your partner"
+   639→        query="newArrival=true"
+   640→        limit={4}
+   641→        columns="grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
+   642→        bgClass="bg-[#FFF5F7]"
+   643→        viewAllParams={{ newArrival: 'true' }}
+   644→      />
+   645→
+   646→      {/* 7. Best Sellers */}
+   647→      <ProductGridSection
+   648→        title="Best Sellers"
+   649→        subtitle="Our most loved couple favorites"
+   650→        query="bestSeller=true"
+   651→        limit={4}
+   652→        columns="grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
+   653→        viewAllParams={{ bestSeller: 'true' }}
+   654→      />
+   655→
+   656→      {/* 8. Testimonials */}
+   657→      <TestimonialsSection />
+   658→
+   659→      {/* 9. Trust Badges */}
+   660→      <TrustBadges />
+   661→
+   662→      {/* 10. Instagram Feed */}
+   663→      <InstagramFeedSection />
+   664→    </main>
+   665→  )
+   666→}

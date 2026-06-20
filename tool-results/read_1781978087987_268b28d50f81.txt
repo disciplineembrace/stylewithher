@@ -1,0 +1,744 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect } from 'react'
+     4→import { useStore } from '@/store/use-store'
+     5→import { Button } from '@/components/ui/button'
+     6→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+     7→import { Badge } from '@/components/ui/badge'
+     8→import { Separator } from '@/components/ui/separator'
+     9→import { Skeleton } from '@/components/ui/skeleton'
+    10→import { Package, Truck, CheckCircle, Check, Clock, XCircle, ArrowLeft, RotateCcw, MapPin, CreditCard, Copy } from 'lucide-react'
+    11→
+    12→// ─── Status Helpers ────────────────────────────────────────────────────────────
+    13→
+    14→const STATUS_STEPS = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'] as const
+    15→
+    16→function getStatusBadge(status: string) {
+    17→  const map: Record<string, { label: string; className: string }> = {
+    18→    pending: { label: 'Pending', className: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+    19→    confirmed: { label: 'Confirmed', className: 'bg-blue-100 text-blue-700 border-blue-200' },
+    20→    processing: { label: 'Processing', className: 'bg-purple-100 text-purple-700 border-purple-200' },
+    21→    shipped: { label: 'Shipped', className: 'bg-orange-100 text-orange-700 border-orange-200' },
+    22→    delivered: { label: 'Delivered', className: 'bg-green-100 text-green-700 border-green-200' },
+    23→    cancelled: { label: 'Cancelled', className: 'bg-red-100 text-red-700 border-red-200' },
+    24→  }
+    25→  return map[status] || { label: status, className: 'bg-gray-100 text-gray-700 border-gray-200' }
+    26→}
+    27→
+    28→function getPaymentMethodLabel(method: string) {
+    29→  const map: Record<string, string> = {
+    30→    cod: 'Cash on Delivery',
+    31→    razorpay: 'Razorpay',
+    32→    upi: 'UPI',
+    33→    card: 'Credit/Debit Card',
+    34→  }
+    35→  return map[method] || method
+    36→}
+    37→
+    38→function getPaymentStatusBadge(status: string) {
+    39→  const map: Record<string, { label: string; className: string }> = {
+    40→    pending: { label: 'Pending', className: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+    41→    completed: { label: 'Paid', className: 'bg-green-100 text-green-700 border-green-200' },
+    42→    failed: { label: 'Failed', className: 'bg-red-100 text-red-700 border-red-200' },
+    43→    refunded: { label: 'Refunded', className: 'bg-blue-100 text-blue-700 border-blue-200' },
+    44→  }
+    45→  return map[status] || { label: status, className: 'bg-gray-100 text-gray-700 border-gray-200' }
+    46→}
+    47→
+    48→function formatDate(dateStr: string) {
+    49→  return new Date(dateStr).toLocaleDateString('en-IN', {
+    50→    day: 'numeric',
+    51→    month: 'short',
+    52→    year: 'numeric',
+    53→  })
+    54→}
+    55→
+    56→// ─── Orders List Page ─────────────────────────────────────────────────────────
+    57→
+    58→export function OrdersListPage() {
+    59→  const { navigate, pageParams, user, isAuthenticated, showToast } = useStore()
+    60→  const [orders, setOrders] = useState<any[]>([])
+    61→  const [loading, setLoading] = useState(true)
+    62→  const [activeFilter, setActiveFilter] = useState(pageParams?.filter || 'all')
+    63→
+    64→  useEffect(() => {
+    65→    if (!isAuthenticated) {
+    66→      navigate('login')
+    67→      return
+    68→    }
+    69→    fetchOrders()
+    70→  }, [isAuthenticated, user?.token, navigate])
+    71→
+    72→  const fetchOrders = async () => {
+    73→    if (!user?.token) return
+    74→    try {
+    75→      setLoading(true)
+    76→      const res = await fetch('/api/orders', {
+    77→        headers: { Authorization: `Bearer ${user.token}` },
+    78→      })
+    79→      if (res.ok) {
+    80→        const data = await res.json()
+    81→        setOrders(data.orders || [])
+    82→      } else {
+    83→        showToast('Failed to load orders', 'error')
+    84→      }
+    85→    } catch {
+    86→      showToast('Failed to load orders', 'error')
+    87→    } finally {
+    88→      setLoading(false)
+    89→    }
+    90→  }
+    91→
+    92→  const filteredOrders = orders.filter((order) => {
+    93→    if (activeFilter === 'all') return true
+    94→    if (activeFilter === 'pending') return order.status === 'pending'
+    95→    if (activeFilter === 'delivered') return order.status === 'delivered'
+    96→    if (activeFilter === 'cancelled') return order.status === 'cancelled'
+    97→    return true
+    98→  })
+    99→
+   100→  const filterTabs = [
+   101→    { id: 'all', label: 'All' },
+   102→    { id: 'pending', label: 'Pending' },
+   103→    { id: 'delivered', label: 'Delivered' },
+   104→    { id: 'cancelled', label: 'Cancelled' },
+   105→  ]
+   106→
+   107→  if (!isAuthenticated) return null
+   108→
+   109→  return (
+   110→    <div className="min-h-screen bg-white">
+   111→      {/* Header */}
+   112→      <div className="bg-[#0B1F3A] py-6 px-4">
+   113→        <div className="max-w-5xl mx-auto">
+   114→          <button
+   115→            onClick={() => navigate('home')}
+   116→            className="flex items-center gap-2 text-[#F7C8D0] hover:text-white transition-colors mb-4"
+   117→          >
+   118→            <ArrowLeft className="w-4 h-4" />
+   119→            <span className="text-sm">Back</span>
+   120→          </button>
+   121→          <h1 className="text-2xl sm:text-3xl font-bold text-white">My Orders</h1>
+   122→          <p className="text-[#F7C8D0] text-sm mt-1">Track and manage your orders</p>
+   123→        </div>
+   124→      </div>
+   125→
+   126→      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+   127→        {/* Filter Tabs */}
+   128→        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+   129→          {filterTabs.map((tab) => (
+   130→            <Button
+   131→              key={tab.id}
+   132→              variant={activeFilter === tab.id ? 'default' : 'outline'}
+   133→              onClick={() => setActiveFilter(tab.id)}
+   134→              className={
+   135→                activeFilter === tab.id
+   136→                  ? 'bg-[#0B1F3A] hover:bg-[#0B1F3A]/90 text-white shrink-0'
+   137→                  : 'border-[#F7C8D0] text-[#222222] hover:bg-[#FFF5F7] hover:text-[#D96C8A] shrink-0'
+   138→              }
+   139→            >
+   140→              {tab.label}
+   141→            </Button>
+   142→          ))}
+   143→        </div>
+   144→
+   145→        {/* Loading State */}
+   146→        {loading ? (
+   147→          <div className="space-y-4">
+   148→            {[1, 2, 3].map((i) => (
+   149→              <Skeleton key={i} className="h-36 w-full rounded-xl" />
+   150→            ))}
+   151→          </div>
+   152→        ) : filteredOrders.length === 0 ? (
+   153→          /* Empty State */
+   154→          <div className="flex flex-col items-center justify-center py-16 px-4">
+   155→            <div className="w-20 h-20 bg-[#FFF5F7] rounded-full flex items-center justify-center mb-6">
+   156→              <Package className="w-10 h-10 text-[#D96C8A]" />
+   157→            </div>
+   158→            <h2 className="text-xl font-bold text-[#0B1F3A] mb-2">
+   159→              {activeFilter === 'all' ? 'No Orders Yet' : `No ${activeFilter} Orders`}
+   160→            </h2>
+   161→            <p className="text-[#222222]/60 text-center max-w-md mb-6">
+   162→              {activeFilter === 'all'
+   163→                ? "You haven't placed any orders yet. Start shopping and your orders will appear here!"
+   164→                : `You don't have any ${activeFilter} orders at the moment.`}
+   165→            </p>
+   166→            {activeFilter === 'all' && (
+   167→              <Button
+   168→                onClick={() => navigate('products')}
+   169→                className="bg-[#0B1F3A] hover:bg-[#0B1F3A]/90 text-white px-8"
+   170→              >
+   171→                Start Shopping
+   172→              </Button>
+   173→            )}
+   174→          </div>
+   175→        ) : (
+   176→          /* Order Cards */
+   177→          <div className="space-y-4">
+   178→            {filteredOrders.map((order) => {
+   179→              const badge = getStatusBadge(order.status)
+   180→              return (
+   181→                <button
+   182→                  key={order.id}
+   183→                  onClick={() => navigate('order-detail', { id: order.id })}
+   184→                  className="w-full text-left group"
+   185→                >
+   186→                  <Card className="border-[#F7C8D0]/30 shadow-sm hover:shadow-md hover:border-[#D96C8A]/40 transition-all duration-200">
+   187→                    <CardContent className="p-4 sm:p-6">
+   188→                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+   189→                        <div className="space-y-1.5">
+   190→                          <div className="flex items-center gap-3 flex-wrap">
+   191→                            <h3 className="font-semibold text-[#0B1F3A] text-sm">
+   192→                              #{order.orderNumber}
+   193→                            </h3>
+   194→                            <Badge variant="outline" className={`text-[10px] px-2 py-0 border ${badge.className}`}>
+   195→                              {badge.label}
+   196→                            </Badge>
+   197→                          </div>
+   198→                          <div className="flex items-center gap-4 text-xs text-[#222222]/50">
+   199→                            <span className="flex items-center gap-1">
+   200→                              <Clock className="w-3 h-3" />
+   201→                              {formatDate(order.createdAt)}
+   202→                            </span>
+   203→                            <span className="flex items-center gap-1">
+   204→                              <Package className="w-3 h-3" />
+   205→                              {order.items?.length || 0} item{(order.items?.length || 0) !== 1 ? 's' : ''}
+   206→                            </span>
+   207→                          </div>
+   208→                        </div>
+   209→                        <div className="flex items-center gap-4">
+   210→                          <div className="text-right">
+   211→                            <p className="font-bold text-[#0B1F3A] text-lg">₹{order.total.toLocaleString('en-IN')}</p>
+   212→                            <p className="text-[10px] text-[#222222]/40">{getPaymentMethodLabel(order.paymentMethod)}</p>
+   213→                          </div>
+   214→                          <ArrowLeft className="w-4 h-4 text-[#D96C8A] rotate-180 group-hover:translate-x-1 transition-transform" />
+   215→                        </div>
+   216→                      </div>
+   217→
+   218→                      {/* Item Thumbnails */}
+   219→                      {order.items && order.items.length > 0 && (
+   220→                        <div className="flex gap-2 mt-4 overflow-hidden">
+   221→                          {order.items.slice(0, 4).map((item: any, idx: number) => (
+   222→                            <div
+   223→                              key={idx}
+   224→                              className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg overflow-hidden bg-[#FFF5F7] shrink-0 border border-[#F7C8D0]/30"
+   225→                            >
+   226→                              {item.productImage ? (
+   227→                                <img
+   228→                                  src={item.productImage}
+   229→                                  alt={item.productName}
+   230→                                  className="w-full h-full object-cover"
+   231→                                />
+   232→                              ) : (
+   233→                                <div className="w-full h-full flex items-center justify-center">
+   234→                                  <Package className="w-4 h-4 text-[#D96C8A]/30" />
+   235→                                </div>
+   236→                              )}
+   237→                            </div>
+   238→                          ))}
+   239→                          {order.items.length > 4 && (
+   240→                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-[#FFF5F7] flex items-center justify-center border border-[#F7C8D0]/30 shrink-0">
+   241→                              <span className="text-xs font-medium text-[#D96C8A]">+{order.items.length - 4}</span>
+   242→                            </div>
+   243→                          )}
+   244→                        </div>
+   245→                      )}
+   246→                    </CardContent>
+   247→                  </Card>
+   248→                </button>
+   249→              )
+   250→            })}
+   251→          </div>
+   252→        )}
+   253→      </div>
+   254→    </div>
+   255→  )
+   256→}
+   257→
+   258→// ─── Order Detail Page ────────────────────────────────────────────────────────
+   259→
+   260→export function OrderDetailPage() {
+   261→  const { navigate, pageParams, user, isAuthenticated, showToast, addToCartOptimistic } = useStore()
+   262→  const [order, setOrder] = useState<any>(null)
+   263→  const [loading, setLoading] = useState(true)
+   264→  const [cancelling, setCancelling] = useState(false)
+   265→
+   266→  const orderId = pageParams?.id
+   267→
+   268→  useEffect(() => {
+   269→    if (!isAuthenticated) {
+   270→      navigate('login')
+   271→      return
+   272→    }
+   273→    if (orderId) fetchOrder()
+   274→    else navigate('orders')
+   275→  }, [isAuthenticated, user?.token, orderId, navigate])
+   276→
+   277→  const fetchOrder = async () => {
+   278→    if (!user?.token || !orderId) return
+   279→    try {
+   280→      setLoading(true)
+   281→      const res = await fetch(`/api/orders/${orderId}`, {
+   282→        headers: { Authorization: `Bearer ${user.token}` },
+   283→      })
+   284→      if (res.ok) {
+   285→        const data = await res.json()
+   286→        setOrder(data.order)
+   287→      } else {
+   288→        showToast('Failed to load order details', 'error')
+   289→        navigate('orders')
+   290→      }
+   291→    } catch {
+   292→      showToast('Failed to load order details', 'error')
+   293→      navigate('orders')
+   294→    } finally {
+   295→      setLoading(false)
+   296→    }
+   297→  }
+   298→
+   299→  const handleCancelOrder = async () => {
+   300→    if (!user?.token || !orderId) return
+   301→    try {
+   302→      setCancelling(true)
+   303→      const res = await fetch(`/api/orders/${orderId}`, {
+   304→        method: 'PUT',
+   305→        headers: {
+   306→          'Content-Type': 'application/json',
+   307→          Authorization: `Bearer ${user.token}`,
+   308→        },
+   309→        body: JSON.stringify({ action: 'cancel' }),
+   310→      })
+   311→      if (res.ok) {
+   312→        showToast('Order cancelled successfully', 'success')
+   313→        fetchOrder()
+   314→      } else {
+   315→        const err = await res.json()
+   316→        showToast(err.error || 'Failed to cancel order', 'error')
+   317→      }
+   318→    } catch {
+   319→      showToast('Failed to cancel order', 'error')
+   320→    } finally {
+   321→      setCancelling(false)
+   322→    }
+   323→  }
+   324→
+   325→  const handleReorder = () => {
+   326→    if (!order?.items) return
+   327→    order.items.forEach((item: any) => {
+   328→      addToCartOptimistic({
+   329→        id: `reorder-${item.productId}-${Date.now()}`,
+   330→        productId: item.productId,
+   331→        variantId: null,
+   332→        quantity: item.quantity,
+   333→        product: {
+   334→          id: item.productId,
+   335→          name: item.productName,
+   336→          slug: item.productName.toLowerCase().replace(/\s+/g, '-'),
+   337→          basePrice: item.price,
+   338→          salePrice: null,
+   339→          images: item.productImage
+   340→            ? [{ id: '1', url: item.productImage, alt: item.productName }]
+   341→            : [],
+   342→          variants: [],
+   343→        },
+   344→      })
+   345→    })
+   346→    showToast(`${order.items.length} item(s) added to cart`, 'success')
+   347→  }
+   348→
+   349→  const handleCopyTracking = (trackingNumber: string) => {
+   350→    navigator.clipboard.writeText(trackingNumber).then(() => {
+   351→      showToast('Tracking number copied!', 'success')
+   352→    }).catch(() => {
+   353→      showToast('Failed to copy', 'error')
+   354→    })
+   355→  }
+   356→
+   357→  const currentStepIndex = STATUS_STEPS.indexOf(order?.status as typeof STATUS_STEPS[number])
+   358→  const progressPercent = order?.status === 'cancelled'
+   359→    ? 0
+   360→    : Math.max(0, (currentStepIndex / (STATUS_STEPS.length - 1)) * 100)
+   361→
+   362→  if (!isAuthenticated) return null
+   363→
+   364→  // Loading state
+   365→  if (loading) {
+   366→    return (
+   367→      <div className="min-h-screen bg-white">
+   368→        <div className="bg-[#0B1F3A] py-6 px-4">
+   369→          <div className="max-w-5xl mx-auto">
+   370→            <Skeleton className="h-6 w-24 mb-4 bg-white/10" />
+   371→            <Skeleton className="h-8 w-48 bg-white/10" />
+   372→            <Skeleton className="h-4 w-64 bg-white/10 mt-2" />
+   373→          </div>
+   374→        </div>
+   375→        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+   376→          <Skeleton className="h-20 w-full rounded-xl" />
+   377→          <Skeleton className="h-48 w-full rounded-xl" />
+   378→          <Skeleton className="h-32 w-full rounded-xl" />
+   379→        </div>
+   380→      </div>
+   381→    )
+   382→  }
+   383→
+   384→  if (!order) return null
+   385→
+   386→  const statusBadge = getStatusBadge(order.status)
+   387→  const paymentBadge = getPaymentStatusBadge(order.paymentStatus)
+   388→  const canCancel = order.status === 'pending' || order.status === 'confirmed'
+   389→
+   390→  const stepIcons: Record<string, React.ReactNode> = {
+   391→    pending: <Clock className="w-4 h-4" />,
+   392→    confirmed: <CheckCircle className="w-4 h-4" />,
+   393→    processing: <Package className="w-4 h-4" />,
+   394→    shipped: <Truck className="w-4 h-4" />,
+   395→    delivered: <CheckCircle className="w-4 h-4" />,
+   396→  }
+   397→
+   398→  return (
+   399→    <div className="min-h-screen bg-white">
+   400→      {/* Header */}
+   401→      <div className="bg-[#0B1F3A] py-6 px-4">
+   402→        <div className="max-w-5xl mx-auto">
+   403→          <button
+   404→            onClick={() => navigate('orders')}
+   405→            className="flex items-center gap-2 text-[#F7C8D0] hover:text-white transition-colors mb-4"
+   406→          >
+   407→            <ArrowLeft className="w-4 h-4" />
+   408→            <span className="text-sm">Back to Orders</span>
+   409→          </button>
+   410→          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+   411→            <div>
+   412→              <h1 className="text-2xl sm:text-3xl font-bold text-white">Order #{order.orderNumber}</h1>
+   413→              <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+   414→                <span className="text-[#F7C8D0] text-sm">Placed on {formatDate(order.createdAt)}</span>
+   415→                {order.trackingNumber && (
+   416→                  <span className="flex items-center gap-1.5 text-[#F7C8D0] text-sm">
+   417→                    <Truck className="w-3.5 h-3.5" />
+   418→                    Tracking:
+   419→                    <button
+   420→                      onClick={() => handleCopyTracking(order.trackingNumber)}
+   421→                      className="flex items-center gap-1 hover:text-white transition-colors"
+   422→                    >
+   423→                      <span className="font-mono font-medium">{order.trackingNumber}</span>
+   424→                      <Copy className="w-3 h-3" />
+   425→                    </button>
+   426→                  </span>
+   427→                )}
+   428→              </div>
+   429→            </div>
+   430→            <Badge variant="outline" className={`text-xs px-3 py-1 border w-fit ${statusBadge.className}`}>
+   431→              {statusBadge.label}
+   432→            </Badge>
+   433→          </div>
+   434→        </div>
+   435→      </div>
+   436→
+   437→      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+   438→        {/* Order Progress / Timeline */}
+   439→        {order.status !== 'cancelled' && (
+   440→          <Card className="border-[#F7C8D0]/30 shadow-sm mb-6">
+   441→            <CardContent className="p-4 sm:p-6">
+   442→              <h3 className="text-sm font-semibold text-[#0B1F3A] mb-5">Order Progress</h3>
+   443→              {/* Progress Bar */}
+   444→              <div className="relative mb-8">
+   445→                <div className="absolute top-2.5 left-0 right-0 h-1 bg-[#F7C8D0]/30 rounded-full" />
+   446→                <div
+   447→                  className="absolute top-2.5 left-0 h-1 bg-[#D96C8A] rounded-full transition-all duration-700"
+   448→                  style={{ width: `${progressPercent}%` }}
+   449→                />
+   450→                <div className="relative flex justify-between">
+   451→                  {STATUS_STEPS.map((step, idx) => {
+   452→                    const isCompleted = idx <= currentStepIndex
+   453→                    const isCurrent = idx === currentStepIndex
+   454→                    return (
+   455→                      <div key={step} className="flex flex-col items-center gap-2" style={{ minWidth: '48px' }}>
+   456→                        <div
+   457→                          className={`w-5 h-5 rounded-full flex items-center justify-center transition-all duration-300 ${
+   458→                            isCompleted
+   459→                              ? 'bg-[#D96C8A] text-white'
+   460→                              : 'bg-[#F7C8D0]/30 text-[#D96C8A]/40'
+   461→                          } ${isCurrent ? 'ring-4 ring-[#D96C8A]/20' : ''}`}
+   462→                        >
+   463→                          {isCompleted ? (
+   464→                            <Check className="w-3 h-3" />
+   465→                          ) : (
+   466→                            <span className="w-1.5 h-1.5 rounded-full bg-current" />
+   467→                          )}
+   468→                        </div>
+   469→                        <span
+   470→                          className={`text-[10px] sm:text-xs font-medium capitalize text-center ${
+   471→                            isCompleted ? 'text-[#D96C8A]' : 'text-[#222222]/30'
+   472→                          }`}
+   473→                        >
+   474→                          {step}
+   475→                        </span>
+   476→                      </div>
+   477→                    )
+   478→                  })}
+   479→                </div>
+   480→              </div>
+   481→
+   482→              {/* Timeline Details */}
+   483→              <div className="space-y-3 border-l-2 border-[#F7C8D0]/30 pl-4 ml-2.5">
+   484→                <div className="relative">
+   485→                  <div className="absolute -left-[21px] top-0.5 w-3 h-3 bg-[#D96C8A] rounded-full border-2 border-white" />
+   486→                  <div>
+   487→                    <p className="text-sm font-medium text-[#222222]">Order Placed</p>
+   488→                    <p className="text-xs text-[#222222]/50">{formatDate(order.createdAt)}</p>
+   489→                  </div>
+   490→                </div>
+   491→                {order.status === 'cancelled' ? (
+   492→                  <div className="relative">
+   493→                    <div className="absolute -left-[21px] top-0.5 w-3 h-3 bg-red-400 rounded-full border-2 border-white" />
+   494→                    <div>
+   495→                      <p className="text-sm font-medium text-red-600">Order Cancelled</p>
+   496→                    </div>
+   497→                  </div>
+   498→                ) : (
+   499→                  <>
+   500→                    {currentStepIndex >= 1 && (
+   501→                      <div className="relative">
+   502→                        <div className="absolute -left-[21px] top-0.5 w-3 h-3 bg-[#D96C8A] rounded-full border-2 border-white" />
+   503→                        <div>
+   504→                          <p className="text-sm font-medium text-[#222222]">Order Confirmed</p>
+   505→                          <p className="text-xs text-[#222222]/50">Your order has been confirmed and is being prepared</p>
+   506→                        </div>
+   507→                      </div>
+   508→                    )}
+   509→                    {currentStepIndex >= 2 && (
+   510→                      <div className="relative">
+   511→                        <div className="absolute -left-[21px] top-0.5 w-3 h-3 bg-[#D96C8A] rounded-full border-2 border-white" />
+   512→                        <div>
+   513→                          <p className="text-sm font-medium text-[#222222]">Processing</p>
+   514→                          <p className="text-xs text-[#222222]/50">Your items are being packed and quality checked</p>
+   515→                        </div>
+   516→                      </div>
+   517→                    )}
+   518→                    {currentStepIndex >= 3 && (
+   519→                      <div className="relative">
+   520→                        <div className="absolute -left-[21px] top-0.5 w-3 h-3 bg-[#D96C8A] rounded-full border-2 border-white" />
+   521→                        <div>
+   522→                          <p className="text-sm font-medium text-[#222222]">Shipped</p>
+   523→                          {order.shippedAt && (
+   524→                            <p className="text-xs text-[#222222]/50">Shipped on {formatDate(order.shippedAt)}</p>
+   525→                          )}
+   526→                          {order.trackingNumber && (
+   527→                            <p className="text-xs text-[#D96C8A] font-medium mt-0.5">
+   528→                              Tracking: {order.trackingNumber}
+   529→                            </p>
+   530→                          )}
+   531→                        </div>
+   532→                      </div>
+   533→                    )}
+   534→                    {currentStepIndex >= 4 && order.deliveredAt && (
+   535→                      <div className="relative">
+   536→                        <div className="absolute -left-[21px] top-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
+   537→                        <div>
+   538→                          <p className="text-sm font-medium text-green-700">Delivered</p>
+   539→                          <p className="text-xs text-[#222222]/50">Delivered on {formatDate(order.deliveredAt)}</p>
+   540→                        </div>
+   541→                      </div>
+   542→                    )}
+   543→                  </>
+   544→                )}
+   545→              </div>
+   546→            </CardContent>
+   547→          </Card>
+   548→        )}
+   549→
+   550→        {order.status === 'cancelled' && (
+   551→          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3">
+   552→            <XCircle className="w-5 h-5 text-red-500 shrink-0" />
+   553→            <div>
+   554→              <p className="text-sm font-medium text-red-700">This order has been cancelled</p>
+   555→              <p className="text-xs text-red-600/70">If you were charged, a refund will be processed within 5-7 business days.</p>
+   556→            </div>
+   557→          </div>
+   558→        )}
+   559→
+   560→        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+   561→          {/* Left Column - Items & Details */}
+   562→          <div className="lg:col-span-2 space-y-6">
+   563→            {/* Order Items */}
+   564→            <Card className="border-[#F7C8D0]/30 shadow-sm">
+   565→              <CardHeader className="pb-4">
+   566→                <CardTitle className="flex items-center gap-2 text-[#0B1F3A] text-lg">
+   567→                  <Package className="w-5 h-5 text-[#D96C8A]" />
+   568→                  Order Items
+   569→                </CardTitle>
+   570→              </CardHeader>
+   571→              <CardContent>
+   572→                <div className="space-y-4">
+   573→                  {order.items?.map((item: any, idx: number) => (
+   574→                    <div key={idx}>
+   575→                      <div className="flex gap-4">
+   576→                        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden bg-[#FFF5F7] shrink-0 border border-[#F7C8D0]/20">
+   577→                          {item.productImage ? (
+   578→                            <img
+   579→                              src={item.productImage}
+   580→                              alt={item.productName}
+   581→                              className="w-full h-full object-cover"
+   582→                            />
+   583→                          ) : (
+   584→                            <div className="w-full h-full flex items-center justify-center">
+   585→                              <Package className="w-6 h-6 text-[#D96C8A]/30" />
+   586→                            </div>
+   587→                          )}
+   588→                        </div>
+   589→                        <div className="flex-1 min-w-0">
+   590→                          <p className="font-medium text-[#222222] text-sm truncate">{item.productName}</p>
+   591→                          {(item.color || item.size) && (
+   592→                            <p className="text-xs text-[#222222]/50 mt-0.5">
+   593→                              {item.color && <span className="text-[#D96C8A]">{item.color}</span>}
+   594→                              {item.color && item.size && ' / '}
+   595→                              {item.size && <span>{item.size}</span>}
+   596→                            </p>
+   597→                          )}
+   598→                          <div className="flex items-center justify-between mt-2">
+   599→                            <span className="text-xs text-[#222222]/50">Qty: {item.quantity}</span>
+   600→                            <span className="font-semibold text-[#0B1F3A] text-sm">
+   601→                              ₹{(item.price * item.quantity).toLocaleString('en-IN')}
+   602→                            </span>
+   603→                          </div>
+   604→                        </div>
+   605→                      </div>
+   606→                      {idx < (order.items?.length || 0) - 1 && (
+   607→                        <Separator className="mt-4 bg-[#F7C8D0]/20" />
+   608→                      )}
+   609→                    </div>
+   610→                  ))}
+   611→                </div>
+   612→              </CardContent>
+   613→            </Card>
+   614→
+   615→            {/* Shipping Address */}
+   616→            {order.address && (
+   617→              <Card className="border-[#F7C8D0]/30 shadow-sm">
+   618→                <CardHeader className="pb-4">
+   619→                  <CardTitle className="flex items-center gap-2 text-[#0B1F3A] text-lg">
+   620→                    <MapPin className="w-5 h-5 text-[#D96C8A]" />
+   621→                    Shipping Address
+   622→                  </CardTitle>
+   623→                </CardHeader>
+   624→                <CardContent>
+   625→                  <div className="p-4 bg-[#FFF5F7]/50 rounded-xl border border-[#F7C8D0]/20">
+   626→                    <p className="font-semibold text-[#222222] text-sm">{order.address.fullName}</p>
+   627→                    <p className="text-sm text-[#222222]/70 mt-1">{order.address.phone}</p>
+   628→                    <p className="text-sm text-[#222222]/70 mt-1">
+   629→                      {order.address.addressLine1}
+   630→                      {order.address.addressLine2 ? `, ${order.address.addressLine2}` : ''}
+   631→                    </p>
+   632→                    <p className="text-sm text-[#222222]/70">
+   633→                      {order.address.city}, {order.address.state} - {order.address.pincode}
+   634→                    </p>
+   635→                    {order.address.country && (
+   636→                      <p className="text-sm text-[#222222]/70">{order.address.country}</p>
+   637→                    )}
+   638→                  </div>
+   639→                </CardContent>
+   640→              </Card>
+   641→            )}
+   642→          </div>
+   643→
+   644→          {/* Right Column - Summary & Actions */}
+   645→          <div className="space-y-6">
+   646→            {/* Payment Info */}
+   647→            <Card className="border-[#F7C8D0]/30 shadow-sm">
+   648→              <CardHeader className="pb-4">
+   649→                <CardTitle className="flex items-center gap-2 text-[#0B1F3A] text-base">
+   650→                  <CreditCard className="w-5 h-5 text-[#D96C8A]" />
+   651→                  Payment Info
+   652→                </CardTitle>
+   653→              </CardHeader>
+   654→              <CardContent className="space-y-3">
+   655→                <div className="flex items-center justify-between">
+   656→                  <span className="text-xs text-[#222222]/50">Method</span>
+   657→                  <span className="text-sm font-medium text-[#222222]">{getPaymentMethodLabel(order.paymentMethod)}</span>
+   658→                </div>
+   659→                <Separator className="bg-[#F7C8D0]/20" />
+   660→                <div className="flex items-center justify-between">
+   661→                  <span className="text-xs text-[#222222]/50">Status</span>
+   662→                  <Badge variant="outline" className={`text-[10px] px-2 py-0 border ${paymentBadge.className}`}>
+   663→                    {paymentBadge.label}
+   664→                  </Badge>
+   665→                </div>
+   666→                <Separator className="bg-[#F7C8D0]/20" />
+   667→                <div className="flex items-center justify-between">
+   668→                  <span className="text-xs text-[#222222]/50">Amount</span>
+   669→                  <span className="text-sm font-bold text-[#0B1F3A]">₹{order.total.toLocaleString('en-IN')}</span>
+   670→                </div>
+   671→              </CardContent>
+   672→            </Card>
+   673→
+   674→            {/* Order Summary */}
+   675→            <Card className="border-[#F7C8D0]/30 shadow-sm">
+   676→              <CardHeader className="pb-4">
+   677→                <CardTitle className="text-[#0B1F3A] text-base">Order Summary</CardTitle>
+   678→              </CardHeader>
+   679→              <CardContent className="space-y-2.5">
+   680→                <div className="flex items-center justify-between text-sm">
+   681→                  <span className="text-[#222222]/70">Subtotal</span>
+   682→                  <span className="text-[#222222]">₹{order.subtotal.toLocaleString('en-IN')}</span>
+   683→                </div>
+   684→                {order.discount > 0 && (
+   685→                  <div className="flex items-center justify-between text-sm">
+   686→                    <span className="text-green-600">Discount</span>
+   687→                    <span className="text-green-600 font-medium">-₹{order.discount.toLocaleString('en-IN')}</span>
+   688→                  </div>
+   689→                )}
+   690→                <div className="flex items-center justify-between text-sm">
+   691→                  <span className="text-[#222222]/70">Tax (GST)</span>
+   692→                  <span className="text-[#222222]">₹{order.tax.toLocaleString('en-IN')}</span>
+   693→                </div>
+   694→                <div className="flex items-center justify-between text-sm">
+   695→                  <span className="text-[#222222]/70">Shipping</span>
+   696→                  {order.shipping === 0 ? (
+   697→                    <span className="text-green-600 font-medium text-xs">FREE</span>
+   698→                  ) : (
+   699→                    <span className="text-[#222222]">₹{order.shipping.toLocaleString('en-IN')}</span>
+   700→                  )}
+   701→                </div>
+   702→                <Separator className="bg-[#F7C8D0]/30" />
+   703→                <div className="flex items-center justify-between pt-1">
+   704→                  <span className="font-bold text-[#0B1F3A]">Total</span>
+   705→                  <span className="font-bold text-[#0B1F3A] text-xl">₹{order.total.toLocaleString('en-IN')}</span>
+   706→                </div>
+   707→              </CardContent>
+   708→            </Card>
+   709→
+   710→            {/* Actions */}
+   711→            <div className="space-y-3">
+   712→              <Button
+   713→                onClick={handleReorder}
+   714→                className="w-full bg-[#0B1F3A] hover:bg-[#0B1F3A]/90 text-white"
+   715→              >
+   716→                <RotateCcw className="w-4 h-4 mr-2" />
+   717→                Reorder Items
+   718→              </Button>
+   719→              <Button
+   720→                variant="outline"
+   721→                onClick={() => navigate('orders')}
+   722→                className="w-full border-[#F7C8D0] text-[#222222] hover:bg-[#FFF5F7] hover:text-[#D96C8A]"
+   723→              >
+   724→                <ArrowLeft className="w-4 h-4 mr-2" />
+   725→                Back to Orders
+   726→              </Button>
+   727→              {canCancel && (
+   728→                <Button
+   729→                  variant="outline"
+   730→                  onClick={handleCancelOrder}
+   731→                  disabled={cancelling}
+   732→                  className="w-full border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600"
+   733→                >
+   734→                  <XCircle className="w-4 h-4 mr-2" />
+   735→                  {cancelling ? 'Cancelling...' : 'Cancel Order'}
+   736→                </Button>
+   737→              )}
+   738→            </div>
+   739→          </div>
+   740→        </div>
+   741→      </div>
+   742→    </div>
+   743→  )
+   744→}

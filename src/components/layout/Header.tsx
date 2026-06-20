@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useStore } from '@/store/use-store'
-import { Search, Heart, ShoppingCart, User, Menu, X, ChevronDown, LogOut, Package, Settings, Shield } from 'lucide-react'
+import { Search, Heart, ShoppingCart, User, Menu, X, ChevronDown, LogOut, Package, Settings, Shield, Instagram } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -54,8 +54,13 @@ export default function Header() {
   return (
     <>
       {/* Top Bar */}
-      <div className="bg-[#0B1F3A] text-white text-xs py-2 text-center">
-        <p className="animate-fadeIn">Free Shipping on Orders Above Rs.999 | Use Code <span className="font-bold text-[#F7C8D0]">WELCOME20</span> for 20% Off</p>
+      <div className="bg-[#0B1F3A] text-white text-xs py-2">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-center relative">
+          <p className="animate-fadeIn">Free Shipping on Orders Above Rs.999 | Use Code <span className="font-bold text-[#F7C8D0]">WELCOME20</span> for 20% Off</p>
+          <a href="https://instagram.com/Style_withher01" target="_blank" rel="noopener noreferrer" className="absolute right-4 sm:right-6 hover:text-[#F7C8D0] transition-colors" aria-label="Follow us on Instagram">
+            <Instagram className="h-4 w-4" />
+          </a>
+        </div>
       </div>
 
       {/* Main Header */}
@@ -72,9 +77,11 @@ export default function Header() {
               <SheetContent side="left" className="w-80 bg-white p-0">
                 <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
                 <div className="flex flex-col h-full">
-                  <div className="p-6 border-b border-[#F7C8D0]">
-                    <h2 className="text-xl font-bold text-[#0B1F3A]">StyleWithHer</h2>
-                    <p className="text-xs text-[#D96C8A]">Style Together, Stay Together</p>
+                  <div className="p-6 border-b border-[#F7C8D0] flex items-center gap-3">
+                    <img src="/logo.png" alt="StyleWithHer" className="h-9 w-auto object-contain" />
+                    <div>
+                      <p className="text-xs text-[#D96C8A]">Style Together, Stay Together</p>
+                    </div>
                   </div>
                   <nav className="flex-1 py-4">
                     {navItems.map((item) => (
@@ -110,13 +117,7 @@ export default function Header() {
 
             {/* Logo */}
             <button onClick={() => navigate('home')} className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-[#0B1F3A] rounded-full flex items-center justify-center">
-                <span className="text-[#F7C8D0] font-bold text-sm">S</span>
-              </div>
-              <div className="hidden sm:block">
-                <h1 className="text-lg font-bold text-[#0B1F3A] leading-none">StyleWithHer</h1>
-                <p className="text-[10px] text-[#D96C8A] tracking-wider">STYLE TOGETHER, STAY TOGETHER</p>
-              </div>
+              <img src="/logo.png" alt="StyleWithHer" className="h-12 w-auto object-contain" />
             </button>
 
             {/* Desktop Nav */}

@@ -1,0 +1,1601 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useState, useEffect, useCallback } from 'react'
+     4→     4→import { useStore } from '@/store/use-store'
+     5→     5→import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+     6→     6→import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+     7→     7→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog'
+     8→     8→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+     9→     9→import { Switch } from '@/components/ui/switch'
+    10→    10→import { Input } from '@/components/ui/input'
+    11→    11→import { Label } from '@/components/ui/label'
+    12→    12→import { Button } from '@/components/ui/button'
+    13→    13→import { Badge } from '@/components/ui/badge'
+    14→    14→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    15→    15→import { Separator } from '@/components/ui/separator'
+    16→    16→import { Textarea } from '@/components/ui/textarea'
+    17→    17→import { Skeleton } from '@/components/ui/skeleton'
+    18→    18→import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet'
+    19→    19→import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
+    20→    20→import {
+    21→    21→  LayoutDashboard,
+    22→    22→  Package,
+    23→    23→  ShoppingBag,
+    24→    24→  Users,
+    25→    25→  Ticket,
+    26→    26→  Star,
+    27→    27→  FileText,
+    28→    28→  Warehouse,
+    29→    29→  ArrowLeft,
+    30→    30→  Plus,
+    31→    31→  Pencil,
+    32→    32→  Trash2,
+    33→    33→  Search,
+    34→    34→  Menu,
+    35→    35→  DollarSign,
+    36→    36→  TrendingUp,
+    37→    37→  AlertTriangle,
+    38→    38→  CheckCircle2,
+    39→    39→  XCircle,
+    40→    40→  Clock,
+    41→    41→  Loader2,
+    42→    42→  Save,
+    43→    43→  StarHalf,
+    44→    44→  RefreshCw,
+    45→    45→  ChevronRight,
+    46→    46→  Image as ImageIcon,
+    47→    47→} from 'lucide-react'
+    48→    48→
+    49→    49→// ─── Helper ───────────────────────────────────────────────────────────────────
+    50→    50→const authHeaders = () => {
+    51→    51→  const u = useStore.getState().user
+    52→    52→  return u?.token ? { Authorization: `Bearer ${u.token}` } : {}
+    53→    53→}
+    54→    54→
+    55→    55→const fmt = (n: number) => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(n)
+    56→    56→const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+    57→    57→const fmtDateTime = (d: string) => new Date(d).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    58→    58→
+    59→    59→// ─── Nav items ────────────────────────────────────────────────────────────────
+    60→    60→const NAV_ITEMS = [
+    61→    61→  { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    62→    62→  { key: 'products', label: 'Products', icon: Package },
+    63→    63→  { key: 'orders', label: 'Orders', icon: ShoppingBag },
+    64→    64→  { key: 'customers', label: 'Customers', icon: Users },
+    65→    65→  { key: 'coupons', label: 'Coupons', icon: Ticket },
+    66→    66→  { key: 'reviews', label: 'Reviews', icon: Star },
+    67→    67→  { key: 'content', label: 'Content', icon: FileText },
+    68→    68→  { key: 'inventory', label: 'Inventory', icon: Warehouse },
+    69→    69→]
+    70→    70→
+    71→    71→const STATUS_COLORS: Record<string, string> = {
+    72→    72→  pending: 'bg-yellow-100 text-yellow-800',
+    73→    73→  confirmed: 'bg-blue-100 text-blue-800',
+    74→    74→  processing: 'bg-purple-100 text-purple-800',
+    75→    75→  shipped: 'bg-cyan-100 text-cyan-800',
+    76→    76→  delivered: 'bg-green-100 text-green-800',
+    77→    77→  cancelled: 'bg-red-100 text-red-800',
+    78→    78→  returned: 'bg-orange-100 text-orange-800',
+    79→    79→}
+    80→    80→
+    81→    81→const PAYMENT_COLORS: Record<string, string> = {
+    82→    82→  pending: 'bg-yellow-100 text-yellow-800',
+    83→    83→  completed: 'bg-green-100 text-green-800',
+    84→    84→  failed: 'bg-red-100 text-red-800',
+    85→    85→  refunded: 'bg-orange-100 text-orange-800',
+    86→    86→}
+    87→    87→
+    88→    88→// ═══════════════════════════════════════════════════════════════════════════════
+    89→    89→// SIDEBAR NAV
+    90→    90→// ═══════════════════════════════════════════════════════════════════════════════
+    91→    91→function SidebarNav({ className }: { className?: string }) {
+    92→    92→  const { adminTab, setAdminTab, navigate } = useStore()
+    93→    93→
+    94→    94→  return (
+    95→    95→    <nav className={`flex flex-col gap-1 px-3 py-4 ${className || ''}`}>
+    96→    96→      <div className="mb-6 px-3 flex flex-col items-center">
+    97→    97→        <img src="/admin-logo.png" alt="StyleWithHer Admin" className="h-16 w-auto rounded-lg mb-2" />
+    98→    98→      </div>
+    99→    99→      <Separator className="bg-white/10 mb-2" />
+   100→   100→      {NAV_ITEMS.map((item) => {
+   101→   101→        const Icon = item.icon
+   102→   102→        const isActive = adminTab === item.key
+   103→   103→        return (
+   104→   104→          <button
+   105→   105→            key={item.key}
+   106→   106→            onClick={() => setAdminTab(item.key)}
+   107→   107→            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer ${
+   108→   108→              isActive
+   109→   109→                ? 'bg-[#1e9ba6]/20 text-[#f9b233]'
+   110→   110→                : 'text-white/70 hover:bg-white/5 hover:text-white'
+   111→   111→            }`}
+   112→   112→          >
+   113→   113→            <Icon className="h-4 w-4 shrink-0" />
+   114→   114→            <span>{item.label}</span>
+   115→   115→            {isActive && <ChevronRight className="h-3 w-3 ml-auto text-[#f9b233]" />}
+   116→   116→          </button>
+   117→   117→        )
+   118→   118→      })}
+   119→   119→      <Separator className="bg-white/10 my-2" />
+   120→   120→      <button
+   121→   121→        onClick={() => navigate('home')}
+   122→   122→        className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/70 hover:bg-white/5 hover:text-white transition-all duration-200 cursor-pointer"
+   123→   123→      >
+   124→   124→        <ArrowLeft className="h-4 w-4 shrink-0" />
+   125→   125→        <span>Back to Store</span>
+   126→   126→      </button>
+   127→   127→    </nav>
+   128→   128→  )
+   129→   129→}
+   130→   130→
+   131→   131→// ═══════════════════════════════════════════════════════════════════════════════
+   132→   132→// DASHBOARD TAB
+   133→   133→// ═══════════════════════════════════════════════════════════════════════════════
+   134→   134→function DashboardTab() {
+   135→   135→  const { showToast } = useStore()
+   136→   136→  const [data, setData] = useState<any>(null)
+   137→   137→  const [loading, setLoading] = useState(true)
+   138→   138→
+   139→   139→  const fetchDashboard = useCallback(async () => {
+   140→   140→    setLoading(true)
+   141→   141→    try {
+   142→   142→      const res = await fetch('/api/admin', { headers: authHeaders() })
+   143→   143→      if (!res.ok) throw new Error('Failed to fetch dashboard')
+   144→   144→      const json = await res.json()
+   145→   145→      setData(json)
+   146→   146→    } catch (err: any) {
+   147→   147→      showToast(err.message || 'Error loading dashboard', 'error')
+   148→   148→    } finally {
+   149→   149→      setLoading(false)
+   150→   150→    }
+   151→   151→  }, [showToast])
+   152→   152→
+   153→   153→  useEffect(() => { fetchDashboard() }, [fetchDashboard])
+   154→   154→
+   155→   155→  if (loading) {
+   156→   156→    return (
+   157→   157→      <div className="space-y-6">
+   158→   158→        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   159→   159→          {[...Array(4)].map((_, i) => (
+   160→   160→            <Card key={i}><CardContent className="p-6"><Skeleton className="h-24 w-full" /></CardContent></Card>
+   161→   161→          ))}
+   162→   162→        </div>
+   163→   163→        <Card><CardContent className="p-6"><Skeleton className="h-72 w-full" /></CardContent></Card>
+   164→   164→      </div>
+   165→   165→    )
+   166→   166→  }
+   167→   167→
+   168→   168→  if (!data) return <p className="text-muted-foreground">No data available.</p>
+   169→   169→
+   170→   170→  const stats = [
+   171→   171→    { label: 'Total Revenue', value: `₹${fmt(data.totalSales)}`, icon: DollarSign, color: 'bg-[#4a5a6a]/10 text-[#4a5a6a]' },
+   172→   172→    { label: 'Total Orders', value: data.totalOrders, icon: ShoppingBag, color: 'bg-[#1e9ba6]/10 text-[#1e9ba6]' },
+   173→   173→    { label: 'Total Customers', value: data.totalCustomers, icon: Users, color: 'bg-[#f9b233]/10 text-[#f9b233]' },
+   174→   174→    { label: 'Total Products', value: data.totalProducts, icon: Package, color: 'bg-orange-100 text-orange-700' },
+   175→   175→  ]
+   176→   176→
+   177→   177→  const statusColors: Record<string, string> = {
+   178→   178→    pending: 'bg-yellow-100 text-yellow-800',
+   179→   179→    confirmed: 'bg-blue-100 text-blue-800',
+   180→   180→    processing: 'bg-purple-100 text-purple-800',
+   181→   181→    shipped: 'bg-cyan-100 text-cyan-800',
+   182→   182→    delivered: 'bg-green-100 text-green-800',
+   183→   183→    cancelled: 'bg-red-100 text-red-800',
+   184→   184→    returned: 'bg-orange-100 text-orange-800',
+   185→   185→  }
+   186→   186→
+   187→   187→  return (
+   188→   188→    <div className="space-y-6">
+   189→   189→      {/* Stat Cards */}
+   190→   190→      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   191→   191→        {stats.map((s) => {
+   192→   192→          const Icon = s.icon
+   193→   193→          return (
+   194→   194→            <Card key={s.label} className="border-0 shadow-sm hover:shadow-md transition-shadow">
+   195→   195→              <CardContent className="p-5">
+   196→   196→                <div className="flex items-center justify-between">
+   197→   197→                  <div>
+   198→   198→                    <p className="text-sm text-muted-foreground">{s.label}</p>
+   199→   199→                    <p className="text-2xl font-bold mt-1">{s.value}</p>
+   200→   200→                  </div>
+   201→   201→                  <div className={`p-3 rounded-xl ${s.color}`}>
+   202→   202→                    <Icon className="h-5 w-5" />
+   203→   203→                  </div>
+   204→   204→                </div>
+   205→   205→              </CardContent>
+   206→   206→            </Card>
+   207→   207→          )
+   208→   208→        })}
+   209→   209→      </div>
+   210→   210→
+   211→   211→      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+   212→   212→        {/* Revenue Chart */}
+   213→   213→        <Card className="lg:col-span-2 border-0 shadow-sm">
+   214→   214→          <CardHeader className="pb-2">
+   215→   215→            <CardTitle className="text-lg font-semibold">Revenue Overview</CardTitle>
+   216→   216→          </CardHeader>
+   217→   217→          <CardContent className="pt-0">
+   218→   218→            <div className="h-72">
+   219→   219→              {data.revenueByMonth && data.revenueByMonth.length > 0 ? (
+   220→   220→                <ResponsiveContainer width="100%" height="100%">
+   221→   221→                  <BarChart data={data.revenueByMonth} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+   222→   222→                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+   223→   223→                    <XAxis dataKey="month" tick={{ fontSize: 12 }} tickFormatter={(v: string) => { const [y, m] = v.split('-'); const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return months[parseInt(m, 10) - 1] + ' ' + y.slice(2); }} />
+   224→   224→                    <YAxis tick={{ fontSize: 12 }} tickFormatter={(v: number) => `₹${(v / 1000).toFixed(0)}k`} />
+   225→   225→                    <Tooltip
+   226→   226→                      formatter={(value: number) => [`₹${fmt(value)}`, 'Revenue']}
+   227→   227→                      labelFormatter={(label: string) => { const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; const [y, m] = label.split('-'); return months[parseInt(m, 10) - 1] + ' ' + y; }}
+   228→   228→                      contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+   229→   229→                    />
+   230→   230→                    <Bar dataKey="revenue" fill="#1e9ba6" radius={[6, 6, 0, 0]} />
+   231→   231→                  </BarChart>
+   232→   232→                </ResponsiveContainer>
+   233→   233→              ) : (
+   234→   234→                <div className="flex items-center justify-center h-full text-muted-foreground">No revenue data available</div>
+   235→   235→              )}
+   236→   236→            </div>
+   237→   237→          </CardContent>
+   238→   238→        </Card>
+   239→   239→
+   240→   240→        {/* Order Status Distribution */}
+   241→   241→        <Card className="border-0 shadow-sm">
+   242→   242→          <CardHeader className="pb-2">
+   243→   243→            <CardTitle className="text-lg font-semibold">Order Status</CardTitle>
+   244→   244→          </CardHeader>
+   245→   245→          <CardContent className="pt-0">
+   246→   246→            <div className="space-y-3">
+   247→   247→              {Object.entries(data.orderStatusCounts || {}).map(([status, count]) => (
+   248→   248→                <div key={status} className="flex items-center justify-between">
+   249→   249→                  <Badge className={statusColors[status] || 'bg-gray-100 text-gray-800'} variant="secondary">
+   250→   250→                    {status.charAt(0).toUpperCase() + status.slice(1)}
+   251→   251→                  </Badge>
+   252→   252→                  <span className="text-sm font-semibold">{count as number}</span>
+   253→   253→                </div>
+   254→   254→              ))}
+   255→   255→              {(data.orderStatusCounts && Object.keys(data.orderStatusCounts).length === 0) && (
+   256→   256→                <p className="text-sm text-muted-foreground text-center py-4">No orders yet</p>
+   257→   257→              )}
+   258→   258→            </div>
+   259→   259→          </CardContent>
+   260→   260→        </Card>
+   261→   261→      </div>
+   262→   262→
+   263→   263→      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+   264→   264→        {/* Recent Orders */}
+   265→   265→        <Card className="border-0 shadow-sm">
+   266→   266→          <CardHeader className="pb-2">
+   267→   267→            <CardTitle className="text-lg font-semibold">Recent Orders</CardTitle>
+   268→   268→          </CardHeader>
+   269→   269→          <CardContent className="pt-0">
+   270→   270→            <div className="max-h-96 overflow-y-auto">
+   271→   271→              <Table>
+   272→   272→                <TableHeader>
+   273→   273→                  <TableRow>
+   274→   274→                    <TableHead className="text-xs">Order #</TableHead>
+   275→   275→                    <TableHead className="text-xs">Customer</TableHead>
+   276→   276→                    <TableHead className="text-xs">Total</TableHead>
+   277→   277→                    <TableHead className="text-xs">Status</TableHead>
+   278→   278→                  </TableRow>
+   279→   279→                </TableHeader>
+   280→   280→                <TableBody>
+   281→   281→                  {(data.recentOrders || []).slice(0, 5).map((order: any) => (
+   282→   282→                    <TableRow key={order.id}>
+   283→   283→                      <TableCell className="text-xs font-mono">{order.orderNumber?.slice(0, 16)}</TableCell>
+   284→   284→                      <TableCell className="text-xs">{order.user?.name || '—'}</TableCell>
+   285→   285→                      <TableCell className="text-xs font-medium">₹{fmt(order.total)}</TableCell>
+   286→   286→                      <TableCell>
+   287→   287→                        <Badge className={statusColors[order.status] || ''} variant="secondary">
+   288→   288→                          {order.status}
+   289→   289→                        </Badge>
+   290→   290→                      </TableCell>
+   291→   291→                    </TableRow>
+   292→   292→                  ))}
+   293→   293→                </TableBody>
+   294→   294→              </Table>
+   295→   295→            </div>
+   296→   296→          </CardContent>
+   297→   297→        </Card>
+   298→   298→
+   299→   299→        {/* Top Products */}
+   300→   300→        <Card className="border-0 shadow-sm">
+   301→   301→          <CardHeader className="pb-2">
+   302→   302→            <CardTitle className="text-lg font-semibold">Top Products</CardTitle>
+   303→   303→          </CardHeader>
+   304→   304→          <CardContent className="pt-0">
+   305→   305→            <div className="max-h-96 overflow-y-auto space-y-3">
+   306→   306→              {(data.topProducts || []).map((p: any, idx: number) => (
+   307→   307→                <div key={p.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
+   308→   308→                  <div className="flex items-center justify-center w-7 h-7 rounded-full bg-[#F7C8D0]/20 text-[#0B1F3A] text-xs font-bold">
+   309→   309→                    {idx + 1}
+   310→   310→                  </div>
+   311→   311→                  <div className="flex-1 min-w-0">
+   312→   312→                    <p className="text-sm font-medium truncate">{p.name}</p>
+   313→   313→                    <p className="text-xs text-muted-foreground">₹{fmt(p.salePrice || p.basePrice)} • {p.totalSold} sold</p>
+   314→   314→                  </div>
+   315→   315→                </div>
+   316→   316→              ))}
+   317→   317→              {(!data.topProducts || data.topProducts.length === 0) && (
+   318→   318→                <p className="text-sm text-muted-foreground text-center py-4">No sales data yet</p>
+   319→   319→              )}
+   320→   320→            </div>
+   321→   321→          </CardContent>
+   322→   322→        </Card>
+   323→   323→      </div>
+   324→   324→
+   325→   325→      {/* Low Stock Alerts */}
+   326→   326→      <Card className="border-0 shadow-sm">
+   327→   327→        <CardHeader className="pb-2">
+   328→   328→          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+   329→   329→            <AlertTriangle className="h-5 w-5 text-amber-500" />
+   330→   330→            Low Stock Alerts
+   331→   331→          </CardTitle>
+   332→   332→        </CardHeader>
+   333→   333→        <CardContent className="pt-0">
+   334→   334→          <div className="max-h-96 overflow-y-auto">
+   335→   335→            <Table>
+   336→   336→              <TableHeader>
+   337→   337→                <TableRow>
+   338→   338→                  <TableHead className="text-xs">Product</TableHead>
+   339→   339→                  <TableHead className="text-xs">Variant</TableHead>
+   340→   340→                  <TableHead className="text-xs">Stock</TableHead>
+   341→   341→                </TableRow>
+   342→   342→              </TableHeader>
+   343→   343→              <TableBody>
+   344→   344→                {(data.lowStockProducts || []).map((item: any) => (
+   345→   345→                  <TableRow key={item.id}>
+   346→   346→                    <TableCell className="text-sm font-medium">{item.variant?.product?.name || '—'}</TableCell>
+   347→   347→                    <TableCell className="text-xs text-muted-foreground">{item.variant?.color} / {item.variant?.size}</TableCell>
+   348→   348→                    <TableCell>
+   349→   349→                      <Badge variant={item.quantity === 0 ? 'destructive' : 'secondary'} className={item.quantity === 0 ? '' : 'bg-amber-100 text-amber-800'}>
+   350→   350→                        {item.quantity}
+   351→   351→                      </Badge>
+   352→   352→                    </TableCell>
+   353→   353→                  </TableRow>
+   354→   354→                ))}
+   355→   355→                {(!data.lowStockProducts || data.lowStockProducts.length === 0) && (
+   356→   356→                  <TableRow><TableCell colSpan={3} className="text-center text-sm text-muted-foreground py-4">All stock levels healthy</TableCell></TableRow>
+   357→   357→                )}
+   358→   358→              </TableBody>
+   359→   359→            </Table>
+   360→   360→          </div>
+   361→   361→        </CardContent>
+   362→   362→      </Card>
+   363→   363→    </div>
+   364→   364→  )
+   365→   365→}
+   366→   366→
+   367→   367→// ═══════════════════════════════════════════════════════════════════════════════
+   368→   368→// PRODUCTS TAB
+   369→   369→// ═══════════════════════════════════════════════════════════════════════════════
+   370→   370→interface ProductFormState {
+   371→   371→  name: string; slug: string; description: string; categoryId: string; gender: string;
+   372→   372→  basePrice: string; salePrice: string; material: string; care: string;
+   373→   373→  isFeatured: boolean; isTrending: boolean; isNewArrival: boolean; isBestSeller: boolean;
+   374→   374→}
+   375→   375→
+   376→   376→const emptyProductForm: ProductFormState = {
+   377→   377→  name: '', slug: '', description: '', categoryId: '', gender: 'unisex',
+   378→   378→  basePrice: '', salePrice: '', material: '', care: '',
+   379→   379→  isFeatured: false, isTrending: false, isNewArrival: false, isBestSeller: false,
+   380→   380→}
+   381→   381→
+   382→   382→function ProductForm({ form, setForm, categories, loading, onSubmit, submitLabel }: {
+   383→   383→  form: ProductFormState; setForm: (f: ProductFormState) => void; categories: any[];
+   384→   384→  loading: boolean; onSubmit: () => void; submitLabel: string;
+   385→   385→}) {
+   386→   386→  const updateField = (field: keyof ProductFormState, value: string | boolean) => {
+   387→   387→    setForm({ ...form, [field]: value })
+   388→   388→    if (field === 'name') {
+   389→   389→      const slug = value.toString().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+   390→   390→      setForm((prev: ProductFormState) => ({ ...prev, slug }))
+   391→   391→    }
+   392→   392→  }
+   393→   393→
+   394→   394→  return (
+   395→   395→    <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+   396→   396→      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   397→   397→        <div className="space-y-2">
+   398→   398→          <Label htmlFor="pf-name">Product Name *</Label>
+   399→   399→          <Input id="pf-name" value={form.name} onChange={(e) => updateField('name', e.target.value)} placeholder="Product name" />
+   400→   400→        </div>
+   401→   401→        <div className="space-y-2">
+   402→   402→          <Label htmlFor="pf-slug">Slug *</Label>
+   403→   403→          <Input id="pf-slug" value={form.slug} onChange={(e) => updateField('slug', e.target.value)} placeholder="product-slug" />
+   404→   404→        </div>
+   405→   405→      </div>
+   406→   406→      <div className="space-y-2">
+   407→   407→        <Label htmlFor="pf-desc">Description</Label>
+   408→   408→        <Textarea id="pf-desc" value={form.description} onChange={(e) => updateField('description', e.target.value)} placeholder="Product description..." rows={3} />
+   409→   409→      </div>
+   410→   410→      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   411→   411→        <div className="space-y-2">
+   412→   412→          <Label>Category *</Label>
+   413→   413→          <Select value={form.categoryId} onValueChange={(v) => updateField('categoryId', v)}>
+   414→   414→            <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+   415→   415→            <SelectContent>
+   416→   416→              {categories.map((c: any) => (
+   417→   417→                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+   418→   418→              ))}
+   419→   419→            </SelectContent>
+   420→   420→          </Select>
+   421→   421→        </div>
+   422→   422→        <div className="space-y-2">
+   423→   423→          <Label>Gender</Label>
+   424→   424→          <Select value={form.gender} onValueChange={(v) => updateField('gender', v)}>
+   425→   425→            <SelectTrigger><SelectValue /></SelectTrigger>
+   426→   426→            <SelectContent>
+   427→   427→              <SelectItem value="women">Women</SelectItem>
+   428→   428→              <SelectItem value="men">Men</SelectItem>
+   429→   429→              <SelectItem value="unisex">Unisex</SelectItem>
+   430→   430→              <SelectItem value="couple">Couple</SelectItem>
+   431→   431→            </SelectContent>
+   432→   432→          </Select>
+   433→   433→        </div>
+   434→   434→      </div>
+   435→   435→      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   436→   436→        <div className="space-y-2">
+   437→   437→          <Label htmlFor="pf-base">Base Price (₹) *</Label>
+   438→   438→          <Input id="pf-base" type="number" value={form.basePrice} onChange={(e) => updateField('basePrice', e.target.value)} placeholder="999" />
+   439→   439→        </div>
+   440→   440→        <div className="space-y-2">
+   441→   441→          <Label htmlFor="pf-sale">Sale Price (₹)</Label>
+   442→   442→          <Input id="pf-sale" type="number" value={form.salePrice} onChange={(e) => updateField('salePrice', e.target.value)} placeholder="799 (optional)" />
+   443→   443→        </div>
+   444→   444→      </div>
+   445→   445→      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   446→   446→        <div className="space-y-2">
+   447→   447→          <Label htmlFor="pf-material">Material</Label>
+   448→   448→          <Input id="pf-material" value={form.material} onChange={(e) => updateField('material', e.target.value)} placeholder="Cotton, Silk, etc." />
+   449→   449→        </div>
+   450→   450→        <div className="space-y-2">
+   451→   451→          <Label htmlFor="pf-care">Care Instructions</Label>
+   452→   452→          <Input id="pf-care" value={form.care} onChange={(e) => updateField('care', e.target.value)} placeholder="Machine wash cold" />
+   453→   453→        </div>
+   454→   454→      </div>
+   455→   455→      <Separator />
+   456→   456→      <div className="space-y-3">
+   457→   457→        <Label className="text-sm font-medium">Product Flags</Label>
+   458→   458→        <div className="grid grid-cols-2 gap-3">
+   459→   459→          {(['isFeatured', 'isTrending', 'isNewArrival', 'isBestSeller'] as const).map((key) => (
+   460→   460→            <div key={key} className="flex items-center justify-between p-2 rounded-lg border">
+   461→   461→              <Label htmlFor={`pf-${key}`} className="text-sm cursor-pointer">{key.replace('is', '').replace(/([A-Z])/g, ' $1').trim()}</Label>
+   462→   462→              <Switch id={`pf-${key}`} checked={form[key] as boolean} onCheckedChange={(v) => updateField(key, v)} />
+   463→   463→            </div>
+   464→   464→          ))}
+   465→   465→        </div>
+   466→   466→      </div>
+   467→   467→      <div className="flex justify-end pt-2">
+   468→   468→        <Button onClick={onSubmit} disabled={loading || !form.name || !form.slug || !form.basePrice || !form.categoryId}>
+   469→   469→          {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+   470→   470→          {submitLabel}
+   471→   471→        </Button>
+   472→   472→      </div>
+   473→   473→    </div>
+   474→   474→  )
+   475→   475→}
+   476→   476→
+   477→   477→function ProductsTab() {
+   478→   478→  const { showToast } = useStore()
+   479→   479→  const [products, setProducts] = useState<any[]>([])
+   480→   480→  const [categories, setCategories] = useState<any[]>([])
+   481→   481→  const [loading, setLoading] = useState(true)
+   482→   482→  const [formOpen, setFormOpen] = useState(false)
+   483→   483→  const [editingId, setEditingId] = useState<string | null>(null)
+   484→   484→  const [form, setForm] = useState<ProductFormState>(emptyProductForm)
+   485→   485→  const [submitting, setSubmitting] = useState(false)
+   486→   486→  const [deleteId, setDeleteId] = useState<string | null>(null)
+   487→   487→
+   488→   488→  const fetchProducts = useCallback(async () => {
+   489→   489→    setLoading(true)
+   490→   490→    try {
+   491→   491→      const [pRes, cRes] = await Promise.all([
+   492→   492→        fetch('/api/products?limit=100', { headers: authHeaders() }),
+   493→   493→        fetch('/api/categories'),
+   494→   494→      ])
+   495→   495→      if (!pRes.ok || !cRes.ok) throw new Error('Failed to fetch')
+   496→   496→      const pJson = await pRes.json()
+   497→   497→      const cJson = await cRes.json()
+   498→   498→      setProducts(pJson.products || [])
+   499→   499→      setCategories(cJson.categories || [])
+   500→   500→    } catch (err: any) {
+   501→   501→      showToast(err.message || 'Error loading products', 'error')
+   502→   502→    } finally {
+   503→   503→      setLoading(false)
+   504→   504→    }
+   505→   505→  }, [showToast])
+   506→   506→
+   507→   507→  useEffect(() => { fetchProducts() }, [fetchProducts])
+   508→   508→
+   509→   509→  const openCreate = () => {
+   510→   510→    setEditingId(null)
+   511→   511→    setForm(emptyProductForm)
+   512→   512→    setFormOpen(true)
+   513→   513→  }
+   514→   514→
+   515→   515→  const openEdit = (p: any) => {
+   516→   516→    setEditingId(p.id)
+   517→   517→    setForm({
+   518→   518→      name: p.name, slug: p.slug, description: p.description || '',
+   519→   519→      categoryId: p.categoryId, gender: p.gender || 'unisex',
+   520→   520→      basePrice: String(p.basePrice), salePrice: p.salePrice != null ? String(p.salePrice) : '',
+   521→   521→      material: p.material || '', care: p.care || '',
+   522→   522→      isFeatured: p.isFeatured, isTrending: p.isTrending,
+   523→   523→      isNewArrival: p.isNewArrival, isBestSeller: p.isBestSeller,
+   524→   524→    })
+   525→   525→    setFormOpen(true)
+   526→   526→  }
+   527→   527→
+   528→   528→  const handleSubmit = async () => {
+   529→   529→    setSubmitting(true)
+   530→   530→    try {
+   531→   531→      const body = {
+   532→   532→        ...form,
+   533→   533→        basePrice: parseFloat(form.basePrice),
+   534→   534→        salePrice: form.salePrice ? parseFloat(form.salePrice) : null,
+   535→   535→      }
+   536→   536→      if (editingId) {
+   537→   537→        const res = await fetch(`/api/products/${editingId}`, {
+   538→   538→          method: 'PUT', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+   539→   539→        })
+   540→   540→        if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Update failed') }
+   541→   541→        showToast('Product updated successfully')
+   542→   542→      } else {
+   543→   543→        const res = await fetch('/api/products', {
+   544→   544→          method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+   545→   545→        })
+   546→   546→        if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Create failed') }
+   547→   547→        showToast('Product created successfully')
+   548→   548→      }
+   549→   549→      setFormOpen(false)
+   550→   550→      fetchProducts()
+   551→   551→    } catch (err: any) {
+   552→   552→      showToast(err.message || 'Error saving product', 'error')
+   553→   553→    } finally {
+   554→   554→      setSubmitting(false)
+   555→   555→    }
+   556→   556→  }
+   557→   557→
+   558→   558→  const handleDelete = async () => {
+   559→   559→    if (!deleteId) return
+   560→   560→    try {
+   561→   561→      const res = await fetch(`/api/products/${deleteId}`, { method: 'DELETE', headers: authHeaders() })
+   562→   562→      if (!res.ok) throw new Error('Delete failed')
+   563→   563→      showToast('Product deleted')
+   564→   564→      setDeleteId(null)
+   565→   565→      fetchProducts()
+   566→   566→    } catch (err: any) {
+   567→   567→      showToast(err.message || 'Error deleting product', 'error')
+   568→   568→    }
+   569→   569→  }
+   570→   570→
+   571→   571→  if (loading) {
+   572→   572→    return (
+   573→   573→      <div className="space-y-4">
+   574→   574→        <Skeleton className="h-10 w-40" />
+   575→   575→        {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
+   576→   576→      </div>
+   577→   577→    )
+   578→   578→  }
+   579→   579→
+   580→   580→  return (
+   581→   581→    <div className="space-y-4">
+   582→   582→      <div className="flex items-center justify-between">
+   583→   583→        <h2 className="text-xl font-bold">Products ({products.length})</h2>
+   584→   584→        <Dialog open={formOpen} onOpenChange={(open) => { setFormOpen(open); if (!open) setEditingId(null) }}>
+   585→   585→          <DialogTrigger asChild>
+   586→   586→            <Button onClick={openCreate} className="bg-[#1e9ba6] hover:bg-[#1e9ba6]/90 text-white">
+   587→   587→              <Plus className="h-4 w-4 mr-2" /> Add Product
+   588→   588→            </Button>
+   589→   589→          </DialogTrigger>
+   590→   590→          <DialogContent className="sm:max-w-2xl">
+   591→   591→            <DialogHeader>
+   592→   592→              <DialogTitle>{editingId ? 'Edit Product' : 'Add Product'}</DialogTitle>
+   593→   593→              <DialogDescription>{editingId ? 'Update product details below.' : 'Fill in the details to create a new product.'}</DialogDescription>
+   594→   594→            </DialogHeader>
+   595→   595→            <ProductForm
+   596→   596→              form={form} setForm={setForm} categories={categories} loading={submitting}
+   597→   597→              onSubmit={handleSubmit} submitLabel={editingId ? 'Update Product' : 'Create Product'}
+   598→   598→            />
+   599→   599→          </DialogContent>
+   600→   600→        </Dialog>
+   601→   601→      </div>
+   602→   602→
+   603→   603→      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+   604→   604→        <div className="max-h-[65vh] overflow-y-auto">
+   605→   605→          <Table>
+   606→   606→            <TableHeader>
+   607→   607→              <TableRow>
+   608→   608→                <TableHead className="text-xs">Image</TableHead>
+   609→   609→                <TableHead className="text-xs">Name</TableHead>
+   610→   610→                <TableHead className="text-xs hidden sm:table-cell">Category</TableHead>
+   611→   611→                <TableHead className="text-xs">Price</TableHead>
+   612→   612→                <TableHead className="text-xs hidden md:table-cell">Stock</TableHead>
+   613→   613→                <TableHead className="text-xs">Status</TableHead>
+   614→   614→                <TableHead className="text-xs text-right">Actions</TableHead>
+   615→   615→              </TableRow>
+   616→   616→            </TableHeader>
+   617→   617→            <TableBody>
+   618→   618→              {products.map((p) => {
+   619→   619→                const totalStock = p.variants?.reduce((sum: number, v: any) => sum + (v.inventory?.quantity || 0), 0) || 0
+   620→   620→                return (
+   621→   621→                  <TableRow key={p.id}>
+   622→   622→                    <TableCell>
+   623→   623→                      {p.images?.[0]?.url ? (
+   624→   624→                        <img src={p.images[0].url} alt={p.name} className="w-10 h-10 rounded-lg object-cover" />
+   625→   625→                      ) : (
+   626→   626→                        <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center"><ImageIcon className="h-4 w-4 text-muted-foreground" /></div>
+   627→   627→                      )}
+   628→   628→                    </TableCell>
+   629→   629→                    <TableCell className="font-medium text-sm">{p.name}</TableCell>
+   630→   630→                    <TableCell className="text-sm text-muted-foreground hidden sm:table-cell">{p.category?.name || '—'}</TableCell>
+   631→   631→                    <TableCell className="text-sm">
+   632→   632→                      {p.salePrice ? (
+   633→   633→                        <span className="text-[#0B1F3A] font-semibold">₹{fmt(p.salePrice)} <span className="text-muted-foreground line-through text-xs ml-1">₹{fmt(p.basePrice)}</span></span>
+   634→   634→                      ) : (
+   635→   635→                        <span className="font-semibold">₹{fmt(p.basePrice)}</span>
+   636→   636→                      )}
+   637→   637→                    </TableCell>
+   638→   638→                    <TableCell className="hidden md:table-cell">
+   639→   639→                      <Badge variant={totalStock === 0 ? 'destructive' : totalStock <= 5 ? 'secondary' : 'default'} className={totalStock <= 5 && totalStock > 0 ? 'bg-amber-100 text-amber-800' : ''}>
+   640→   640→                        {totalStock}
+   641→   641→                      </Badge>
+   642→   642→                    </TableCell>
+   643→   643→                    <TableCell>
+   644→   644→                      <Badge variant={p.isActive ? 'default' : 'secondary'} className={p.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}>
+   645→   645→                        {p.isActive ? 'Active' : 'Inactive'}
+   646→   646→                      </Badge>
+   647→   647→                    </TableCell>
+   648→   648→                    <TableCell className="text-right">
+   649→   649→                      <div className="flex items-center justify-end gap-1">
+   650→   650→                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(p)}><Pencil className="h-3.5 w-3.5" /></Button>
+   651→   651→                        <AlertDialog open={deleteId === p.id} onOpenChange={(open) => !open && setDeleteId(null)}>
+   652→   652→                          <AlertDialogTrigger asChild>
+   653→   653→                            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => setDeleteId(p.id)}>
+   654→   654→                              <Trash2 className="h-3.5 w-3.5" />
+   655→   655→                            </Button>
+   656→   656→                          </AlertDialogTrigger>
+   657→   657→                          <AlertDialogContent>
+   658→   658→                            <AlertDialogHeader>
+   659→   659→                              <AlertDialogTitle>Delete Product</AlertDialogTitle>
+   660→   660→                              <AlertDialogDescription>Are you sure you want to delete &quot;{p.name}&quot;? This action cannot be undone.</AlertDialogDescription>
+   661→   661→                            </AlertDialogHeader>
+   662→   662→                            <AlertDialogFooter>
+   663→   663→                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+   664→   664→                              <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+   665→   665→                            </AlertDialogFooter>
+   666→   666→                          </AlertDialogContent>
+   667→   667→                        </AlertDialog>
+   668→   668→                      </div>
+   669→   669→                    </TableCell>
+   670→   670→                  </TableRow>
+   671→   671→                )
+   672→   672→              })}
+   673→   673→              {products.length === 0 && (
+   674→   674→                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No products found</TableCell></TableRow>
+   675→   675→              )}
+   676→   676→            </TableBody>
+   677→   677→          </Table>
+   678→   678→        </div>
+   679→   679→      </div>
+   680→   680→    </div>
+   681→   681→  )
+   682→   682→}
+   683→   683→
+   684→   684→// ═══════════════════════════════════════════════════════════════════════════════
+   685→   685→// ORDERS TAB
+   686→   686→// ═══════════════════════════════════════════════════════════════════════════════
+   687→   687→function OrdersTab() {
+   688→   688→  const { showToast } = useStore()
+   689→   689→  const [orders, setOrders] = useState<any[]>([])
+   690→   690→  const [loading, setLoading] = useState(true)
+   691→   691→  const [updatingId, setUpdatingId] = useState<string | null>(null)
+   692→   692→
+   693→   693→  const fetchOrders = useCallback(async () => {
+   694→   694→    setLoading(true)
+   695→   695→    try {
+   696→   696→      // Admin dashboard has recentOrders, but for full list we use the admin endpoint
+   697→   697→      // The orders endpoint is user-scoped, so we fetch from admin for recent orders and combine
+   698→   698→      const res = await fetch('/api/admin', { headers: authHeaders() })
+   699→   699→      if (!res.ok) throw new Error('Failed to fetch')
+   700→   700→      const json = await res.json()
+   701→   701→      // The admin endpoint returns recentOrders (10). For a full list we show these for now.
+   702→   702→      // To get more, the admin could have a separate endpoint, but we work with what we have.
+   703→   703→      setOrders(json.recentOrders || [])
+   704→   704→    } catch (err: any) {
+   705→   705→      showToast(err.message || 'Error loading orders', 'error')
+   706→   706→    } finally {
+   707→   707→      setLoading(false)
+   708→   708→    }
+   709→   709→  }, [showToast])
+   710→   710→
+   711→   711→  useEffect(() => { fetchOrders() }, [fetchOrders])
+   712→   712→
+   713→   713→  const handleStatusUpdate = async (orderId: string, newStatus: string) => {
+   714→   714→    setUpdatingId(orderId)
+   715→   715→    try {
+   716→   716→      const res = await fetch(`/api/orders/${orderId}`, {
+   717→   717→        method: 'PUT',
+   718→   718→        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+   719→   719→        body: JSON.stringify({ status: newStatus }),
+   720→   720→      })
+   721→   721→      if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Update failed') }
+   722→   722→      showToast(`Order status updated to ${newStatus}`)
+   723→   723→      fetchOrders()
+   724→   724→    } catch (err: any) {
+   725→   725→      showToast(err.message || 'Error updating order', 'error')
+   726→   726→    } finally {
+   727→   727→      setUpdatingId(null)
+   728→   728→    }
+   729→   729→  }
+   730→   730→
+   731→   731→  if (loading) {
+   732→   732→    return <div className="space-y-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
+   733→   733→  }
+   734→   734→
+   735→   735→  return (
+   736→   736→    <div className="space-y-4">
+   737→   737→      <div className="flex items-center justify-between">
+   738→   738→        <h2 className="text-xl font-bold">Orders ({orders.length})</h2>
+   739→   739→        <Button variant="outline" size="sm" onClick={fetchOrders} disabled={loading}>
+   740→   740→          <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} /> Refresh
+   741→   741→        </Button>
+   742→   742→      </div>
+   743→   743→
+   744→   744→      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+   745→   745→        <div className="max-h-[65vh] overflow-y-auto">
+   746→   746→          <Table>
+   747→   747→            <TableHeader>
+   748→   748→              <TableRow>
+   749→   749→                <TableHead className="text-xs">Order #</TableHead>
+   750→   750→                <TableHead className="text-xs">Customer</TableHead>
+   751→   751→                <TableHead className="text-xs hidden lg:table-cell">Date</TableHead>
+   752→   752→                <TableHead className="text-xs hidden sm:table-cell">Items</TableHead>
+   753→   753→                <TableHead className="text-xs">Total</TableHead>
+   754→   754→                <TableHead className="text-xs">Status</TableHead>
+   755→   755→                <TableHead className="text-xs hidden md:table-cell">Payment</TableHead>
+   756→   756→                <TableHead className="text-xs text-right">Action</TableHead>
+   757→   757→              </TableRow>
+   758→   758→            </TableHeader>
+   759→   759→            <TableBody>
+   760→   760→              {orders.map((order) => (
+   761→   761→                <TableRow key={order.id}>
+   762→   762→                  <TableCell className="font-mono text-xs">{order.orderNumber?.slice(0, 16)}</TableCell>
+   763→   763→                  <TableCell>
+   764→   764→                    <div className="text-sm font-medium">{order.user?.name || '—'}</div>
+   765→   765→                    <div className="text-xs text-muted-foreground">{order.user?.email || ''}</div>
+   766→   766→                  </TableCell>
+   767→   767→                  <TableCell className="text-xs hidden lg:table-cell">{fmtDate(order.createdAt)}</TableCell>
+   768→   768→                  <TableCell className="text-xs hidden sm:table-cell">{order.items?.length || 0} item(s)</TableCell>
+   769→   769→                  <TableCell className="text-sm font-semibold">₹{fmt(order.total)}</TableCell>
+   770→   770→                  <TableCell>
+   771→   771→                    <Badge className={STATUS_COLORS[order.status] || ''} variant="secondary">{order.status}</Badge>
+   772→   772→                  </TableCell>
+   773→   773→                  <TableCell className="hidden md:table-cell">
+   774→   774→                    <Badge className={PAYMENT_COLORS[order.paymentStatus] || ''} variant="secondary">{order.paymentStatus}</Badge>
+   775→   775→                  </TableCell>
+   776→   776→                  <TableCell className="text-right">
+   777→   777→                    {updatingId === order.id ? (
+   778→   778→                      <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+   779→   779→                    ) : (
+   780→   780→                      <Select value={order.status} onValueChange={(v) => handleStatusUpdate(order.id, v)}>
+   781→   781→                        <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
+   782→   782→                        <SelectContent>
+   783→   783→                          {['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'].map((s) => (
+   784→   784→                            <SelectItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>
+   785→   785→                          ))}
+   786→   786→                        </SelectContent>
+   787→   787→                      </Select>
+   788→   788→                    )}
+   789→   789→                  </TableCell>
+   790→   790→                </TableRow>
+   791→   791→              ))}
+   792→   792→              {orders.length === 0 && (
+   793→   793→                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No orders found</TableCell></TableRow>
+   794→   794→              )}
+   795→   795→            </TableBody>
+   796→   796→          </Table>
+   797→   797→        </div>
+   798→   798→      </div>
+   799→   799→    </div>
+   800→   800→  )
+   801→   801→}
+   802→   802→
+   803→   803→// ═══════════════════════════════════════════════════════════════════════════════
+   804→   804→// CUSTOMERS TAB
+   805→   805→// ═══════════════════════════════════════════════════════════════════════════════
+   806→   806→function CustomersTab() {
+   807→   807→  const { showToast } = useStore()
+   808→   808→  const [customers, setCustomers] = useState<any[]>([])
+   809→   809→  const [loading, setLoading] = useState(true)
+   810→   810→  const [togglingId, setTogglingId] = useState<string | null>(null)
+   811→   811→
+   812→   812→  const fetchCustomers = useCallback(async () => {
+   813→   813→    setLoading(true)
+   814→   814→    try {
+   815→   815→      const res = await fetch('/api/admin/customers?limit=100', { headers: authHeaders() })
+   816→   816→      if (!res.ok) throw new Error('Failed to fetch')
+   817→   817→      const json = await res.json()
+   818→   818→      setCustomers(json.customers || [])
+   819→   819→    } catch (err: any) {
+   820→   820→      showToast(err.message || 'Error loading customers', 'error')
+   821→   821→    } finally {
+   822→   822→      setLoading(false)
+   823→   823→    }
+   824→   824→  }, [showToast])
+   825→   825→
+   826→   826→  useEffect(() => { fetchCustomers() }, [fetchCustomers])
+   827→   827→
+   828→   828→  const toggleActive = async (customer: any) => {
+   829→   829→    setTogglingId(customer.id)
+   830→   830→    try {
+   831→   831→      const res = await fetch('/api/admin/customers', {
+   832→   832→        method: 'PUT',
+   833→   833→        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+   834→   834→        body: JSON.stringify({ userId: customer.id, isActive: !customer.isActive }),
+   835→   835→      })
+   836→   836→      if (!res.ok) throw new Error('Update failed')
+   837→   837→      showToast(`${customer.name} ${!customer.isActive ? 'activated' : 'deactivated'}`)
+   838→   838→      fetchCustomers()
+   839→   839→    } catch (err: any) {
+   840→   840→      showToast(err.message || 'Error updating customer', 'error')
+   841→   841→    } finally {
+   842→   842→      setTogglingId(null)
+   843→   843→    }
+   844→   844→  }
+   845→   845→
+   846→   846→  if (loading) {
+   847→   847→    return <div className="space-y-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+   848→   848→  }
+   849→   849→
+   850→   850→  return (
+   851→   851→    <div className="space-y-4">
+   852→   852→      <h2 className="text-xl font-bold">Customers ({customers.length})</h2>
+   853→   853→      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+   854→   854→        <div className="max-h-[65vh] overflow-y-auto">
+   855→   855→          <Table>
+   856→   856→            <TableHeader>
+   857→   857→              <TableRow>
+   858→   858→                <TableHead className="text-xs">Name</TableHead>
+   859→   859→                <TableHead className="text-xs">Email</TableHead>
+   860→   860→                <TableHead className="text-xs hidden sm:table-cell">Phone</TableHead>
+   861→   861→                <TableHead className="text-xs hidden md:table-cell">Role</TableHead>
+   862→   862→                <TableHead className="text-xs">Active</TableHead>
+   863→   863→                <TableHead className="text-xs hidden lg:table-cell">Orders</TableHead>
+   864→   864→                <TableHead className="text-xs hidden lg:table-cell">Joined</TableHead>
+   865→   865→                <TableHead className="text-xs text-right">Action</TableHead>
+   866→   866→              </TableRow>
+   867→   867→            </TableHeader>
+   868→   868→            <TableBody>
+   869→   869→              {customers.map((c) => (
+   870→   870→                <TableRow key={c.id}>
+   871→   871→                  <TableCell className="font-medium text-sm">{c.name}</TableCell>
+   872→   872→                  <TableCell className="text-sm text-muted-foreground">{c.email}</TableCell>
+   873→   873→                  <TableCell className="text-sm hidden sm:table-cell">{c.phone || '—'}</TableCell>
+   874→   874→                  <TableCell className="hidden md:table-cell"><Badge variant="secondary">{c.role || 'customer'}</Badge></TableCell>
+   875→   875→                  <TableCell>
+   876→   876→                    <Badge variant="secondary" className={c.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+   877→   877→                      {c.isActive ? 'Active' : 'Inactive'}
+   878→   878→                    </Badge>
+   879→   879→                  </TableCell>
+   880→   880→                  <TableCell className="hidden lg:table-cell text-sm">{c._count?.orders || 0}</TableCell>
+   881→   881→                  <TableCell className="hidden lg:table-cell text-xs text-muted-foreground">{fmtDate(c.createdAt)}</TableCell>
+   882→   882→                  <TableCell className="text-right">
+   883→   883→                    {togglingId === c.id ? (
+   884→   884→                      <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+   885→   885→                    ) : (
+   886→   886→                      <Button
+   887→   887→                        variant="ghost" size="sm"
+   888→   888→                        className={c.isActive ? 'text-red-500 hover:text-red-700 hover:bg-red-50' : 'text-green-600 hover:text-green-800 hover:bg-green-50'}
+   889→   889→                        onClick={() => toggleActive(c)}
+   890→   890→                      >
+   891→   891→                        {c.isActive ? 'Deactivate' : 'Activate'}
+   892→   892→                      </Button>
+   893→   893→                    )}
+   894→   894→                  </TableCell>
+   895→   895→                </TableRow>
+   896→   896→              ))}
+   897→   897→              {customers.length === 0 && (
+   898→   898→                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No customers found</TableCell></TableRow>
+   899→   899→              )}
+   900→   900→            </TableBody>
+   901→   901→          </Table>
+   902→   902→        </div>
+   903→   903→      </div>
+   904→   904→    </div>
+   905→   905→  )
+   906→   906→}
+   907→   907→
+   908→   908→// ═══════════════════════════════════════════════════════════════════════════════
+   909→   909→// COUPONS TAB
+   910→   910→// ═══════════════════════════════════════════════════════════════════════════════
+   911→   911→interface CouponFormState {
+   912→   912→  code: string; description: string; discountType: string; discountValue: string;
+   913→   913→  minOrder: string; maxDiscount: string; usageLimit: string; startDate: string; endDate: string;
+   914→   914→}
+   915→   915→
+   916→   916→const emptyCouponForm: CouponFormState = {
+   917→   917→  code: '', description: '', discountType: 'percentage', discountValue: '',
+   918→   918→  minOrder: '', maxDiscount: '', usageLimit: '', startDate: '', endDate: '',
+   919→   919→}
+   920→   920→
+   921→   921→function CouponForm({ form, setForm, loading, onSubmit, submitLabel }: {
+   922→   922→  form: CouponFormState; setForm: (f: CouponFormState) => void; loading: boolean; onSubmit: () => void; submitLabel: string;
+   923→   923→}) {
+   924→   924→  const update = (field: keyof CouponFormState, value: string) => setForm({ ...form, [field]: value })
+   925→   925→
+   926→   926→  return (
+   927→   927→    <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+   928→   928→      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   929→   929→        <div className="space-y-2">
+   930→   930→          <Label>Coupon Code *</Label>
+   931→   931→          <Input value={form.code} onChange={(e) => update('code', e.target.value.toUpperCase())} placeholder="SAVE20" />
+   932→   932→        </div>
+   933→   933→        <div className="space-y-2">
+   934→   934→          <Label>Discount Type</Label>
+   935→   935→          <Select value={form.discountType} onValueChange={(v) => update('discountType', v)}>
+   936→   936→            <SelectTrigger><SelectValue /></SelectTrigger>
+   937→   937→            <SelectContent>
+   938→   938→              <SelectItem value="percentage">Percentage (%)</SelectItem>
+   939→   939→              <SelectItem value="fixed">Fixed Amount (₹)</SelectItem>
+   940→   940→            </SelectContent>
+   941→   941→          </Select>
+   942→   942→        </div>
+   943→   943→      </div>
+   944→   944→      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   945→   945→        <div className="space-y-2">
+   946→   946→          <Label>Discount Value *</Label>
+   947→   947→          <Input type="number" value={form.discountValue} onChange={(e) => update('discountValue', e.target.value)} placeholder={form.discountType === 'percentage' ? '20' : '500'} />
+   948→   948→        </div>
+   949→   949→        <div className="space-y-2">
+   950→   950→          <Label>Min Order Amount (₹)</Label>
+   951→   951→          <Input type="number" value={form.minOrder} onChange={(e) => update('minOrder', e.target.value)} placeholder="0" />
+   952→   952→        </div>
+   953→   953→      </div>
+   954→   954→      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   955→   955→        <div className="space-y-2">
+   956→   956→          <Label>Max Discount (₹)</Label>
+   957→   957→          <Input type="number" value={form.maxDiscount} onChange={(e) => update('maxDiscount', e.target.value)} placeholder="No limit" />
+   958→   958→        </div>
+   959→   959→        <div className="space-y-2">
+   960→   960→          <Label>Usage Limit</Label>
+   961→   961→          <Input type="number" value={form.usageLimit} onChange={(e) => update('usageLimit', e.target.value)} placeholder="Unlimited" />
+   962→   962→        </div>
+   963→   963→      </div>
+   964→   964→      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   965→   965→        <div className="space-y-2">
+   966→   966→          <Label>Start Date *</Label>
+   967→   967→          <Input type="date" value={form.startDate} onChange={(e) => update('startDate', e.target.value)} />
+   968→   968→        </div>
+   969→   969→        <div className="space-y-2">
+   970→   970→          <Label>End Date *</Label>
+   971→   971→          <Input type="date" value={form.endDate} onChange={(e) => update('endDate', e.target.value)} />
+   972→   972→        </div>
+   973→   973→      </div>
+   974→   974→      <div className="space-y-2">
+   975→   975→        <Label>Description</Label>
+   976→   976→        <Input value={form.description} onChange={(e) => update('description', e.target.value)} placeholder="Flat 20% off on all orders" />
+   977→   977→      </div>
+   978→   978→      <div className="flex justify-end pt-2">
+   979→   979→        <Button onClick={onSubmit} disabled={loading || !form.code || !form.discountValue || !form.startDate || !form.endDate}>
+   980→   980→          {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+   981→   981→          {submitLabel}
+   982→   982→        </Button>
+   983→   983→      </div>
+   984→   984→    </div>
+   985→   985→  )
+   986→   986→}
+   987→   987→
+   988→   988→function CouponsTab() {
+   989→   989→  const { showToast } = useStore()
+   990→   990→  const [coupons, setCoupons] = useState<any[]>([])
+   991→   991→  const [loading, setLoading] = useState(true)
+   992→   992→  const [formOpen, setFormOpen] = useState(false)
+   993→   993→  const [editingId, setEditingId] = useState<string | null>(null)
+   994→   994→  const [form, setForm] = useState<CouponFormState>(emptyCouponForm)
+   995→   995→  const [submitting, setSubmitting] = useState(false)
+   996→   996→  const [deleteId, setDeleteId] = useState<string | null>(null)
+   997→   997→
+   998→   998→  const fetchCoupons = useCallback(async () => {
+   999→   999→    setLoading(true)
+  1000→  1000→    try {
+  1001→  1001→      const res = await fetch('/api/coupons', { headers: authHeaders() })
+  1002→  1002→      if (!res.ok) throw new Error('Failed to fetch')
+  1003→  1003→      const json = await res.json()
+  1004→  1004→      setCoupons(json.coupons || [])
+  1005→  1005→    } catch (err: any) {
+  1006→  1006→      showToast(err.message || 'Error loading coupons', 'error')
+  1007→  1007→    } finally {
+  1008→  1008→      setLoading(false)
+  1009→  1009→    }
+  1010→  1010→  }, [showToast])
+  1011→  1011→
+  1012→  1012→  useEffect(() => { fetchCoupons() }, [fetchCoupons])
+  1013→  1013→
+  1014→  1014→  const openCreate = () => { setEditingId(null); setForm(emptyCouponForm); setFormOpen(true) }
+  1015→  1015→
+  1016→  1016→  const openEdit = (c: any) => {
+  1017→  1017→    setEditingId(c.id)
+  1018→  1018→    setForm({
+  1019→  1019→      code: c.code, description: c.description || '',
+  1020→  1020→      discountType: c.discountType, discountValue: String(c.discountValue),
+  1021→  1021→      minOrder: String(c.minOrder || ''), maxDiscount: c.maxDiscount != null ? String(c.maxDiscount) : '',
+  1022→  1022→      usageLimit: c.usageLimit != null ? String(c.usageLimit) : '',
+  1023→  1023→      startDate: c.startDate?.slice(0, 10) || '', endDate: c.endDate?.slice(0, 10) || '',
+  1024→  1024→    })
+  1025→  1025→    setFormOpen(true)
+  1026→  1026→  }
+  1027→  1027→
+  1028→  1028→  const handleSubmit = async () => {
+  1029→  1029→    setSubmitting(true)
+  1030→  1030→    try {
+  1031→  1031→      const body = { ...form, discountValue: parseFloat(form.discountValue) }
+  1032→  1032→      if (editingId) {
+  1033→  1033→        const res = await fetch('/api/coupons', {
+  1034→  1034→          method: 'PUT', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editingId, ...body }),
+  1035→  1035→        })
+  1036→  1036→        if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Update failed') }
+  1037→  1037→        showToast('Coupon updated')
+  1038→  1038→      } else {
+  1039→  1039→        const res = await fetch('/api/coupons', {
+  1040→  1040→          method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  1041→  1041→        })
+  1042→  1042→        if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Create failed') }
+  1043→  1043→        showToast('Coupon created')
+  1044→  1044→      }
+  1045→  1045→      setFormOpen(false)
+  1046→  1046→      fetchCoupons()
+  1047→  1047→    } catch (err: any) {
+  1048→  1048→      showToast(err.message || 'Error saving coupon', 'error')
+  1049→  1049→    } finally {
+  1050→  1050→      setSubmitting(false)
+  1051→  1051→    }
+  1052→  1052→  }
+  1053→  1053→
+  1054→  1054→  const handleDelete = async () => {
+  1055→  1055→    if (!deleteId) return
+  1056→  1056→    try {
+  1057→  1057→      const res = await fetch(`/api/coupons?id=${deleteId}`, { method: 'DELETE', headers: authHeaders() })
+  1058→  1058→      if (!res.ok) throw new Error('Delete failed')
+  1059→  1059→      showToast('Coupon deleted')
+  1060→  1060→      setDeleteId(null)
+  1061→  1061→      fetchCoupons()
+  1062→  1062→    } catch (err: any) {
+  1063→  1063→      showToast(err.message || 'Error deleting coupon', 'error')
+  1064→  1064→    }
+  1065→  1065→  }
+  1066→  1066→
+  1067→  1067→  if (loading) {
+  1068→  1068→    return <div className="space-y-4">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
+  1069→  1069→  }
+  1070→  1070→
+  1071→  1071→  return (
+  1072→  1072→    <div className="space-y-4">
+  1073→  1073→      <div className="flex items-center justify-between">
+  1074→  1074→        <h2 className="text-xl font-bold">Coupons ({coupons.length})</h2>
+  1075→  1075→        <Dialog open={formOpen} onOpenChange={(open) => { setFormOpen(open); if (!open) setEditingId(null) }}>
+  1076→  1076→          <DialogTrigger asChild>
+  1077→  1077→            <Button onClick={openCreate} className="bg-[#1e9ba6] hover:bg-[#1e9ba6]/90 text-white">
+  1078→  1078→              <Plus className="h-4 w-4 mr-2" /> Create Coupon
+  1079→  1079→            </Button>
+  1080→  1080→          </DialogTrigger>
+  1081→  1081→          <DialogContent className="sm:max-w-lg">
+  1082→  1082→            <DialogHeader>
+  1083→  1083→              <DialogTitle>{editingId ? 'Edit Coupon' : 'Create Coupon'}</DialogTitle>
+  1084→  1084→              <DialogDescription>{editingId ? 'Update coupon details.' : 'Set up a new discount coupon.'}</DialogDescription>
+  1085→  1085→            </DialogHeader>
+  1086→  1086→            <CouponForm form={form} setForm={setForm} loading={submitting} onSubmit={handleSubmit} submitLabel={editingId ? 'Update' : 'Create'} />
+  1087→  1087→          </DialogContent>
+  1088→  1088→        </Dialog>
+  1089→  1089→      </div>
+  1090→  1090→
+  1091→  1091→      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+  1092→  1092→        <div className="max-h-[65vh] overflow-y-auto">
+  1093→  1093→          <Table>
+  1094→  1094→            <TableHeader>
+  1095→  1095→              <TableRow>
+  1096→  1096→                <TableHead className="text-xs">Code</TableHead>
+  1097→  1097→                <TableHead className="text-xs hidden sm:table-cell">Description</TableHead>
+  1098→  1098→                <TableHead className="text-xs">Discount</TableHead>
+  1099→  1099→                <TableHead className="text-xs hidden md:table-cell">Min Order</TableHead>
+  1100→  1100→                <TableHead className="text-xs">Usage</TableHead>
+  1101→  1101→                <TableHead className="text-xs hidden lg:table-cell">Valid Until</TableHead>
+  1102→  1102→                <TableHead className="text-xs">Active</TableHead>
+  1103→  1103→                <TableHead className="text-xs text-right">Actions</TableHead>
+  1104→  1104→              </TableRow>
+  1105→  1105→            </TableHeader>
+  1106→  1106→            <TableBody>
+  1107→  1107→              {coupons.map((c) => (
+  1108→  1108→                <TableRow key={c.id}>
+  1109→  1109→                  <TableCell className="font-mono font-bold text-sm">{c.code}</TableCell>
+  1110→  1110→                  <TableCell className="text-sm text-muted-foreground hidden sm:table-cell max-w-[200px] truncate">{c.description || '—'}</TableCell>
+  1111→  1111→                  <TableCell className="text-sm font-semibold">
+  1112→  1112→                    {c.discountType === 'percentage' ? `${c.discountValue}%` : `₹${fmt(c.discountValue)}`}
+  1113→  1113→                  </TableCell>
+  1114→  1114→                  <TableCell className="text-sm hidden md:table-cell">₹{fmt(c.minOrder || 0)}</TableCell>
+  1115→  1115→                  <TableCell className="text-sm">
+  1116→  1116→                    <span className={c.usageLimit && c.usedCount >= c.usageLimit ? 'text-red-600 font-semibold' : ''}>
+  1117→  1117→                      {c.usedCount}{c.usageLimit ? `/${c.usageLimit}` : ''}
+  1118→  1118→                    </span>
+  1119→  1119→                  </TableCell>
+  1120→  1120→                  <TableCell className="text-xs hidden lg:table-cell">{fmtDate(c.endDate)}</TableCell>
+  1121→  1121→                  <TableCell>
+  1122→  1122→                    <Badge variant="secondary" className={c.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}>
+  1123→  1123→                      {c.isActive ? 'Active' : 'Inactive'}
+  1124→  1124→                    </Badge>
+  1125→  1125→                  </TableCell>
+  1126→  1126→                  <TableCell className="text-right">
+  1127→  1127→                    <div className="flex items-center justify-end gap-1">
+  1128→  1128→                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(c)}><Pencil className="h-3.5 w-3.5" /></Button>
+  1129→  1129→                      <AlertDialog open={deleteId === c.id} onOpenChange={(open) => !open && setDeleteId(null)}>
+  1130→  1130→                        <AlertDialogTrigger asChild>
+  1131→  1131→                          <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => setDeleteId(c.id)}>
+  1132→  1132→                            <Trash2 className="h-3.5 w-3.5" />
+  1133→  1133→                          </Button>
+  1134→  1134→                        </AlertDialogTrigger>
+  1135→  1135→                        <AlertDialogContent>
+  1136→  1136→                          <AlertDialogHeader>
+  1137→  1137→                            <AlertDialogTitle>Delete Coupon</AlertDialogTitle>
+  1138→  1138→                            <AlertDialogDescription>Delete coupon &quot;{c.code}&quot;? This cannot be undone.</AlertDialogDescription>
+  1139→  1139→                          </AlertDialogHeader>
+  1140→  1140→                          <AlertDialogFooter>
+  1141→  1141→                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+  1142→  1142→                            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+  1143→  1143→                          </AlertDialogFooter>
+  1144→  1144→                        </AlertDialogContent>
+  1145→  1145→                      </AlertDialog>
+  1146→  1146→                    </div>
+  1147→  1147→                  </TableCell>
+  1148→  1148→                </TableRow>
+  1149→  1149→              ))}
+  1150→  1150→              {coupons.length === 0 && (
+  1151→  1151→                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No coupons found</TableCell></TableRow>
+  1152→  1152→              )}
+  1153→  1153→            </TableBody>
+  1154→  1154→          </Table>
+  1155→  1155→        </div>
+  1156→  1156→      </div>
+  1157→  1157→    </div>
+  1158→  1158→  )
+  1159→  1159→}
+  1160→  1160→
+  1161→  1161→// ═══════════════════════════════════════════════════════════════════════════════
+  1162→  1162→// REVIEWS TAB
+  1163→  1163→// ═══════════════════════════════════════════════════════════════════════════════
+  1164→  1164→function StarRating({ rating, size = 'sm' }: { rating: number; size?: 'sm' | 'md' }) {
+  1165→  1165→  const sz = size === 'sm' ? 'h-3.5 w-3.5' : 'h-5 w-5'
+  1166→  1166→  return (
+  1167→  1167→    <div className="flex items-center gap-0.5">
+  1168→  1168→      {[1, 2, 3, 4, 5].map((star) => (
+  1169→  1169→        <Star
+  1170→  1170→          key={star}
+  1171→  1171→          className={`${sz} ${star <= rating ? 'text-amber-400 fill-amber-400' : 'text-gray-300'}`}
+  1172→  1172→        />
+  1173→  1173→      ))}
+  1174→  1174→    </div>
+  1175→  1175→  )
+  1176→  1176→}
+  1177→  1177→
+  1178→  1178→function ReviewsTab() {
+  1179→  1179→  const { showToast } = useStore()
+  1180→  1180→  const [reviews, setReviews] = useState<any[]>([])
+  1181→  1181→  const [loading, setLoading] = useState(true)
+  1182→  1182→  const [actionLoading, setActionLoading] = useState<string | null>(null)
+  1183→  1183→  const [deleteId, setDeleteId] = useState<string | null>(null)
+  1184→  1184→
+  1185→  1185→  const fetchReviews = useCallback(async () => {
+  1186→  1186→    setLoading(true)
+  1187→  1187→    try {
+  1188→  1188→      const res = await fetch('/api/admin/reviews?limit=100', { headers: authHeaders() })
+  1189→  1189→      if (!res.ok) throw new Error('Failed to fetch')
+  1190→  1190→      const json = await res.json()
+  1191→  1191→      setReviews(json.reviews || [])
+  1192→  1192→    } catch (err: any) {
+  1193→  1193→      showToast(err.message || 'Error loading reviews', 'error')
+  1194→  1194→    } finally {
+  1195→  1195→      setLoading(false)
+  1196→  1196→    }
+  1197→  1197→  }, [showToast])
+  1198→  1198→
+  1199→  1199→  useEffect(() => { fetchReviews() }, [fetchReviews])
+  1200→  1200→
+  1201→  1201→  const handleApprove = async (review: any) => {
+  1202→  1202→    setActionLoading(review.id)
+  1203→  1203→    try {
+  1204→  1204→      const res = await fetch('/api/admin/reviews', {
+  1205→  1205→        method: 'PUT',
+  1206→  1206→        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+  1207→  1207→        body: JSON.stringify({ reviewId: review.id, isApproved: !review.isApproved }),
+  1208→  1208→      })
+  1209→  1209→      if (!res.ok) throw new Error('Update failed')
+  1210→  1210→      showToast(review.isApproved ? 'Review unapproved' : 'Review approved')
+  1211→  1211→      fetchReviews()
+  1212→  1212→    } catch (err: any) {
+  1213→  1213→      showToast(err.message || 'Error updating review', 'error')
+  1214→  1214→    } finally {
+  1215→  1215→      setActionLoading(null)
+  1216→  1216→    }
+  1217→  1217→  }
+  1218→  1218→
+  1219→  1219→  const handleDelete = async () => {
+  1220→  1220→    if (!deleteId) return
+  1221→  1221→    setActionLoading(deleteId)
+  1222→  1222→    try {
+  1223→  1223→      const res = await fetch(`/api/admin/reviews?reviewId=${deleteId}`, { method: 'DELETE', headers: authHeaders() })
+  1224→  1224→      if (!res.ok) throw new Error('Delete failed')
+  1225→  1225→      showToast('Review deleted')
+  1226→  1226→      setDeleteId(null)
+  1227→  1227→      fetchReviews()
+  1228→  1228→    } catch (err: any) {
+  1229→  1229→      showToast(err.message || 'Error deleting review', 'error')
+  1230→  1230→    } finally {
+  1231→  1231→      setActionLoading(null)
+  1232→  1232→    }
+  1233→  1233→  }
+  1234→  1234→
+  1235→  1235→  if (loading) {
+  1236→  1236→    return <div className="space-y-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
+  1237→  1237→  }
+  1238→  1238→
+  1239→  1239→  return (
+  1240→  1240→    <div className="space-y-4">
+  1241→  1241→      <h2 className="text-xl font-bold">Reviews ({reviews.length})</h2>
+  1242→  1242→      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+  1243→  1243→        <div className="max-h-[65vh] overflow-y-auto">
+  1244→  1244→          <Table>
+  1245→  1245→            <TableHeader>
+  1246→  1246→              <TableRow>
+  1247→  1247→                <TableHead className="text-xs">Product</TableHead>
+  1248→  1248→                <TableHead className="text-xs hidden sm:table-cell">Customer</TableHead>
+  1249→  1249→                <TableHead className="text-xs">Rating</TableHead>
+  1250→  1250→                <TableHead className="text-xs hidden md:table-cell">Title</TableHead>
+  1251→  1251→                <TableHead className="text-xs hidden lg:table-cell">Date</TableHead>
+  1252→  1252→                <TableHead className="text-xs">Status</TableHead>
+  1253→  1253→                <TableHead className="text-xs text-right">Actions</TableHead>
+  1254→  1254→              </TableRow>
+  1255→  1255→            </TableHeader>
+  1256→  1256→            <TableBody>
+  1257→  1257→              {reviews.map((r) => (
+  1258→  1258→                <TableRow key={r.id}>
+  1259→  1259→                  <TableCell className="text-sm font-medium max-w-[150px] truncate">{r.product?.name || '—'}</TableCell>
+  1260→  1260→                  <TableCell className="text-sm hidden sm:table-cell">{r.user?.name || '—'}</TableCell>
+  1261→  1261→                  <TableCell><StarRating rating={r.rating} /></TableCell>
+  1262→  1262→                  <TableCell className="text-sm text-muted-foreground hidden md:table-cell max-w-[200px] truncate">{r.title || '—'}</TableCell>
+  1263→  1263→                  <TableCell className="text-xs text-muted-foreground hidden lg:table-cell">{fmtDate(r.createdAt)}</TableCell>
+  1264→  1264→                  <TableCell>
+  1265→  1265→                    <Badge variant="secondary" className={r.isApproved ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+  1266→  1266→                      {r.isApproved ? 'Approved' : 'Pending'}
+  1267→  1267→                    </Badge>
+  1268→  1268→                  </TableCell>
+  1269→  1269→                  <TableCell className="text-right">
+  1270→  1270→                    <div className="flex items-center justify-end gap-1">
+  1271→  1271→                      <Button
+  1272→  1272→                        variant="ghost" size="sm" className="h-8 text-xs"
+  1273→  1273→                        onClick={() => handleApprove(r)}
+  1274→  1274→                        disabled={actionLoading === r.id}
+  1275→  1275→                      >
+  1276→  1276→                        {actionLoading === r.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : r.isApproved ? 'Unapprove' : 'Approve'}
+  1277→  1277→                      </Button>
+  1278→  1278→                      <AlertDialog open={deleteId === r.id} onOpenChange={(open) => !open && setDeleteId(null)}>
+  1279→  1279→                        <AlertDialogTrigger asChild>
+  1280→  1280→                          <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => setDeleteId(r.id)}>
+  1281→  1281→                            <Trash2 className="h-3.5 w-3.5" />
+  1282→  1282→                          </Button>
+  1283→  1283→                        </AlertDialogTrigger>
+  1284→  1284→                        <AlertDialogContent>
+  1285→  1285→                          <AlertDialogHeader>
+  1286→  1286→                            <AlertDialogTitle>Delete Review</AlertDialogTitle>
+  1287→  1287→                            <AlertDialogDescription>Delete this review? This cannot be undone.</AlertDialogDescription>
+  1288→  1288→                          </AlertDialogHeader>
+  1289→  1289→                          <AlertDialogFooter>
+  1290→  1290→                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+  1291→  1291→                            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+  1292→  1292→                          </AlertDialogFooter>
+  1293→  1293→                        </AlertDialogContent>
+  1294→  1294→                      </AlertDialog>
+  1295→  1295→                    </div>
+  1296→  1296→                  </TableCell>
+  1297→  1297→                </TableRow>
+  1298→  1298→              ))}
+  1299→  1299→              {reviews.length === 0 && (
+  1300→  1300→                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No reviews found</TableCell></TableRow>
+  1301→  1301→              )}
+  1302→  1302→            </TableBody>
+  1303→  1303→          </Table>
+  1304→  1304→        </div>
+  1305→  1305→      </div>
+  1306→  1306→    </div>
+  1307→  1307→  )
+  1308→  1308→}
+  1309→  1309→
+  1310→  1310→// ═══════════════════════════════════════════════════════════════════════════════
+  1311→  1311→// CONTENT TAB
+  1312→  1312→// ═══════════════════════════════════════════════════════════════════════════════
+  1313→  1313→const CONTENT_FIELDS = [
+  1314→  1314→  { key: 'about_us', label: 'About Us', type: 'textarea', rows: 6 },
+  1315→  1315→  { key: 'contact_email', label: 'Contact Email', type: 'input' },
+  1316→  1316→  { key: 'contact_phone', label: 'Contact Phone', type: 'input' },
+  1317→  1317→  { key: 'contact_address', label: 'Contact Address', type: 'textarea', rows: 3 },
+  1318→  1318→  { key: 'social_instagram', label: 'Instagram URL', type: 'input' },
+  1319→  1319→  { key: 'social_facebook', label: 'Facebook URL', type: 'input' },
+  1320→  1320→  { key: 'social_twitter', label: 'Twitter / X URL', type: 'input' },
+  1321→  1321→  { key: 'social_pinterest', label: 'Pinterest URL', type: 'input' },
+  1322→  1322→  { key: 'shipping_policy', label: 'Shipping Policy', type: 'textarea', rows: 5 },
+  1323→  1323→  { key: 'return_policy', label: 'Return Policy', type: 'textarea', rows: 5 },
+  1324→  1324→]
+  1325→  1325→
+  1326→  1326→function ContentTab() {
+  1327→  1327→  const { showToast } = useStore()
+  1328→  1328→  const [content, setContent] = useState<Record<string, string>>({})
+  1329→  1329→  const [loading, setLoading] = useState(true)
+  1330→  1330→  const [saving, setSaving] = useState(false)
+  1331→  1331→
+  1332→  1332→  const fetchContent = useCallback(async () => {
+  1333→  1333→    setLoading(true)
+  1334→  1334→    try {
+  1335→  1335→      const res = await fetch('/api/admin/content', { headers: authHeaders() })
+  1336→  1336→      if (!res.ok) throw new Error('Failed to fetch')
+  1337→  1337→      const json = await res.json()
+  1338→  1338→      const map: Record<string, string> = {}
+  1339→  1339→      for (const item of json.content || []) {
+  1340→  1340→        map[item.key] = item.value
+  1341→  1341→      }
+  1342→  1342→      setContent(map)
+  1343→  1343→    } catch (err: any) {
+  1344→  1344→      showToast(err.message || 'Error loading content', 'error')
+  1345→  1345→    } finally {
+  1346→  1346→      setLoading(false)
+  1347→  1347→    }
+  1348→  1348→  }, [showToast])
+  1349→  1349→
+  1350→  1350→  useEffect(() => { fetchContent() }, [fetchContent])
+  1351→  1351→
+  1352→  1352→  const updateField = (key: string, value: string) => {
+  1353→  1353→    setContent((prev) => ({ ...prev, [key]: value }))
+  1354→  1354→  }
+  1355→  1355→
+  1356→  1356→  const handleSave = async () => {
+  1357→  1357→    setSaving(true)
+  1358→  1358→    try {
+  1359→  1359→      const contentArray = CONTENT_FIELDS.map((f) => ({
+  1360→  1360→        key: f.key,
+  1361→  1361→        value: content[f.key] || '',
+  1362→  1362→        type: 'text',
+  1363→  1363→      }))
+  1364→  1364→      const res = await fetch('/api/admin/content', {
+  1365→  1365→        method: 'PUT',
+  1366→  1366→        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+  1367→  1367→        body: JSON.stringify({ content: contentArray }),
+  1368→  1368→      })
+  1369→  1369→      if (!res.ok) throw new Error('Save failed')
+  1370→  1370→      showToast('Content saved successfully')
+  1371→  1371→    } catch (err: any) {
+  1372→  1372→      showToast(err.message || 'Error saving content', 'error')
+  1373→  1373→    } finally {
+  1374→  1374→      setSaving(false)
+  1375→  1375→    }
+  1376→  1376→  }
+  1377→  1377→
+  1378→  1378→  if (loading) {
+  1379→  1379→    return <div className="space-y-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
+  1380→  1380→  }
+  1381→  1381→
+  1382→  1382→  return (
+  1383→  1383→    <div className="space-y-6">
+  1384→  1384→      <div className="flex items-center justify-between">
+  1385→  1385→        <h2 className="text-xl font-bold">Site Content</h2>
+  1386→  1386→        <Button onClick={handleSave} disabled={saving} className="bg-[#1e9ba6] hover:bg-[#1e9ba6]/90 text-white">
+  1387→  1387→          {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+  1388→  1388→          Save Changes
+  1389→  1389→        </Button>
+  1390→  1390→      </div>
+  1391→  1391→
+  1392→  1392→      <div className="bg-white rounded-xl border shadow-sm p-6 space-y-6">
+  1393→  1393→        {CONTENT_FIELDS.map((field) => (
+  1394→  1394→          <div key={field.key} className="space-y-2">
+  1395→  1395→            <Label htmlFor={`content-${field.key}`} className="text-sm font-medium">{field.label}</Label>
+  1396→  1396→            {field.type === 'textarea' ? (
+  1397→  1397→              <Textarea
+  1398→  1398→                id={`content-${field.key}`}
+  1399→  1399→                value={content[field.key] || ''}
+  1400→  1400→                onChange={(e) => updateField(field.key, e.target.value)}
+  1401→  1401→                rows={field.rows || 4}
+  1402→  1402→                placeholder={`Enter ${field.label.toLowerCase()}...`}
+  1403→  1403→              />
+  1404→  1404→            ) : (
+  1405→  1405→              <Input
+  1406→  1406→                id={`content-${field.key}`}
+  1407→  1407→                value={content[field.key] || ''}
+  1408→  1408→                onChange={(e) => updateField(field.key, e.target.value)}
+  1409→  1409→                placeholder={`Enter ${field.label.toLowerCase()}...`}
+  1410→  1410→              />
+  1411→  1411→            )}
+  1412→  1412→          </div>
+  1413→  1413→        ))}
+  1414→  1414→      </div>
+  1415→  1415→    </div>
+  1416→  1416→  )
+  1417→  1417→}
+  1418→  1418→
+  1419→  1419→// ═══════════════════════════════════════════════════════════════════════════════
+  1420→  1420→// INVENTORY TAB
+  1421→  1421→// ═══════════════════════════════════════════════════════════════════════════════
+  1422→  1422→function InventoryTab() {
+  1423→  1423→  const { showToast } = useStore()
+  1424→  1424→  const [inventory, setInventory] = useState<any[]>([])
+  1425→  1425→  const [loading, setLoading] = useState(true)
+  1426→  1426→  const [search, setSearch] = useState('')
+  1427→  1427→
+  1428→  1428→  const fetchInventory = useCallback(async () => {
+  1429→  1429→    setLoading(true)
+  1430→  1430→    try {
+  1431→  1431→      const res = await fetch('/api/products?limit=100', { headers: authHeaders() })
+  1432→  1432→      if (!res.ok) throw new Error('Failed to fetch')
+  1433→  1433→      const json = await res.json()
+  1434→  1434→      const items: any[] = []
+  1435→  1435→      for (const product of json.products || []) {
+  1436→  1436→        for (const variant of product.variants || []) {
+  1437→  1437→          items.push({
+  1438→  1438→            productId: product.id,
+  1439→  1439→            productName: product.name,
+  1440→  1440→            productImage: product.images?.[0]?.url || null,
+  1441→  1441→            variantId: variant.id,
+  1442→  1442→            color: variant.color,
+  1443→  1443→            size: variant.size,
+  1444→  1444→            sku: variant.sku,
+  1445→  1445→            stock: variant.inventory?.quantity || 0,
+  1446→  1446→            lowStock: variant.inventory?.lowStock || 5,
+  1447→  1447→          })
+  1448→  1448→        }
+  1449→  1449→      }
+  1450→  1450→      setInventory(items)
+  1451→  1451→    } catch (err: any) {
+  1452→  1452→      showToast(err.message || 'Error loading inventory', 'error')
+  1453→  1453→    } finally {
+  1454→  1454→      setLoading(false)
+  1455→  1455→    }
+  1456→  1456→  }, [showToast])
+  1457→  1457→
+  1458→  1458→  useEffect(() => { fetchInventory() }, [fetchInventory])
+  1459→  1459→
+  1460→  1460→  const filtered = search
+  1461→  1461→    ? inventory.filter((item) => item.productName.toLowerCase().includes(search.toLowerCase()))
+  1462→  1462→    : inventory
+  1463→  1463→
+  1464→  1464→  const getStockStatus = (stock: number, lowStock: number) => {
+  1465→  1465→    if (stock === 0) return { label: 'Out of Stock', className: 'bg-red-100 text-red-800', dot: 'bg-red-500' }
+  1466→  1466→    if (stock <= lowStock) return { label: 'Low Stock', className: 'bg-amber-100 text-amber-800', dot: 'bg-amber-500' }
+  1467→  1467→    return { label: 'In Stock', className: 'bg-green-100 text-green-800', dot: 'bg-green-500' }
+  1468→  1468→  }
+  1469→  1469→
+  1470→  1470→  if (loading) {
+  1471→  1471→    return <div className="space-y-4"><Skeleton className="h-10 w-60" />{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+  1472→  1472→  }
+  1473→  1473→
+  1474→  1474→  return (
+  1475→  1475→    <div className="space-y-4">
+  1476→  1476→      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+  1477→  1477→        <h2 className="text-xl font-bold">Inventory ({filtered.length})</h2>
+  1478→  1478→        <div className="relative w-full sm:w-64">
+  1479→  1479→          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+  1480→  1480→          <Input
+  1481→  1481→            placeholder="Search by product name..."
+  1482→  1482→            value={search}
+  1483→  1483→            onChange={(e) => setSearch(e.target.value)}
+  1484→  1484→            className="pl-9 h-9"
+  1485→  1485→          />
+  1486→  1486→        </div>
+  1487→  1487→      </div>
+  1488→  1488→
+  1489→  1489→      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+  1490→  1490→        <div className="max-h-[65vh] overflow-y-auto">
+  1491→  1491→          <Table>
+  1492→  1492→            <TableHeader>
+  1493→  1493→              <TableRow>
+  1494→  1494→                <TableHead className="text-xs">Product</TableHead>
+  1495→  1495→                <TableHead className="text-xs hidden sm:table-cell">Variant</TableHead>
+  1496→  1496→                <TableHead className="text-xs hidden md:table-cell">SKU</TableHead>
+  1497→  1497→                <TableHead className="text-xs">Stock</TableHead>
+  1498→  1498→                <TableHead className="text-xs hidden lg:table-cell">Threshold</TableHead>
+  1499→  1499→                <TableHead className="text-xs">Status</TableHead>
+  1500→  1500→              </TableRow>
+  1501→  1501→            </TableHeader>
+  1502→  1502→            <TableBody>
+  1503→  1503→              {filtered.map((item) => {
+  1504→  1504→                const status = getStockStatus(item.stock, item.lowStock)
+  1505→  1505→                return (
+  1506→  1506→                  <TableRow key={item.variantId}>
+  1507→  1507→                    <TableCell>
+  1508→  1508→                      <div className="flex items-center gap-2">
+  1509→  1509→                        {item.productImage && (
+  1510→  1510→                          <img src={item.productImage} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0" />
+  1511→  1511→                        )}
+  1512→  1512→                        <span className="text-sm font-medium truncate max-w-[180px]">{item.productName}</span>
+  1513→  1513→                      </div>
+  1514→  1514→                    </TableCell>
+  1515→  1515→                    <TableCell className="text-sm text-muted-foreground hidden sm:table-cell">
+  1516→  1516→                      <span className="inline-flex items-center gap-1">
+  1517→  1517→                        <span className="w-3 h-3 rounded-full border border-gray-300" style={{ backgroundColor: item.color.toLowerCase() === 'white' || item.color.toLowerCase() === 'off white' ? '#f5f5f5' : item.color }} />
+  1518→  1518→                        {item.color} / {item.size}
+  1519→  1519→                      </span>
+  1520→  1520→                    </TableCell>
+  1521→  1521→                    <TableCell className="font-mono text-xs hidden md:table-cell">{item.sku}</TableCell>
+  1522→  1522→                    <TableCell className="font-semibold text-sm">{item.stock}</TableCell>
+  1523→  1523→                    <TableCell className="text-sm text-muted-foreground hidden lg:table-cell">{item.lowStock}</TableCell>
+  1524→  1524→                    <TableCell>
+  1525→  1525→                      <Badge variant="secondary" className={status.className}>
+  1526→  1526→                        <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${status.dot}`} />
+  1527→  1527→                        {status.label}
+  1528→  1528→                      </Badge>
+  1529→  1529→                    </TableCell>
+  1530→  1530→                  </TableRow>
+  1531→  1531→                )
+  1532→  1532→              })}
+  1533→  1533→              {filtered.length === 0 && (
+  1534→  1534→                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">{search ? 'No matching items' : 'No inventory data'}</TableCell></TableRow>
+  1535→  1535→              )}
+  1536→  1536→            </TableBody>
+  1537→  1537→          </Table>
+  1538→  1538→        </div>
+  1539→  1539→      </div>
+  1540→  1540→    </div>
+  1541→  1541→  )
+  1542→  1542→}
+  1543→  1543→
+  1544→  1544→// ═══════════════════════════════════════════════════════════════════════════════
+  1545→  1545→// MAIN ADMIN PANEL
+  1546→  1546→// ═══════════════════════════════════════════════════════════════════════════════
+  1547→  1547→export default function AdminPanel() {
+  1548→  1548→  const { adminTab } = useStore()
+  1549→  1549→  const [mobileOpen, setMobileOpen] = useState(false)
+  1550→  1550→
+  1551→  1551→  const renderContent = () => {
+  1552→  1552→    switch (adminTab) {
+  1553→  1553→      case 'dashboard': return <DashboardTab />
+  1554→  1554→      case 'products': return <ProductsTab />
+  1555→  1555→      case 'orders': return <OrdersTab />
+  1556→  1556→      case 'customers': return <CustomersTab />
+  1557→  1557→      case 'coupons': return <CouponsTab />
+  1558→  1558→      case 'reviews': return <ReviewsTab />
+  1559→  1559→      case 'content': return <ContentTab />
+  1560→  1560→      case 'inventory': return <InventoryTab />
+  1561→  1561→      default: return <DashboardTab />
+  1562→  1562→    }
+  1563→  1563→  }
+  1564→  1564→
+  1565→  1565→  const currentTabLabel = NAV_ITEMS.find((n) => n.key === adminTab)?.label || 'Dashboard'
+  1566→  1566→
+  1567→  1567→  return (
+  1568→  1568→    <div className="min-h-screen bg-[#F8F9FA] flex">
+  1569→  1569→      {/* Desktop Sidebar */}
+  1570→  1570→      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-[#4a5a6a] z-30">
+  1571→  1571→        <SidebarNav />
+  1572→  1572→      </aside>
+  1573→  1573→
+  1574→  1574→      {/* Mobile Sidebar (Sheet) */}
+  1575→  1575→      <div className="lg:hidden fixed top-0 left-0 z-40 p-3">
+  1576→  1576→        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+  1577→  1577→          <SheetTrigger asChild>
+  1578→  1578→            <Button variant="ghost" size="icon" className="bg-[#4a5a6a] text-white hover:bg-[#4a5a6a]/90 h-10 w-10 rounded-lg">
+  1579→  1579→              <Menu className="h-5 w-5" />
+  1580→  1580→            </Button>
+  1581→  1581→          </SheetTrigger>
+  1582→  1582→          <SheetContent side="left" className="w-64 p-0 bg-[#4a5a6a] border-none">
+  1583→  1583→            <SheetTitle className="sr-only">Admin Navigation</SheetTitle>
+  1584→  1584→            <SidebarNav className="h-full" />
+  1585→  1585→          </SheetContent>
+  1586→  1586→        </Sheet>
+  1587→  1587→      </div>
+  1588→  1588→
+  1589→  1589→      {/* Main Content */}
+  1590→  1590→      <main className="flex-1 lg:pl-64 min-h-screen">
+  1591→  1591→        <div className="p-4 sm:p-6 lg:p-8 pt-16 lg:pt-8">
+  1592→  1592→          <header className="mb-6">
+  1593→  1593→            <h1 className="text-2xl font-bold text-[#4a5a6a]">{currentTabLabel}</h1>
+  1594→  1594→            <p className="text-sm text-muted-foreground mt-1">Manage your store&apos;s {currentTabLabel.toLowerCase()}</p>
+  1595→  1595→          </header>
+  1596→  1596→          {renderContent()}
+  1597→  1597→        </div>
+  1598→  1598→      </main>
+  1599→  1599→    </div>
+  1600→  1600→  )
+  1601→  1601→}

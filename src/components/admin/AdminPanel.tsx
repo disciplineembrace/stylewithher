@@ -44,6 +44,13 @@ import {
   RefreshCw,
   ChevronRight,
   Image as ImageIcon,
+  Instagram,
+  ExternalLink,
+  BarChart3,
+  PlusCircle,
+  PenLine,
+  Upload,
+  Activity,
 } from 'lucide-react'
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
@@ -65,7 +72,11 @@ const NAV_ITEMS = [
   { key: 'coupons', label: 'Coupons', icon: Ticket },
   { key: 'reviews', label: 'Reviews', icon: Star },
   { key: 'content', label: 'Content', icon: FileText },
+  { key: 'posts', label: 'Posts', icon: PenLine },
+  { key: 'media', label: 'Media', icon: ImageIcon },
   { key: 'inventory', label: 'Inventory', icon: Warehouse },
+  { key: 'instagram', label: 'Instagram', icon: Instagram },
+  { key: 'activity', label: 'Activity Logs', icon: Activity },
 ]
 
 const STATUS_COLORS: Record<string, string> = {
@@ -94,7 +105,8 @@ function SidebarNav({ className }: { className?: string }) {
   return (
     <nav className={`flex flex-col gap-1 px-3 py-4 ${className || ''}`}>
       <div className="mb-6 px-3 flex flex-col items-center">
-        <img src="/admin-logo.png" alt="StyleWithHer Admin" className="h-16 w-auto rounded-lg mb-2" />
+        <img src="/logo.png" alt="StyleWithHer" className="h-10 w-auto object-contain mb-1" />
+        <span className="text-[#F7C8D0] font-bold text-base tracking-wide leading-tight">Admin Panel</span>
       </div>
       <Separator className="bg-white/10 mb-2" />
       {NAV_ITEMS.map((item) => {
@@ -1542,6 +1554,106 @@ function InventoryTab() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// INSTAGRAM TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+function InstagramTab() {
+  const IG_LINK = 'https://instagram.com/Style_withher01'
+
+  const statCards = [
+    { label: 'Followers', icon: Users, color: 'bg-[#1e9ba6]/10 text-[#1e9ba6]' },
+    { label: 'Posts', icon: ImageIcon, color: 'bg-[#f9b233]/10 text-[#f9b233]' },
+    { label: 'Engagement Rate', icon: BarChart3, color: 'bg-[#1e9ba6]/10 text-[#1e9ba6]' },
+  ]
+
+  return (
+    <div className="space-y-6">
+      {/* Connected Account Card */}
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#f9b233] via-[#D96C8A] to-[#833AB4] flex items-center justify-center">
+                <Instagram className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-lg text-[#4a5a6a]">@Style_withher01</CardTitle>
+                <a href={IG_LINK} target="_blank" rel="noopener noreferrer" className="text-sm text-[#1e9ba6] hover:underline flex items-center gap-1">
+                  {IG_LINK.replace('https://', '')} <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            </div>
+            <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+              <CheckCircle2 className="h-3 w-3 mr-1" /> Connected
+            </Badge>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Quick Actions */}
+      <Card className="border-0 shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-base text-[#4a5a6a]">Quick Actions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-3">
+            <a href={IG_LINK} target="_blank" rel="noopener noreferrer">
+              <Button className="bg-[#1e9ba6] hover:bg-[#1e9ba6]/90 text-white">
+                <Instagram className="h-4 w-4 mr-2" /> Open Instagram
+              </Button>
+            </a>
+            <a href={IG_LINK} target="_blank" rel="noopener noreferrer">
+              <Button variant="outline" className="border-[#1e9ba6]/30 text-[#1e9ba6] hover:bg-[#1e9ba6]/10">
+                <ExternalLink className="h-4 w-4 mr-2" /> View Profile
+              </Button>
+            </a>
+            <a href={IG_LINK} target="_blank" rel="noopener noreferrer">
+              <Button variant="outline" className="border-[#f9b233]/30 text-[#f9b233] hover:bg-[#f9b233]/10">
+                <PlusCircle className="h-4 w-4 mr-2" /> Create Post
+              </Button>
+            </a>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Stats Placeholder */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {statCards.map((s) => {
+          const Icon = s.icon
+          return (
+            <Card key={s.label} className="border-0 shadow-sm">
+              <CardContent className="p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`w-10 h-10 rounded-lg ${s.color} flex items-center justify-center`}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <p className="text-sm text-muted-foreground font-medium">{s.label}</p>
+                </div>
+                <p className="text-sm text-[#4a5a6a]/60 italic">Connect Meta API to view {s.label.toLowerCase()}</p>
+              </CardContent>
+            </Card>
+          )
+        })}
+      </div>
+
+      {/* Info Note */}
+      <Card className="border-0 shadow-sm bg-[#f9b233]/5 border border-[#f9b233]/20">
+        <CardContent className="p-5">
+          <div className="flex gap-3">
+            <AlertTriangle className="h-5 w-5 text-[#f9b233] shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-[#4a5a6a] mb-1">Meta Business Account Required</p>
+              <p className="text-sm text-[#4a5a6a]/70 leading-relaxed">
+                Full Instagram Graph API integration requires Meta Business Account setup. Connect your Meta Business account to enable automatic posting, analytics, and comment management.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // MAIN ADMIN PANEL
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function AdminPanel() {
@@ -1557,7 +1669,10 @@ export default function AdminPanel() {
       case 'coupons': return <CouponsTab />
       case 'reviews': return <ReviewsTab />
       case 'content': return <ContentTab />
+      case 'posts': return <PostsTab />
+      case 'media': return <MediaTab />
       case 'inventory': return <InventoryTab />
+      case 'instagram': return <InstagramTab />
       default: return <DashboardTab />
     }
   }

@@ -28,6 +28,9 @@ model User {
   wishlist      Wishlist[]
   cartItems     CartItem[]
   payments      Payment[]
+  auditLogs     AuditLog[]
+  authoredPosts  Post[]         @relation("AuthoredPosts")
+  uploadedMedia  MediaFile[]    @relation("UploadedMedia")
 }
 
 model Category {
@@ -277,4 +280,48 @@ model SiteContent {
   value     String
   type      String   @default("text") // text, html, json
   updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  userName  String
+  action    String
+  details   String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Post {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  content     String?
+  excerpt     String?
+  category    String?
+  tags        String?
+  featuredImage String?
+  status      String   @default("draft") // draft, published, scheduled
+  authorId    String
+  publishedAt DateTime?
+  scheduledAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  author      User     @relation("AuthoredPosts", fields: [authorId], references: [id])
+}
+
+model MediaFile {
+  id        String   @id @default(cuid())
+  filename  String
+  url       String
+  mimeType  String
+  size      Int
+  alt       String?
+  uploadedBy String
+  createdAt DateTime @default(now())
+
+  user      User     @relation("UploadedMedia", fields: [uploadedBy], references: [id])
 }
