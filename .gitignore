@@ -8,3 +8,5 @@ db/
 download/
 .zscripts/
 worklog.md
+prisma/.env
+db/
