@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Name, email, and password are required' }, { status: 400 })
       }
 
-      const existingUser = await db.user.findUnique({ where: { email } })
+      const existingUser = await db.user.findUnique({ where: { email: email.toLowerCase() } })
       if (existingUser) {
         return NextResponse.json({ error: 'Email already registered' }, { status: 400 })
       }
@@ -74,7 +74,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Account is deactivated' }, { status: 401 })
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password)
+    if (!user.password) {
+      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
+    }
+    let isPasswordValid = false
+    try {
+      isPasswordValid = await bcrypt.compare(password, user.password)
+    } catch {
+      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
+    }
     if (!isPasswordValid) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
     }
@@ -113,7 +121,12 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ error: 'User not found' }, { status: 404 })
       }
 
-      const isOldPasswordValid = await bcrypt.compare(oldPassword, user.password)
+      let isOldPasswordValid = false
+      try {
+        isOldPasswordValid = await bcrypt.compare(oldPassword, user.password)
+      } catch {
+        return NextResponse.json({ error: 'Current password is incorrect' }, { status: 400 })
+      }
       if (!isOldPasswordValid) {
         return NextResponse.json({ error: 'Current password is incorrect' }, { status: 400 })
       }

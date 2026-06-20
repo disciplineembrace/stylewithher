@@ -6,11 +6,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { code, orderTotal } = body
 
-    if (!code) {
+    if (!code || typeof code !== 'string') {
       return NextResponse.json({ error: 'Coupon code is required' }, { status: 400 })
     }
 
-    const coupon = await db.coupon.findUnique({ where: { code: code.toUpperCase() } })
+    const coupon = await db.coupon.findFirst({ where: { code: String(code).toUpperCase() } })
 
     if (!coupon) {
       return NextResponse.json({ valid: false, error: 'Invalid coupon code' })

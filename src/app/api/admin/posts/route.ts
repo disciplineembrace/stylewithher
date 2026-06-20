@@ -2,14 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getUserFromRequest } from '@/lib/auth'
 
-function adminGuard(request: NextRequest) {
-  const payload = getUserFromRequest(request)
-  if (!payload || payload.role !== 'admin') {
-    return null
-  }
-  return payload
-}
-
 function generateSlug(title: string): string {
   return title
     .toLowerCase()
@@ -23,8 +15,11 @@ function generateSlug(title: string): string {
 
 export async function GET(request: NextRequest) {
   try {
-    const payload = adminGuard(request)
+    const payload = getUserFromRequest(request)
     if (!payload) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (payload.role !== 'admin') {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
     }
 
@@ -68,8 +63,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const payload = adminGuard(request)
+    const payload = getUserFromRequest(request)
     if (!payload) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (payload.role !== 'admin') {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
     }
 

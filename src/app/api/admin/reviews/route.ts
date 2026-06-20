@@ -5,7 +5,10 @@ import { getUserFromRequest } from '@/lib/auth'
 export async function GET(request: NextRequest) {
   try {
     const payload = getUserFromRequest(request)
-    if (!payload || payload.role !== 'admin') {
+    if (!payload) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (payload.role !== 'admin') {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
     }
 
@@ -53,7 +56,10 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const payload = getUserFromRequest(request)
-    if (!payload || payload.role !== 'admin') {
+    if (!payload) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (payload.role !== 'admin') {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
     }
 
@@ -106,7 +112,10 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const payload = getUserFromRequest(request)
-    if (!payload || payload.role !== 'admin') {
+    if (!payload) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (payload.role !== 'admin') {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
     }
 

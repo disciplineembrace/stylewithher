@@ -103,10 +103,10 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { itemId, quantity } = body
+    const { productId, quantity } = body
 
-    if (!itemId || quantity === undefined) {
-      return NextResponse.json({ error: 'itemId and quantity are required' }, { status: 400 })
+    if (!productId || quantity === undefined) {
+      return NextResponse.json({ error: 'productId and quantity are required' }, { status: 400 })
     }
 
     if (quantity < 1) {
@@ -114,7 +114,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const cartItem = await db.cartItem.findFirst({
-      where: { id: itemId, userId: payload.userId },
+      where: { productId, userId: payload.userId },
     })
 
     if (!cartItem) {
@@ -122,7 +122,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const updated = await db.cartItem.update({
-      where: { id: itemId },
+      where: { id: cartItem.id },
       data: { quantity },
       include: {
         product: { select: { id: true, name: true, basePrice: true, salePrice: true, images: { select: { url: true }, take: 1 } } },
@@ -143,22 +143,22 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { searchParams } = new URL(request.url)
-    const itemId = searchParams.get('itemId')
+    const body = await request.json()
+    const { productId } = body
 
-    if (!itemId) {
-      return NextResponse.json({ error: 'itemId query parameter is required' }, { status: 400 })
+    if (!productId) {
+      return NextResponse.json({ error: 'productId is required' }, { status: 400 })
     }
 
     const cartItem = await db.cartItem.findFirst({
-      where: { id: itemId, userId: payload.userId },
+      where: { productId, userId: payload.userId },
     })
 
     if (!cartItem) {
-      return NextResponse.json({ error: 'Cart item not found' }, { status: 404 })
+      return NextResponse.json({ message: 'Item not in cart' })
     }
 
-    await db.cartItem.delete({ where: { id: itemId } })
+    await db.cartItem.delete({ where: { id: cartItem.id } })
     return NextResponse.json({ message: 'Item removed from cart' })
   } catch (error) {
     console.error('Cart DELETE error:', error)

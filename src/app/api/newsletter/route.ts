@@ -15,11 +15,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid email format' }, { status: 400 })
     }
 
-    const existing = await db.newsletterSubscriber.findUnique({ where: { email: email.toLowerCase() } })
+    const existing = await db.newsletterSubscriber.findFirst({ where: { email: email.toLowerCase() } })
     if (existing) {
       if (!existing.isActive) {
         await db.newsletterSubscriber.update({
-          where: { email: email.toLowerCase() },
+          where: { id: existing.id },
           data: { isActive: true },
         })
         return NextResponse.json({ message: 'Re-subscribed to newsletter successfully' })

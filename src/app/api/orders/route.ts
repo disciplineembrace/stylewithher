@@ -66,14 +66,36 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { addressId, paymentMethod, couponCode, notes } = body
+    const { addressId, address: inlineAddress, paymentMethod, couponCode, notes } = body
 
-    if (!addressId) {
-      return NextResponse.json({ error: 'addressId is required' }, { status: 400 })
+    let resolvedAddressId = addressId || null
+
+    if (!resolvedAddressId && inlineAddress) {
+      const { fullName, phone, addressLine1, addressLine2, city, state, pincode } = inlineAddress
+      if (!fullName || !phone || !addressLine1 || !city || !state || !pincode) {
+        return NextResponse.json({ error: 'Complete address details are required (fullName, phone, addressLine1, city, state, pincode)' }, { status: 400 })
+      }
+      const newAddress = await db.address.create({
+        data: {
+          userId: payload.userId,
+          fullName,
+          phone,
+          addressLine1,
+          addressLine2: addressLine2 || null,
+          city,
+          state,
+          pincode,
+        },
+      })
+      resolvedAddressId = newAddress.id
+    }
+
+    if (!resolvedAddressId) {
+      return NextResponse.json({ error: 'addressId or address is required' }, { status: 400 })
     }
 
     const address = await db.address.findFirst({
-      where: { id: addressId, userId: payload.userId },
+      where: { id: resolvedAddressId, userId: payload.userId },
     })
     if (!address) {
       return NextResponse.json({ error: 'Address not found' }, { status: 404 })
@@ -152,7 +174,7 @@ export async function POST(request: NextRequest) {
       data: {
         orderNumber,
         userId: payload.userId,
-        addressId,
+        addressId: resolvedAddressId,
         status: 'pending',
         paymentMethod: paymentMethod || 'cod',
         subtotal,

@@ -5,7 +5,10 @@ import { getUserFromRequest } from '@/lib/auth'
 export async function GET(request: NextRequest) {
   try {
     const payload = getUserFromRequest(request)
-    if (!payload || payload.role !== 'admin') {
+    if (!payload) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (payload.role !== 'admin') {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
     }
 
@@ -26,10 +29,10 @@ export async function GET(request: NextRequest) {
       db.order.aggregate({
         where: { paymentStatus: 'completed' },
         _sum: { total: true },
-      }),
-      db.order.count(),
-      db.user.count({ where: { role: 'customer' } }),
-      db.product.count({ where: { isActive: true } }),
+      }).catch(() => ({ _sum: { total: 0 } })),
+      db.order.count().catch(() => 0),
+      db.user.count({ where: { role: 'customer' } }).catch(() => 0),
+      db.product.count({ where: { isActive: true } }).catch(() => 0),
       db.order.findMany({
         take: 10,
         orderBy: { createdAt: 'desc' },
@@ -37,17 +40,15 @@ export async function GET(request: NextRequest) {
           user: { select: { id: true, name: true, email: true } },
           items: { select: { productName: true, quantity: true, price: true } },
         },
-      }),
+      }).catch(() => []),
       db.orderItem.groupBy({
         by: ['productId'],
         _sum: { quantity: true },
-        orderBy: { _sum: { quantity: 'desc' } },
-        take: 10,
-      }),
+      }).catch(() => []),
       db.order.groupBy({
         by: ['status'],
         _count: { status: true },
-      }),
+      }).catch(() => []),
       db.order.findMany({
         where: {
           createdAt: { gte: sixMonthsAgo },
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
           createdAt: true,
           total: true,
         },
-      }),
+      }).catch(() => []),
       db.inventory.findMany({
         where: { quantity: { lte: 5 } },
         include: {
@@ -68,10 +69,14 @@ export async function GET(request: NextRequest) {
           },
         },
         take: 20,
-      }),
+      }).catch(() => []),
     ])
 
-    const topProductIds = topProducts.map((p) => p.productId)
+    const topProductsSorted = topProducts
+      .sort((a, b) => (b._sum.quantity || 0) - (a._sum.quantity || 0))
+      .slice(0, 10)
+
+    const topProductIds = topProductsSorted.map((p) => p.productId)
     const topProductDetails = topProductIds.length > 0
       ? await db.product.findMany({
           where: { id: { in: topProductIds } },
@@ -79,7 +84,7 @@ export async function GET(request: NextRequest) {
         })
       : []
 
-    const topProductsWithSales = topProducts.map((tp) => {
+    const topProductsWithSales = topProductsSorted.map((tp) => {
       const detail = topProductDetails.find((p) => p.id === tp.productId)
       return {
         ...detail,

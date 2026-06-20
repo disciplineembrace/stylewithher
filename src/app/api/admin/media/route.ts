@@ -7,18 +7,13 @@ import path from 'path'
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
 const MAX_SIZE = 5 * 1024 * 1024 // 5MB
 
-function adminGuard(request: NextRequest) {
-  const payload = getUserFromRequest(request)
-  if (!payload || payload.role !== 'admin') {
-    return null
-  }
-  return payload
-}
-
 export async function GET(request: NextRequest) {
   try {
-    const payload = adminGuard(request)
+    const payload = getUserFromRequest(request)
     if (!payload) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (payload.role !== 'admin') {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
     }
 
@@ -36,8 +31,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const payload = adminGuard(request)
+    const payload = getUserFromRequest(request)
     if (!payload) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (payload.role !== 'admin') {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
     }
 
@@ -92,8 +90,11 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const payload = adminGuard(request)
+    const payload = getUserFromRequest(request)
     if (!payload) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (payload.role !== 'admin') {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
     }
 

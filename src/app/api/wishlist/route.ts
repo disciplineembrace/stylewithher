@@ -83,11 +83,11 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { searchParams } = new URL(request.url)
-    const productId = searchParams.get('productId')
+    const body = await request.json()
+    const { productId } = body
 
     if (!productId) {
-      return NextResponse.json({ error: 'productId query parameter is required' }, { status: 400 })
+      return NextResponse.json({ error: 'productId is required' }, { status: 400 })
     }
 
     const wishlistItem = await db.wishlist.findUnique({
@@ -95,7 +95,7 @@ export async function DELETE(request: NextRequest) {
     })
 
     if (!wishlistItem) {
-      return NextResponse.json({ error: 'Wishlist item not found' }, { status: 404 })
+      return NextResponse.json({ message: 'Not in wishlist' })
     }
 
     await db.wishlist.delete({ where: { id: wishlistItem.id } })
