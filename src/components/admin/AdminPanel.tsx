@@ -93,9 +93,8 @@ function SidebarNav({ className }: { className?: string }) {
 
   return (
     <nav className={`flex flex-col gap-1 px-3 py-4 ${className || ''}`}>
-      <div className="mb-6 px-3">
-        <h2 className="text-xl font-bold text-white tracking-wide">StyleWithHer</h2>
-        <p className="text-xs text-[#F7C8D0]/70 mt-1">Admin Panel</p>
+      <div className="mb-6 px-3 flex flex-col items-center">
+        <img src="/admin-logo.png" alt="StyleWithHer Admin" className="h-16 w-auto rounded-lg mb-2" />
       </div>
       <Separator className="bg-white/10 mb-2" />
       {NAV_ITEMS.map((item) => {
@@ -107,13 +106,13 @@ function SidebarNav({ className }: { className?: string }) {
             onClick={() => setAdminTab(item.key)}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer ${
               isActive
-                ? 'bg-white/10 text-[#F7C8D0]'
+                ? 'bg-[#1e9ba6]/20 text-[#f9b233]'
                 : 'text-white/70 hover:bg-white/5 hover:text-white'
             }`}
           >
             <Icon className="h-4 w-4 shrink-0" />
             <span>{item.label}</span>
-            {isActive && <ChevronRight className="h-3 w-3 ml-auto text-[#F7C8D0]" />}
+            {isActive && <ChevronRight className="h-3 w-3 ml-auto text-[#f9b233]" />}
           </button>
         )
       })}
@@ -169,9 +168,9 @@ function DashboardTab() {
   if (!data) return <p className="text-muted-foreground">No data available.</p>
 
   const stats = [
-    { label: 'Total Revenue', value: `₹${fmt(data.totalSales)}`, icon: DollarSign, color: 'bg-emerald-100 text-emerald-700' },
-    { label: 'Total Orders', value: data.totalOrders, icon: ShoppingBag, color: 'bg-blue-100 text-blue-700' },
-    { label: 'Total Customers', value: data.totalCustomers, icon: Users, color: 'bg-purple-100 text-purple-700' },
+    { label: 'Total Revenue', value: `₹${fmt(data.totalSales)}`, icon: DollarSign, color: 'bg-[#4a5a6a]/10 text-[#4a5a6a]' },
+    { label: 'Total Orders', value: data.totalOrders, icon: ShoppingBag, color: 'bg-[#1e9ba6]/10 text-[#1e9ba6]' },
+    { label: 'Total Customers', value: data.totalCustomers, icon: Users, color: 'bg-[#f9b233]/10 text-[#f9b233]' },
     { label: 'Total Products', value: data.totalProducts, icon: Package, color: 'bg-orange-100 text-orange-700' },
   ]
 
@@ -228,7 +227,7 @@ function DashboardTab() {
                       labelFormatter={(label: string) => { const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; const [y, m] = label.split('-'); return months[parseInt(m, 10) - 1] + ' ' + y; }}
                       contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                     />
-                    <Bar dataKey="revenue" fill="#F7C8D0" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="revenue" fill="#1e9ba6" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -584,7 +583,7 @@ function ProductsTab() {
         <h2 className="text-xl font-bold">Products ({products.length})</h2>
         <Dialog open={formOpen} onOpenChange={(open) => { setFormOpen(open); if (!open) setEditingId(null) }}>
           <DialogTrigger asChild>
-            <Button onClick={openCreate} className="bg-[#0B1F3A] hover:bg-[#0B1F3A]/90 text-white">
+            <Button onClick={openCreate} className="bg-[#1e9ba6] hover:bg-[#1e9ba6]/90 text-white">
               <Plus className="h-4 w-4 mr-2" /> Add Product
             </Button>
           </DialogTrigger>
@@ -1075,7 +1074,7 @@ function CouponsTab() {
         <h2 className="text-xl font-bold">Coupons ({coupons.length})</h2>
         <Dialog open={formOpen} onOpenChange={(open) => { setFormOpen(open); if (!open) setEditingId(null) }}>
           <DialogTrigger asChild>
-            <Button onClick={openCreate} className="bg-[#0B1F3A] hover:bg-[#0B1F3A]/90 text-white">
+            <Button onClick={openCreate} className="bg-[#1e9ba6] hover:bg-[#1e9ba6]/90 text-white">
               <Plus className="h-4 w-4 mr-2" /> Create Coupon
             </Button>
           </DialogTrigger>
@@ -1384,7 +1383,7 @@ function ContentTab() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold">Site Content</h2>
-        <Button onClick={handleSave} disabled={saving} className="bg-[#0B1F3A] hover:bg-[#0B1F3A]/90 text-white">
+        <Button onClick={handleSave} disabled={saving} className="bg-[#1e9ba6] hover:bg-[#1e9ba6]/90 text-white">
           {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
           Save Changes
         </Button>
@@ -1568,7 +1567,7 @@ export default function AdminPanel() {
   return (
     <div className="min-h-screen bg-[#F8F9FA] flex">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-[#0B1F3A] z-30">
+      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-[#4a5a6a] z-30">
         <SidebarNav />
       </aside>
 
@@ -1576,11 +1575,11 @@ export default function AdminPanel() {
       <div className="lg:hidden fixed top-0 left-0 z-40 p-3">
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="bg-[#0B1F3A] text-white hover:bg-[#0B1F3A]/90 h-10 w-10 rounded-lg">
+            <Button variant="ghost" size="icon" className="bg-[#4a5a6a] text-white hover:bg-[#4a5a6a]/90 h-10 w-10 rounded-lg">
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-64 p-0 bg-[#0B1F3A] border-none">
+          <SheetContent side="left" className="w-64 p-0 bg-[#4a5a6a] border-none">
             <SheetTitle className="sr-only">Admin Navigation</SheetTitle>
             <SidebarNav className="h-full" />
           </SheetContent>
@@ -1591,7 +1590,7 @@ export default function AdminPanel() {
       <main className="flex-1 lg:pl-64 min-h-screen">
         <div className="p-4 sm:p-6 lg:p-8 pt-16 lg:pt-8">
           <header className="mb-6">
-            <h1 className="text-2xl font-bold text-[#0B1F3A]">{currentTabLabel}</h1>
+            <h1 className="text-2xl font-bold text-[#4a5a6a]">{currentTabLabel}</h1>
             <p className="text-sm text-muted-foreground mt-1">Manage your store&apos;s {currentTabLabel.toLowerCase()}</p>
           </header>
           {renderContent()}
