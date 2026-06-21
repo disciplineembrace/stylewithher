@@ -13,24 +13,14 @@ export async function GET(
       include: {
         category: { select: { id: true, name: true, slug: true } },
         images: { select: { id: true, url: true, alt: true, sortOrder: true }, orderBy: { sortOrder: 'asc' } },
-        variants: {
-          include: { inventory: { select: { id: true, quantity: true, lowStock: true } } },
-        },
+        variants: { include: { inventory: { select: { id: true, quantity: true, lowStock: true } } } },
         reviews: {
-          include: {
-            user: { select: { id: true, name: true, avatar: true } },
-          },
-          where: { isApproved: true },
-          orderBy: { createdAt: 'desc' },
-          take: 20,
+          include: { user: { select: { id: true, name: true, avatar: true } } },
+          where: { isApproved: true }, orderBy: { createdAt: 'desc' }, take: 20,
         },
       },
     })
-
-    if (!product) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 })
-    }
-
+    if (!product) return NextResponse.json({ error: 'Product not found' }, { status: 404 })
     return NextResponse.json({ product })
   } catch (error) {
     console.error('Product GET error:', error)
@@ -51,17 +41,40 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
 
-    const existingProduct = await db.product.findUnique({ where: { id } })
-    if (!existingProduct) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 })
-    }
+    const existingProduct = await db.product.findUnique({
+      where: { id },
+      include: { images: true, variants: { include: { inventory: true } } },
+    })
+    if (!existingProduct) return NextResponse.json({ error: 'Product not found' }, { status: 404 })
 
-    const { name, slug, description, basePrice, salePrice, categoryId, gender, isFeatured, isTrending, isNewArrival, isBestSeller, isActive, material, care } = body
+    const {
+      name, slug, description, basePrice, salePrice, categoryId, gender,
+      isFeatured, isTrending, isNewArrival, isBestSeller, isActive, material, care,
+      images, variants,
+    } = body
 
     if (slug && slug !== existingProduct.slug) {
       const slugTaken = await db.product.findUnique({ where: { slug } })
-      if (slugTaken) {
-        return NextResponse.json({ error: 'Product slug already exists' }, { status: 400 })
+      if (slugTaken) return NextResponse.json({ error: 'Product slug already exists' }, { status: 400 })
+    }
+
+    // Handle image updates: delete all existing, recreate with new list
+    if (images && Array.isArray(images)) {
+      await db.productImage.deleteMany({ where: { productId: id } })
+    }
+
+    // Handle variant updates: delete all existing variants + inventory, recreate
+    if (variants && Array.isArray(variants)) {
+      const existingVariantIds = existingProduct.variants.map(v => v.id)
+      const existingInventoryIds = existingProduct.variants
+        .filter(v => v.inventory)
+        .map(v => v.inventory!.id)
+
+      if (existingInventoryIds.length > 0) {
+        await db.inventory.deleteMany({ where: { id: { in: existingInventoryIds } } })
+      }
+      if (existingVariantIds.length > 0) {
+        await db.productVariant.deleteMany({ where: { id: { in: existingVariantIds } } })
       }
     }
 
@@ -82,6 +95,21 @@ export async function PUT(
         ...(isActive !== undefined && { isActive }),
         ...(material !== undefined && { material }),
         ...(care !== undefined && { care }),
+        ...(images && Array.isArray(images) && {
+          images: {
+            create: images.map((img: { url: string; alt?: string; sortOrder?: number }) => ({
+              url: img.url, alt: img.alt, sortOrder: img.sortOrder || 0,
+            })),
+          },
+        }),
+        ...(variants && Array.isArray(variants) && {
+          variants: {
+            create: variants.map((v: { color: string; size: string; sku: string; price?: number; stock?: number }) => ({
+              color: v.color, size: v.size, sku: v.sku, price: v.price,
+              inventory: { create: { quantity: v.stock || 0 } },
+            })),
+          },
+        }),
       },
       include: {
         category: true,
@@ -109,9 +137,7 @@ export async function DELETE(
 
     const { id } = await params
     const existingProduct = await db.product.findUnique({ where: { id } })
-    if (!existingProduct) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 })
-    }
+    if (!existingProduct) return NextResponse.json({ error: 'Product not found' }, { status: 404 })
 
     await db.product.delete({ where: { id } })
     return NextResponse.json({ message: 'Product deleted successfully' })

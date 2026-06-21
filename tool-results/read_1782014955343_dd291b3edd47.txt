@@ -1,0 +1,532 @@
+     1→  1501→          <Input
+     2→  1502→            placeholder="Search by product name..."
+     3→  1503→            value={search}
+     4→  1504→            onChange={(e) => setSearch(e.target.value)}
+     5→  1505→            className="pl-9 h-9"
+     6→  1506→          />
+     7→  1507→        </div>
+     8→  1508→      </div>
+     9→  1509→
+    10→  1510→      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+    11→  1511→        <div className="max-h-[65vh] overflow-y-auto">
+    12→  1512→          <Table>
+    13→  1513→            <TableHeader>
+    14→  1514→              <TableRow>
+    15→  1515→                <TableHead className="text-xs">Product</TableHead>
+    16→  1516→                <TableHead className="text-xs hidden sm:table-cell">Variant</TableHead>
+    17→  1517→                <TableHead className="text-xs hidden md:table-cell">SKU</TableHead>
+    18→  1518→                <TableHead className="text-xs">Stock</TableHead>
+    19→  1519→                <TableHead className="text-xs hidden lg:table-cell">Threshold</TableHead>
+    20→  1520→                <TableHead className="text-xs">Status</TableHead>
+    21→  1521→              </TableRow>
+    22→  1522→            </TableHeader>
+    23→  1523→            <TableBody>
+    24→  1524→              {filtered.map((item) => {
+    25→  1525→                const status = getStockStatus(item.stock, item.lowStock)
+    26→  1526→                return (
+    27→  1527→                  <TableRow key={item.variantId}>
+    28→  1528→                    <TableCell>
+    29→  1529→                      <div className="flex items-center gap-2">
+    30→  1530→                        {item.productImage && (
+    31→  1531→                          <img src={item.productImage} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0" />
+    32→  1532→                        )}
+    33→  1533→                        <span className="text-sm font-medium truncate max-w-[180px]">{item.productName}</span>
+    34→  1534→                      </div>
+    35→  1535→                    </TableCell>
+    36→  1536→                    <TableCell className="text-sm text-muted-foreground hidden sm:table-cell">
+    37→  1537→                      <span className="inline-flex items-center gap-1">
+    38→  1538→                        <span className="w-3 h-3 rounded-full border border-gray-300" style={{ backgroundColor: item.color.toLowerCase() === 'white' || item.color.toLowerCase() === 'off white' ? '#f5f5f5' : item.color }} />
+    39→  1539→                        {item.color} / {item.size}
+    40→  1540→                      </span>
+    41→  1541→                    </TableCell>
+    42→  1542→                    <TableCell className="font-mono text-xs hidden md:table-cell">{item.sku}</TableCell>
+    43→  1543→                    <TableCell className="font-semibold text-sm">{item.stock}</TableCell>
+    44→  1544→                    <TableCell className="text-sm text-muted-foreground hidden lg:table-cell">{item.lowStock}</TableCell>
+    45→  1545→                    <TableCell>
+    46→  1546→                      <Badge variant="secondary" className={status.className}>
+    47→  1547→                        <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${status.dot}`} />
+    48→  1548→                        {status.label}
+    49→  1549→                      </Badge>
+    50→  1550→                    </TableCell>
+    51→  1551→                  </TableRow>
+    52→  1552→                )
+    53→  1553→              })}
+    54→  1554→              {filtered.length === 0 && (
+    55→  1555→                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">{search ? 'No matching items' : 'No inventory data'}</TableCell></TableRow>
+    56→  1556→              )}
+    57→  1557→            </TableBody>
+    58→  1558→          </Table>
+    59→  1559→        </div>
+    60→  1560→      </div>
+    61→  1561→    </div>
+    62→  1562→  )
+    63→  1563→}
+    64→  1564→
+    65→  1565→// ═══════════════════════════════════════════════════════════════════════════════
+    66→  1566→// INSTAGRAM TAB
+    67→  1567→// ═══════════════════════════════════════════════════════════════════════════════
+    68→  1568→function InstagramTab() {
+    69→  1569→  const IG_LINK = 'https://instagram.com/Style_withher01'
+    70→  1570→
+    71→  1571→  const statCards = [
+    72→  1572→    { label: 'Followers', icon: Users, color: 'bg-[#1e9ba6]/10 text-[#1e9ba6]' },
+    73→  1573→    { label: 'Posts', icon: ImageIcon, color: 'bg-[#f9b233]/10 text-[#f9b233]' },
+    74→  1574→    { label: 'Engagement Rate', icon: BarChart3, color: 'bg-[#1e9ba6]/10 text-[#1e9ba6]' },
+    75→  1575→  ]
+    76→  1576→
+    77→  1577→  return (
+    78→  1578→    <div className="space-y-6">
+    79→  1579→      {/* Connected Account Card */}
+    80→  1580→      <Card className="border-0 shadow-sm">
+    81→  1581→        <CardHeader className="pb-4">
+    82→  1582→          <div className="flex items-center justify-between">
+    83→  1583→            <div className="flex items-center gap-3">
+    84→  1584→              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#f9b233] via-[#D96C8A] to-[#833AB4] flex items-center justify-center">
+    85→  1585→                <Instagram className="h-6 w-6 text-white" />
+    86→  1586→              </div>
+    87→  1587→              <div>
+    88→  1588→                <CardTitle className="text-lg text-[#4a5a6a]">@Style_withher01</CardTitle>
+    89→  1589→                <a href={IG_LINK} target="_blank" rel="noopener noreferrer" className="text-sm text-[#1e9ba6] hover:underline flex items-center gap-1">
+    90→  1590→                  {IG_LINK.replace('https://', '')} <ExternalLink className="h-3 w-3" />
+    91→  1591→                </a>
+    92→  1592→              </div>
+    93→  1593→            </div>
+    94→  1594→            <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+    95→  1595→              <CheckCircle2 className="h-3 w-3 mr-1" /> Connected
+    96→  1596→            </Badge>
+    97→  1597→          </div>
+    98→  1598→        </CardHeader>
+    99→  1599→      </Card>
+   100→  1600→
+   101→  1601→      {/* Quick Actions */}
+   102→  1602→      <Card className="border-0 shadow-sm">
+   103→  1603→        <CardHeader>
+   104→  1604→          <CardTitle className="text-base text-[#4a5a6a]">Quick Actions</CardTitle>
+   105→  1605→        </CardHeader>
+   106→  1606→        <CardContent>
+   107→  1607→          <div className="flex flex-wrap gap-3">
+   108→  1608→            <a href={IG_LINK} target="_blank" rel="noopener noreferrer">
+   109→  1609→              <Button className="bg-[#1e9ba6] hover:bg-[#1e9ba6]/90 text-white">
+   110→  1610→                <Instagram className="h-4 w-4 mr-2" /> Open Instagram
+   111→  1611→              </Button>
+   112→  1612→            </a>
+   113→  1613→            <a href={IG_LINK} target="_blank" rel="noopener noreferrer">
+   114→  1614→              <Button variant="outline" className="border-[#1e9ba6]/30 text-[#1e9ba6] hover:bg-[#1e9ba6]/10">
+   115→  1615→                <ExternalLink className="h-4 w-4 mr-2" /> View Profile
+   116→  1616→              </Button>
+   117→  1617→            </a>
+   118→  1618→            <a href={IG_LINK} target="_blank" rel="noopener noreferrer">
+   119→  1619→              <Button variant="outline" className="border-[#f9b233]/30 text-[#f9b233] hover:bg-[#f9b233]/10">
+   120→  1620→                <PlusCircle className="h-4 w-4 mr-2" /> Create Post
+   121→  1621→              </Button>
+   122→  1622→            </a>
+   123→  1623→          </div>
+   124→  1624→        </CardContent>
+   125→  1625→      </Card>
+   126→  1626→
+   127→  1627→      {/* Stats Placeholder */}
+   128→  1628→      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+   129→  1629→        {statCards.map((s) => {
+   130→  1630→          const Icon = s.icon
+   131→  1631→          return (
+   132→  1632→            <Card key={s.label} className="border-0 shadow-sm">
+   133→  1633→              <CardContent className="p-5">
+   134→  1634→                <div className="flex items-center gap-3 mb-3">
+   135→  1635→                  <div className={`w-10 h-10 rounded-lg ${s.color} flex items-center justify-center`}>
+   136→  1636→                    <Icon className="h-5 w-5" />
+   137→  1637→                  </div>
+   138→  1638→                  <p className="text-sm text-muted-foreground font-medium">{s.label}</p>
+   139→  1639→                </div>
+   140→  1640→                <p className="text-sm text-[#4a5a6a]/60 italic">Connect Meta API to view {s.label.toLowerCase()}</p>
+   141→  1641→              </CardContent>
+   142→  1642→            </Card>
+   143→  1643→          )
+   144→  1644→        })}
+   145→  1645→      </div>
+   146→  1646→
+   147→  1647→      {/* Info Note */}
+   148→  1648→      <Card className="border-0 shadow-sm bg-[#f9b233]/5 border border-[#f9b233]/20">
+   149→  1649→        <CardContent className="p-5">
+   150→  1650→          <div className="flex gap-3">
+   151→  1651→            <AlertTriangle className="h-5 w-5 text-[#f9b233] shrink-0 mt-0.5" />
+   152→  1652→            <div>
+   153→  1653→              <p className="text-sm font-medium text-[#4a5a6a] mb-1">Meta Business Account Required</p>
+   154→  1654→              <p className="text-sm text-[#4a5a6a]/70 leading-relaxed">
+   155→  1655→                Full Instagram Graph API integration requires Meta Business Account setup. Connect your Meta Business account to enable automatic posting, analytics, and comment management.
+   156→  1656→              </p>
+   157→  1657→            </div>
+   158→  1658→          </div>
+   159→  1659→        </CardContent>
+   160→  1660→      </Card>
+   161→  1661→    </div>
+   162→  1662→  )
+   163→  1663→}
+   164→  1664→
+   165→  1665→// ═══════════════════════════════════════════════════════════════════════════════
+   166→  1666→// PAYMENTS TAB
+   167→  1667→// ═══════════════════════════════════════════════════════════════════════════════
+   168→  1668→function PaymentsTab() {
+   169→  1669→  const { showToast } = useStore()
+   170→  1670→  const [payments, setPayments] = useState<any[]>([])
+   171→  1671→  const [loading, setLoading] = useState(true)
+   172→  1672→  const [updatingId, setUpdatingId] = useState<string | null>(null)
+   173→  1673→  const [filterStatus, setFilterStatus] = useState<string>('all')
+   174→  1674→  const [filterMethod, setFilterMethod] = useState<string>('all')
+   175→  1675→
+   176→  1676→  const fetchPayments = useCallback(async () => {
+   177→  1677→    setLoading(true)
+   178→  1678→    try {
+   179→  1679→      const params = new URLSearchParams()
+   180→  1680→      if (filterStatus !== 'all') params.set('status', filterStatus)
+   181→  1681→      if (filterMethod !== 'all') params.set('method', filterMethod)
+   182→  1682→      const res = await fetch(`/api/admin/payments?${params}`, { headers: authHeaders() })
+   183→  1683→      if (!res.ok) throw new Error('Failed to fetch')
+   184→  1684→      const json = await res.json()
+   185→  1685→      setPayments(json.payments || [])
+   186→  1686→    } catch (err: any) {
+   187→  1687→      showToast(err.message || 'Error loading payments', 'error')
+   188→  1688→    } finally {
+   189→  1689→      setLoading(false)
+   190→  1690→    }
+   191→  1691→  }, [showToast, filterStatus, filterMethod])
+   192→  1692→
+   193→  1693→  useEffect(() => { fetchPayments() }, [fetchPayments])
+   194→  1694→
+   195→  1695→  const handlePaymentStatus = async (paymentId: string, orderId: string, newStatus: string) => {
+   196→  1696→    setUpdatingId(paymentId)
+   197→  1697→    try {
+   198→  1698→      const res = await fetch(`/api/orders/${orderId}`, {
+   199→  1699→        method: 'PUT',
+   200→  1700→        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+   201→  1701→        body: JSON.stringify({ paymentStatus: newStatus }),
+   202→  1702→      })
+   203→  1703→      if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Update failed') }
+   204→  1704→      showToast(`Payment status updated to ${newStatus}`)
+   205→  1705→      fetchPayments()
+   206→  1706→    } catch (err: any) {
+   207→  1707→      showToast(err.message || 'Error updating payment', 'error')
+   208→  1708→    } finally {
+   209→  1709→      setUpdatingId(null)
+   210→  1710→    }
+   211→  1711→  }
+   212→  1712→
+   213→  1713→  if (loading) {
+   214→  1714→    return <div className="space-y-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
+   215→  1715→  }
+   216→  1716→
+   217→  1717→  return (
+   218→  1718→    <div className="space-y-4">
+   219→  1719→      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+   220→  1720→        <h2 className="text-xl font-bold">Payments ({payments.length})</h2>
+   221→  1721→        <div className="flex gap-2">
+   222→  1722→          <Select value={filterStatus} onValueChange={setFilterStatus}>
+   223→  1723→            <SelectTrigger className="w-36 h-9 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+   224→  1724→            <SelectContent>
+   225→  1725→              <SelectItem value="all">All Status</SelectItem>
+   226→  1726→              <SelectItem value="pending">Pending</SelectItem>
+   227→  1727→              <SelectItem value="submitted">Submitted</SelectItem>
+   228→  1728→              <SelectItem value="verified">Verified</SelectItem>
+   229→  1729→              <SelectItem value="completed">Completed</SelectItem>
+   230→  1730→              <SelectItem value="failed">Failed</SelectItem>
+   231→  1731→              <SelectItem value="refunded">Refunded</SelectItem>
+   232→  1732→            </SelectContent>
+   233→  1733→          </Select>
+   234→  1734→          <Select value={filterMethod} onValueChange={setFilterMethod}>
+   235→  1735→            <SelectTrigger className="w-32 h-9 text-xs"><SelectValue placeholder="Method" /></SelectTrigger>
+   236→  1736→            <SelectContent>
+   237→  1737→              <SelectItem value="all">All Methods</SelectItem>
+   238→  1738→              <SelectItem value="cod">COD</SelectItem>
+   239→  1739→              <SelectItem value="upi">UPI</SelectItem>
+   240→  1740→            </SelectContent>
+   241→  1741→          </Select>
+   242→  1742→        </div>
+   243→  1743→      </div>
+   244→  1744→
+   245→  1745→      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+   246→  1746→        <div className="max-h-[65vh] overflow-y-auto">
+   247→  1747→          <Table>
+   248→  1748→            <TableHeader>
+   249→  1749→              <TableRow>
+   250→  1750→                <TableHead className="text-xs">Date</TableHead>
+   251→  1751→                <TableHead className="text-xs">Order #</TableHead>
+   252→  1752→                <TableHead className="text-xs">Customer</TableHead>
+   253→  1753→                <TableHead className="text-xs">Method</TableHead>
+   254→  1754→                <TableHead className="text-xs">Amount</TableHead>
+   255→  1755→                <TableHead className="text-xs">Status</TableHead>
+   256→  1756→                <TableHead className="text-xs text-right">Action</TableHead>
+   257→  1757→              </TableRow>
+   258→  1758→            </TableHeader>
+   259→  1759→            <TableBody>
+   260→  1760→              {payments.map((p) => (
+   261→  1761→                <TableRow key={p.id}>
+   262→  1762→                  <TableCell className="text-xs">{fmtDateTime(p.createdAt)}</TableCell>
+   263→  1763→                  <TableCell className="font-mono text-xs">{p.order?.orderNumber?.slice(0, 16) || '—'}</TableCell>
+   264→  1764→                  <TableCell>
+   265→  1765→                    <div className="text-sm">{p.user?.name || '—'}</div>
+   266→  1766→                    <div className="text-xs text-muted-foreground">{p.user?.email || ''}</div>
+   267→  1767→                  </TableCell>
+   268→  1768→                  <TableCell>
+   269→  1769→                    <Badge variant="outline" className="text-xs uppercase">{p.method}</Badge>
+   270→  1770→                  </TableCell>
+   271→  1771→                  <TableCell className="font-semibold text-sm">₹{fmt(p.amount)}</TableCell>
+   272→  1772→                  <TableCell>
+   273→  1773→                    <Badge className={PAYMENT_COLORS[p.status] || ''} variant="secondary">{p.status}</Badge>
+   274→  1774→                  </TableCell>
+   275→  1775→                  <TableCell className="text-right">
+   276→  1776→                    {updatingId === p.id ? (
+   277→  1777→                      <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+   278→  1778→                    ) : (
+   279→  1779→                      <Select value={p.status} onValueChange={(v) => handlePaymentStatus(p.id, p.orderId, v)}>
+   280→  1780→                        <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
+   281→  1781→                        <SelectContent>
+   282→  1782→                          <SelectItem value="pending">Pending</SelectItem>
+   283→  1783→                          <SelectItem value="submitted">Submitted</SelectItem>
+   284→  1784→                          <SelectItem value="verified">Verified</SelectItem>
+   285→  1785→                          <SelectItem value="completed">Completed</SelectItem>
+   286→  1786→                          <SelectItem value="failed">Failed</SelectItem>
+   287→  1787→                          <SelectItem value="refunded">Refunded</SelectItem>
+   288→  1788→                        </SelectContent>
+   289→  1789→                      </Select>
+   290→  1790→                    )}
+   291→  1791→                  </TableCell>
+   292→  1792→                </TableRow>
+   293→  1793→              ))}
+   294→  1794→              {payments.length === 0 && (
+   295→  1795→                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No payments found</TableCell></TableRow>
+   296→  1796→              )}
+   297→  1797→            </TableBody>
+   298→  1798→          </Table>
+   299→  1799→        </div>
+   300→  1800→      </div>
+   301→  1801→    </div>
+   302→  1802→  )
+   303→  1803→}
+   304→  1804→
+   305→  1805→// ═══════════════════════════════════════════════════════════════════════════════
+   306→  1806→// SETTINGS TAB
+   307→  1807→// ═══════════════════════════════════════════════════════════════════════════════
+   308→  1808→const SETTINGS_FIELDS = [
+   309→  1809→  { key: 'site_name', label: 'Site Name', type: 'input', group: 'General' },
+   310→  1810→  { key: 'site_tagline', label: 'Site Tagline', type: 'input', group: 'General' },
+   311→  1811→  { key: 'site_description', label: 'Site Description', type: 'textarea', rows: 3, group: 'General' },
+   312→  1812→  { key: 'upi_id', label: 'UPI ID', type: 'input', group: 'Payment' },
+   313→  1813→  { key: 'currency', label: 'Currency Code', type: 'input', group: 'Payment' },
+   314→  1814→  { key: 'currency_symbol', label: 'Currency Symbol', type: 'input', group: 'Payment' },
+   315→  1815→  { key: 'social_instagram', label: 'Instagram URL', type: 'input', group: 'Social Links' },
+   316→  1816→  { key: 'social_facebook', label: 'Facebook URL', type: 'input', group: 'Social Links' },
+   317→  1817→  { key: 'social_twitter', label: 'Twitter / X URL', type: 'input', group: 'Social Links' },
+   318→  1818→  { key: 'social_youtube', label: 'YouTube URL', type: 'input', group: 'Social Links' },
+   319→  1819→  { key: 'social_pinterest', label: 'Pinterest URL', type: 'input', group: 'Social Links' },
+   320→  1820→  { key: 'seo_title', label: 'SEO Title', type: 'input', group: 'SEO' },
+   321→  1821→  { key: 'seo_description', label: 'SEO Description', type: 'textarea', rows: 3, group: 'SEO' },
+   322→  1822→  { key: 'seo_keywords', label: 'SEO Keywords', type: 'textarea', rows: 2, group: 'SEO' },
+   323→  1823→  { key: 'google_analytics_id', label: 'Google Analytics ID', type: 'input', group: 'SEO' },
+   324→  1824→]
+   325→  1825→
+   326→  1826→function SettingsTab() {
+   327→  1827→  const { showToast } = useStore()
+   328→  1828→  const [settings, setSettings] = useState<Record<string, string>>({})
+   329→  1829→  const [loading, setLoading] = useState(true)
+   330→  1830→  const [saving, setSaving] = useState(false)
+   331→  1831→
+   332→  1832→  const fetchSettings = useCallback(async () => {
+   333→  1833→    setLoading(true)
+   334→  1834→    try {
+   335→  1835→      const res = await fetch('/api/admin/settings', { headers: authHeaders() })
+   336→  1836→      if (!res.ok) throw new Error('Failed to fetch')
+   337→  1837→      const json = await res.json()
+   338→  1838→      setSettings(json.settings || {})
+   339→  1839→    } catch (err: any) {
+   340→  1840→      showToast(err.message || 'Error loading settings', 'error')
+   341→  1841→    } finally {
+   342→  1842→      setLoading(false)
+   343→  1843→    }
+   344→  1844→  }, [showToast])
+   345→  1845→
+   346→  1846→  useEffect(() => { fetchSettings() }, [fetchSettings])
+   347→  1847→
+   348→  1848→  const updateField = (key: string, value: string) => {
+   349→  1849→    setSettings((prev) => ({ ...prev, [key]: value }))
+   350→  1850→  }
+   351→  1851→
+   352→  1852→  const handleSave = async () => {
+   353→  1853→    setSaving(true)
+   354→  1854→    try {
+   355→  1855→      const res = await fetch('/api/admin/settings', {
+   356→  1856→        method: 'PUT',
+   357→  1857→        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+   358→  1858→        body: JSON.stringify({ settings }),
+   359→  1859→      })
+   360→  1860→      if (!res.ok) throw new Error('Save failed')
+   361→  1861→      showToast('Settings saved successfully')
+   362→  1862→    } catch (err: any) {
+   363→  1863→      showToast(err.message || 'Error saving settings', 'error')
+   364→  1864→    } finally {
+   365→  1865→      setSaving(false)
+   366→  1866→    }
+   367→  1867→  }
+   368→  1868→
+   369→  1869→  if (loading) {
+   370→  1870→    return <div className="space-y-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
+   371→  1871→  }
+   372→  1872→
+   373→  1873→  // Group settings by group
+   374→  1874→  const groups = SETTINGS_FIELDS.reduce((acc, field) => {
+   375→  1875→    const g = field.group || 'Other'
+   376→  1876→    if (!acc[g]) acc[g] = []
+   377→  1877→    acc[g].push(field)
+   378→  1878→    return acc
+   379→  1879→  }, {} as Record<string, typeof SETTINGS_FIELDS>)
+   380→  1880→
+   381→  1881→  return (
+   382→  1882→    <div className="space-y-6">
+   383→  1883→      <div className="flex items-center justify-between">
+   384→  1884→        <h2 className="text-xl font-bold">Settings</h2>
+   385→  1885→        <Button onClick={handleSave} disabled={saving} className="bg-[#1e9ba6] hover:bg-[#1e9ba6]/90 text-white">
+   386→  1886→          {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+   387→  1887→          Save Settings
+   388→  1888→        </Button>
+   389→  1889→      </div>
+   390→  1890→
+   391→  1891→      {Object.entries(groups).map(([group, fields]) => (
+   392→  1892→        <Card key={group} className="border-0 shadow-sm">
+   393→  1893→          <CardHeader className="pb-3">
+   394→  1894→            <CardTitle className="text-base">{group}</CardTitle>
+   395→  1895→          </CardHeader>
+   396→  1896→          <CardContent className="space-y-4">
+   397→  1897→            {fields.map((field) => (
+   398→  1898→              <div key={field.key} className="space-y-2">
+   399→  1899→                <Label htmlFor={`settings-${field.key}`} className="text-sm font-medium">{field.label}</Label>
+   400→  1900→                {field.type === 'textarea' ? (
+   401→  1901→                  <Textarea
+   402→  1902→                    id={`settings-${field.key}`}
+   403→  1903→                    value={settings[field.key] || ''}
+   404→  1904→                    onChange={(e) => updateField(field.key, e.target.value)}
+   405→  1905→                    rows={field.rows || 4}
+   406→  1906→                    placeholder={`Enter ${field.label.toLowerCase()}...`}
+   407→  1907→                  />
+   408→  1908→                ) : (
+   409→  1909→                  <Input
+   410→  1910→                    id={`settings-${field.key}`}
+   411→  1911→                    value={settings[field.key] || ''}
+   412→  1912→                    onChange={(e) => updateField(field.key, e.target.value)}
+   413→  1913→                    placeholder={`Enter ${field.label.toLowerCase()}...`}
+   414→  1914→                  />
+   415→  1915→                )}
+   416→  1916→              </div>
+   417→  1917→            ))}
+   418→  1918→          </CardContent>
+   419→  1919→        </Card>
+   420→  1920→      ))}
+   421→  1921→
+   422→  1922→      {/* UPI QR Code Preview */}
+   423→  1923→      {settings.upi_id && (
+   424→  1924→        <Card className="border-0 shadow-sm">
+   425→  1925→          <CardHeader className="pb-3">
+   426→  1926→            <CardTitle className="text-base">UPI QR Code Preview</CardTitle>
+   427→  1927→          </CardHeader>
+   428→  1928→          <CardContent>
+   429→  1929→            <div className="flex flex-col sm:flex-row items-center gap-6">
+   430→  1930→              <div className="bg-white p-4 rounded-xl border-2 border-dashed border-[#1e9ba6]/30">
+   431→  1931→                <img 
+   432→  1932→                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=${encodeURIComponent(settings.upi_id)}&pn=StyleWithHer`} 
+   433→  1933→                  alt="UPI QR Code" 
+   434→  1934→                  className="w-48 h-48"
+   435→  1935→                />
+   436→  1936→              </div>
+   437→  1937→              <div>
+   438→  1938→                <p className="text-sm font-medium mb-1">UPI ID: <span className="font-mono text-[#1e9ba6]">{settings.upi_id}</span></p>
+   439→  1939→                <p className="text-sm text-muted-foreground">Customers can scan this QR code to pay via UPI</p>
+   440→  1940→                <p className="text-xs text-muted-foreground mt-2">This QR code will be shown to customers during UPI checkout</p>
+   441→  1941→              </div>
+   442→  1942→            </div>
+   443→  1943→          </CardContent>
+   444→  1944→        </Card>
+   445→  1945→      )}
+   446→  1946→    </div>
+   447→  1947→  )
+   448→  1948→}
+   449→  1949→
+   450→  1950→// ═══════════════════════════════════════════════════════════════════════════════
+   451→  1951→// ACTIVITY LOGS TAB
+   452→  1952→// ═══════════════════════════════════════════════════════════════════════════════
+   453→  1953→function ActivityLogsTab() {
+   454→  1954→  const { showToast } = useStore()
+   455→  1955→  const [logs, setLogs] = useState<any[]>([])
+   456→  1956→  const [loading, setLoading] = useState(true)
+   457→  1957→  const [search, setSearch] = useState('')
+   458→  1958→  const [filterAction, setFilterAction] = useState('')
+   459→  1959→
+   460→  1960→  const fetchLogs = useCallback(async () => {
+   461→  1961→    setLoading(true)
+   462→  1962→    try {
+   463→  1963→      const params = new URLSearchParams()
+   464→  1964→      if (filterAction) params.set('action', filterAction)
+   465→  1965→      if (search) params.set('search', search)
+   466→  1966→      const res = await fetch(`/api/admin/audit-logs?${params}`, { headers: authHeaders() })
+   467→  1967→      if (!res.ok) throw new Error('Failed to fetch')
+   468→  1968→      const json = await res.json()
+   469→  1969→      setLogs(json.logs || [])
+   470→  1970→    } catch (err: any) {
+   471→  1971→      showToast(err.message || 'Error loading logs', 'error')
+   472→  1972→    } finally {
+   473→  1973→      setLoading(false)
+   474→  1974→    }
+   475→  1975→  }, [showToast, filterAction, search])
+   476→  1976→
+   477→  1977→  useEffect(() => { fetchLogs() }, [fetchLogs])
+   478→  1978→
+   479→  1979→  const getActionColor = (action: string) => {
+   480→  1980→    if (action.includes('LOGIN')) return 'bg-blue-100 text-blue-800'
+   481→  1981→    if (action.includes('SIGNUP')) return 'bg-green-100 text-green-800'
+   482→  1982→    if (action.includes('ORDER')) return 'bg-purple-100 text-purple-800'
+   483→  1983→    if (action.includes('PAYMENT')) return 'bg-amber-100 text-amber-800'
+   484→  1984→    if (action.includes('DELETE')) return 'bg-red-100 text-red-800'
+   485→  1985→    if (action.includes('PASSWORD')) return 'bg-orange-100 text-orange-800'
+   486→  1986→    if (action.includes('UPLOAD')) return 'bg-cyan-100 text-cyan-800'
+   487→  1987→    return 'bg-gray-100 text-gray-800'
+   488→  1988→  }
+   489→  1989→
+   490→  1990→  if (loading) {
+   491→  1991→    return <div className="space-y-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+   492→  1992→  }
+   493→  1993→
+   494→  1994→  return (
+   495→  1995→    <div className="space-y-4">
+   496→  1996→      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+   497→  1997→        <h2 className="text-xl font-bold">Activity Logs ({logs.length})</h2>
+   498→  1998→        <div className="flex gap-2">
+   499→  1999→          <div className="relative w-48">
+   500→  2000→            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+   501→  2001→            <Input placeholder="Search logs..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9 text-xs" />
+   502→  2002→          </div>
+   503→  2003→          <Select value={filterAction} onValueChange={setFilterAction}>
+   504→  2004→            <SelectTrigger className="w-36 h-9 text-xs"><SelectValue placeholder="All Actions" /></SelectTrigger>
+   505→  2005→            <SelectContent>
+   506→  2006→              <SelectItem value="">All Actions</SelectItem>
+   507→  2007→              <SelectItem value="LOGIN">Login</SelectItem>
+   508→  2008→              <SelectItem value="SIGNUP">Signup</SelectItem>
+   509→  2009→              <SelectItem value="ORDER">Orders</SelectItem>
+   510→  2010→              <SelectItem value="PAYMENT">Payments</SelectItem>
+   511→  2011→              <SelectItem value="UPLOAD">Uploads</SelectItem>
+   512→  2012→              <SelectItem value="PASSWORD">Password</SelectItem>
+   513→  2013→            </SelectContent>
+   514→  2014→          </Select>
+   515→  2015→        </div>
+   516→  2016→      </div>
+   517→  2017→
+   518→  2018→      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+   519→  2019→        <div className="max-h-[65vh] overflow-y-auto">
+   520→  2020→          <Table>
+   521→  2021→            <TableHeader>
+   522→  2022→              <TableRow>
+   523→  2023→                <TableHead className="text-xs">Time</TableHead>
+   524→  2024→                <TableHead className="text-xs">User</TableHead>
+   525→  2025→                <TableHead className="text-xs">Action</TableHead>
+   526→  2026→                <TableHead className="text-xs hidden md:table-cell">Details</TableHead>
+   527→  2027→                <TableHead className="text-xs hidden lg:table-cell">IP</TableHead>
+   528→  2028→              </TableRow>
+   529→  2029→            </TableHeader>
+   530→  2030→            <TableBody>
+
+[showing lines 1-530 of 618; use offset=531 with limit to continue reading]
