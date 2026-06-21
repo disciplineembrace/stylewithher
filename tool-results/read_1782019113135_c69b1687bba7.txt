@@ -1,0 +1,1804 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useCallback } from 'react'
+     4→import { useStore } from '@/store/use-store'
+     5→import { useTranslation } from '@/i18n/use-language'
+     6→import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+     7→import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+     8→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog'
+     9→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    10→import { Switch } from '@/components/ui/switch'
+    11→import { Input } from '@/components/ui/input'
+    12→import { Label } from '@/components/ui/label'
+    13→import { Button } from '@/components/ui/button'
+    14→import { Badge } from '@/components/ui/badge'
+    15→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    16→import { Separator } from '@/components/ui/separator'
+    17→import { Textarea } from '@/components/ui/textarea'
+    18→import { Skeleton } from '@/components/ui/skeleton'
+    19→import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet'
+    20→import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
+    21→import {
+    22→  LayoutDashboard,
+    23→  Package,
+    24→  ShoppingBag,
+    25→  Users,
+    26→  Ticket,
+    27→  Star,
+    28→  FileText,
+    29→  Warehouse,
+    30→  ArrowLeft,
+    31→  Plus,
+    32→  Pencil,
+    33→  Trash2,
+    34→  Search,
+    35→  Menu,
+    36→  DollarSign,
+    37→  TrendingUp,
+    38→  AlertTriangle,
+    39→  CheckCircle2,
+    40→  XCircle,
+    41→  Clock,
+    42→  Loader2,
+    43→  Save,
+    44→  StarHalf,
+    45→  RefreshCw,
+    46→  ChevronRight,
+    47→  Image as ImageIcon,
+    48→  Instagram,
+    49→  ExternalLink,
+    50→  BarChart3,
+    51→  PlusCircle,
+    52→  PenLine,
+    53→  Upload,
+    54→  Activity,
+    55→} from 'lucide-react'
+    56→import AdminProductManager from './AdminProductManager'
+    57→
+    58→// ─── Helper ───────────────────────────────────────────────────────────────────
+    59→const authHeaders = () => {
+    60→  const u = useStore.getState().user
+    61→  return u?.token ? { Authorization: `Bearer ${u.token}` } : {}
+    62→}
+    63→
+    64→const fmt = (n: number) => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(n)
+    65→const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+    66→const fmtDateTime = (d: string) => new Date(d).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    67→
+    68→// ─── Nav items (labels translated via SidebarNav component) ─────────────────
+    69→const NAV_ITEMS = [
+    70→  { key: 'dashboard', labelKey: 'admin.dashboard', icon: LayoutDashboard },
+    71→  { key: 'orders', labelKey: 'admin.orders', icon: ShoppingBag },
+    72→  { key: 'payments', labelKey: 'admin.payments', icon: DollarSign },
+    73→  { key: 'products', labelKey: 'admin.products', icon: Package },
+    74→  { key: 'customers', labelKey: 'admin.customers', icon: Users },
+    75→  { key: 'coupons', labelKey: 'admin.coupons', icon: Ticket },
+    76→  { key: 'reviews', labelKey: 'admin.reviews', icon: Star },
+    77→  { key: 'content', labelKey: 'admin.content', icon: FileText },
+    78→  { key: 'posts', labelKey: 'admin.posts', icon: PenLine },
+    79→  { key: 'media', labelKey: 'admin.media', icon: ImageIcon },
+    80→  { key: 'inventory', labelKey: 'admin.inventory', icon: Warehouse },
+    81→  { key: 'settings', labelKey: 'admin.settings', icon: TrendingUp },
+    82→  { key: 'instagram', labelKey: 'admin.instagram', icon: Instagram },
+    83→  { key: 'activity', labelKey: 'admin.activityLogs', icon: Activity },
+    84→]
+    85→
+    86→const STATUS_COLORS: Record<string, string> = {
+    87→  pending: 'bg-yellow-100 text-yellow-800',
+    88→  confirmed: 'bg-blue-100 text-blue-800',
+    89→  processing: 'bg-purple-100 text-purple-800',
+    90→  shipped: 'bg-cyan-100 text-cyan-800',
+    91→  delivered: 'bg-green-100 text-green-800',
+    92→  cancelled: 'bg-red-100 text-red-800',
+    93→  returned: 'bg-orange-100 text-orange-800',
+    94→}
+    95→
+    96→const PAYMENT_COLORS: Record<string, string> = {
+    97→  pending: 'bg-yellow-100 text-yellow-800',
+    98→  submitted: 'bg-blue-100 text-blue-800',
+    99→  verified: 'bg-indigo-100 text-indigo-800',
+   100→  completed: 'bg-green-100 text-green-800',
+   101→  failed: 'bg-red-100 text-red-800',
+   102→  refunded: 'bg-orange-100 text-orange-800',
+   103→}
+   104→
+   105→// ═══════════════════════════════════════════════════════════════════════════════
+   106→// SIDEBAR NAV
+   107→// ═══════════════════════════════════════════════════════════════════════════════
+   108→function SidebarNav({ className }: { className?: string }) {
+   109→  const { adminTab, setAdminTab, navigate } = useStore()
+   110→  const { t } = useTranslation()
+   111→
+   112→  return (
+   113→    <nav className={`flex flex-col gap-1 px-3 py-4 ${className || ''}`}>
+   114→      <div className="mb-6 px-3 flex flex-col items-center">
+   115→        <img src="/logo.png" alt="StyleWithHer" className="h-10 w-auto object-contain mb-1" />
+   116→        <span className="text-[#F7C8D0] font-bold text-base tracking-wide leading-tight">Admin Panel</span>
+   117→      </div>
+   118→      <Separator className="bg-white/10 mb-2" />
+   119→      {NAV_ITEMS.map((item) => {
+   120→        const Icon = item.icon
+   121→        const isActive = adminTab === item.key
+   122→        return (
+   123→          <button
+   124→            key={item.key}
+   125→            onClick={() => setAdminTab(item.key)}
+   126→            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer ${
+   127→              isActive
+   128→                ? 'bg-[#1e9ba6]/20 text-[#f9b233]'
+   129→                : 'text-white/70 hover:bg-white/5 hover:text-white'
+   130→            }`}
+   131→          >
+   132→            <Icon className="h-4 w-4 shrink-0" />
+   133→            <span>{t(item.labelKey)}</span>
+   134→            {isActive && <ChevronRight className="h-3 w-3 ml-auto text-[#f9b233]" />}
+   135→          </button>
+   136→        )
+   137→      })}
+   138→      <Separator className="bg-white/10 my-2" />
+   139→      <button
+   140→        onClick={() => navigate('home')}
+   141→        className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/70 hover:bg-white/5 hover:text-white transition-all duration-200 cursor-pointer"
+   142→      >
+   143→        <ArrowLeft className="h-4 w-4 shrink-0" />
+   144→        <span>Back to Store</span>
+   145→      </button>
+   146→    </nav>
+   147→  )
+   148→}
+   149→
+   150→// ═══════════════════════════════════════════════════════════════════════════════
+   151→// DASHBOARD TAB
+   152→// ═══════════════════════════════════════════════════════════════════════════════
+   153→function DashboardTab() {
+   154→  const { showToast } = useStore()
+   155→  const [data, setData] = useState<any>(null)
+   156→  const [loading, setLoading] = useState(true)
+   157→
+   158→  const fetchDashboard = useCallback(async () => {
+   159→    setLoading(true)
+   160→    try {
+   161→      const res = await fetch('/api/admin', { headers: authHeaders() })
+   162→      if (!res.ok) throw new Error('Failed to fetch dashboard')
+   163→      const json = await res.json()
+   164→      setData(json)
+   165→    } catch (err: any) {
+   166→      showToast(err.message || 'Error loading dashboard', 'error')
+   167→    } finally {
+   168→      setLoading(false)
+   169→    }
+   170→  }, [showToast])
+   171→
+   172→  useEffect(() => { fetchDashboard() }, [fetchDashboard])
+   173→
+   174→  if (loading) {
+   175→    return (
+   176→      <div className="space-y-6">
+   177→        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   178→          {[...Array(4)].map((_, i) => (
+   179→            <Card key={i}><CardContent className="p-6"><Skeleton className="h-24 w-full" /></CardContent></Card>
+   180→          ))}
+   181→        </div>
+   182→        <Card><CardContent className="p-6"><Skeleton className="h-72 w-full" /></CardContent></Card>
+   183→      </div>
+   184→    )
+   185→  }
+   186→
+   187→  if (!data) return <p className="text-muted-foreground">No data available.</p>
+   188→
+   189→  const stats = [
+   190→    { label: 'Total Revenue', value: `₹${fmt(data.totalSales)}`, icon: DollarSign, color: 'bg-[#4a5a6a]/10 text-[#4a5a6a]' },
+   191→    { label: 'Total Orders', value: data.totalOrders, icon: ShoppingBag, color: 'bg-[#1e9ba6]/10 text-[#1e9ba6]' },
+   192→    { label: 'Total Customers', value: data.totalCustomers, icon: Users, color: 'bg-[#f9b233]/10 text-[#f9b233]' },
+   193→    { label: 'Total Products', value: data.totalProducts, icon: Package, color: 'bg-orange-100 text-orange-700' },
+   194→  ]
+   195→
+   196→  const statusColors: Record<string, string> = {
+   197→    pending: 'bg-yellow-100 text-yellow-800',
+   198→    confirmed: 'bg-blue-100 text-blue-800',
+   199→    processing: 'bg-purple-100 text-purple-800',
+   200→    shipped: 'bg-cyan-100 text-cyan-800',
+   201→    delivered: 'bg-green-100 text-green-800',
+   202→    cancelled: 'bg-red-100 text-red-800',
+   203→    returned: 'bg-orange-100 text-orange-800',
+   204→  }
+   205→
+   206→  return (
+   207→    <div className="space-y-6">
+   208→      {/* Stat Cards */}
+   209→      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   210→        {stats.map((s) => {
+   211→          const Icon = s.icon
+   212→          return (
+   213→            <Card key={s.label} className="border-0 shadow-sm hover:shadow-md transition-shadow">
+   214→              <CardContent className="p-5">
+   215→                <div className="flex items-center justify-between">
+   216→                  <div>
+   217→                    <p className="text-sm text-muted-foreground">{s.label}</p>
+   218→                    <p className="text-2xl font-bold mt-1">{s.value}</p>
+   219→                  </div>
+   220→                  <div className={`p-3 rounded-xl ${s.color}`}>
+   221→                    <Icon className="h-5 w-5" />
+   222→                  </div>
+   223→                </div>
+   224→              </CardContent>
+   225→            </Card>
+   226→          )
+   227→        })}
+   228→      </div>
+   229→
+   230→      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+   231→        {/* Revenue Chart */}
+   232→        <Card className="lg:col-span-2 border-0 shadow-sm">
+   233→          <CardHeader className="pb-2">
+   234→            <CardTitle className="text-lg font-semibold">Revenue Overview</CardTitle>
+   235→          </CardHeader>
+   236→          <CardContent className="pt-0">
+   237→            <div className="h-72">
+   238→              {data.revenueByMonth && data.revenueByMonth.length > 0 ? (
+   239→                <ResponsiveContainer width="100%" height="100%">
+   240→                  <BarChart data={data.revenueByMonth} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+   241→                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+   242→                    <XAxis dataKey="month" tick={{ fontSize: 12 }} tickFormatter={(v: string) => { const [y, m] = v.split('-'); const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return months[parseInt(m, 10) - 1] + ' ' + y.slice(2); }} />
+   243→                    <YAxis tick={{ fontSize: 12 }} tickFormatter={(v: number) => `₹${(v / 1000).toFixed(0)}k`} />
+   244→                    <Tooltip
+   245→                      formatter={(value: number) => [`₹${fmt(value)}`, 'Revenue']}
+   246→                      labelFormatter={(label: string) => { const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; const [y, m] = label.split('-'); return months[parseInt(m, 10) - 1] + ' ' + y; }}
+   247→                      contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+   248→                    />
+   249→                    <Bar dataKey="revenue" fill="#1e9ba6" radius={[6, 6, 0, 0]} />
+   250→                  </BarChart>
+   251→                </ResponsiveContainer>
+   252→              ) : (
+   253→                <div className="flex items-center justify-center h-full text-muted-foreground">No revenue data available</div>
+   254→              )}
+   255→            </div>
+   256→          </CardContent>
+   257→        </Card>
+   258→
+   259→        {/* Order Status Distribution */}
+   260→        <Card className="border-0 shadow-sm">
+   261→          <CardHeader className="pb-2">
+   262→            <CardTitle className="text-lg font-semibold">Order Status</CardTitle>
+   263→          </CardHeader>
+   264→          <CardContent className="pt-0">
+   265→            <div className="space-y-3">
+   266→              {Object.entries(data.orderStatusCounts || {}).map(([status, count]) => (
+   267→                <div key={status} className="flex items-center justify-between">
+   268→                  <Badge className={statusColors[status] || 'bg-gray-100 text-gray-800'} variant="secondary">
+   269→                    {status.charAt(0).toUpperCase() + status.slice(1)}
+   270→                  </Badge>
+   271→                  <span className="text-sm font-semibold">{count as number}</span>
+   272→                </div>
+   273→              ))}
+   274→              {(data.orderStatusCounts && Object.keys(data.orderStatusCounts).length === 0) && (
+   275→                <p className="text-sm text-muted-foreground text-center py-4">No orders yet</p>
+   276→              )}
+   277→            </div>
+   278→          </CardContent>
+   279→        </Card>
+   280→      </div>
+   281→
+   282→      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+   283→        {/* Recent Orders */}
+   284→        <Card className="border-0 shadow-sm">
+   285→          <CardHeader className="pb-2">
+   286→            <CardTitle className="text-lg font-semibold">Recent Orders</CardTitle>
+   287→          </CardHeader>
+   288→          <CardContent className="pt-0">
+   289→            <div className="max-h-96 overflow-y-auto">
+   290→              <Table>
+   291→                <TableHeader>
+   292→                  <TableRow>
+   293→                    <TableHead className="text-xs">Order #</TableHead>
+   294→                    <TableHead className="text-xs">Customer</TableHead>
+   295→                    <TableHead className="text-xs">Total</TableHead>
+   296→                    <TableHead className="text-xs">Status</TableHead>
+   297→                  </TableRow>
+   298→                </TableHeader>
+   299→                <TableBody>
+   300→                  {(data.recentOrders || []).slice(0, 5).map((order: any) => (
+   301→                    <TableRow key={order.id}>
+   302→                      <TableCell className="text-xs font-mono">{order.orderNumber?.slice(0, 16)}</TableCell>
+   303→                      <TableCell className="text-xs">{order.user?.name || '—'}</TableCell>
+   304→                      <TableCell className="text-xs font-medium">₹{fmt(order.total)}</TableCell>
+   305→                      <TableCell>
+   306→                        <Badge className={statusColors[order.status] || ''} variant="secondary">
+   307→                          {order.status}
+   308→                        </Badge>
+   309→                      </TableCell>
+   310→                    </TableRow>
+   311→                  ))}
+   312→                </TableBody>
+   313→              </Table>
+   314→            </div>
+   315→          </CardContent>
+   316→        </Card>
+   317→
+   318→        {/* Top Products */}
+   319→        <Card className="border-0 shadow-sm">
+   320→          <CardHeader className="pb-2">
+   321→            <CardTitle className="text-lg font-semibold">Top Products</CardTitle>
+   322→          </CardHeader>
+   323→          <CardContent className="pt-0">
+   324→            <div className="max-h-96 overflow-y-auto space-y-3">
+   325→              {(data.topProducts || []).map((p: any, idx: number) => (
+   326→                <div key={p.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
+   327→                  <div className="flex items-center justify-center w-7 h-7 rounded-full bg-[#F7C8D0]/20 text-[#0B1F3A] text-xs font-bold">
+   328→                    {idx + 1}
+   329→                  </div>
+   330→                  <div className="flex-1 min-w-0">
+   331→                    <p className="text-sm font-medium truncate">{p.name}</p>
+   332→                    <p className="text-xs text-muted-foreground">₹{fmt(p.salePrice || p.basePrice)} • {p.totalSold} sold</p>
+   333→                  </div>
+   334→                </div>
+   335→              ))}
+   336→              {(!data.topProducts || data.topProducts.length === 0) && (
+   337→                <p className="text-sm text-muted-foreground text-center py-4">No sales data yet</p>
+   338→              )}
+   339→            </div>
+   340→          </CardContent>
+   341→        </Card>
+   342→      </div>
+   343→
+   344→      {/* Low Stock Alerts */}
+   345→      <Card className="border-0 shadow-sm">
+   346→        <CardHeader className="pb-2">
+   347→          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+   348→            <AlertTriangle className="h-5 w-5 text-amber-500" />
+   349→            Low Stock Alerts
+   350→          </CardTitle>
+   351→        </CardHeader>
+   352→        <CardContent className="pt-0">
+   353→          <div className="max-h-96 overflow-y-auto">
+   354→            <Table>
+   355→              <TableHeader>
+   356→                <TableRow>
+   357→                  <TableHead className="text-xs">Product</TableHead>
+   358→                  <TableHead className="text-xs">Variant</TableHead>
+   359→                  <TableHead className="text-xs">Stock</TableHead>
+   360→                </TableRow>
+   361→              </TableHeader>
+   362→              <TableBody>
+   363→                {(data.lowStockProducts || []).map((item: any) => (
+   364→                  <TableRow key={item.id}>
+   365→                    <TableCell className="text-sm font-medium">{item.variant?.product?.name || '—'}</TableCell>
+   366→                    <TableCell className="text-xs text-muted-foreground">{item.variant?.color} / {item.variant?.size}</TableCell>
+   367→                    <TableCell>
+   368→                      <Badge variant={item.quantity === 0 ? 'destructive' : 'secondary'} className={item.quantity === 0 ? '' : 'bg-amber-100 text-amber-800'}>
+   369→                        {item.quantity}
+   370→                      </Badge>
+   371→                    </TableCell>
+   372→                  </TableRow>
+   373→                ))}
+   374→                {(!data.lowStockProducts || data.lowStockProducts.length === 0) && (
+   375→                  <TableRow><TableCell colSpan={3} className="text-center text-sm text-muted-foreground py-4">All stock levels healthy</TableCell></TableRow>
+   376→                )}
+   377→              </TableBody>
+   378→            </Table>
+   379→          </div>
+   380→        </CardContent>
+   381→      </Card>
+   382→    </div>
+   383→  )
+   384→}
+   385→
+   386→// PRODUCTS TAB — uses AdminProductManager component
+   387→
+   388→// ═══════════════════════════════════════════════════════════════════════════════
+   389→// ORDERS TAB
+   390→// ═══════════════════════════════════════════════════════════════════════════════
+   391→function OrdersTab() {
+   392→  const { showToast } = useStore()
+   393→  const [orders, setOrders] = useState<any[]>([])
+   394→  const [loading, setLoading] = useState(true)
+   395→  const [updatingId, setUpdatingId] = useState<string | null>(null)
+   396→
+   397→  const fetchOrders = useCallback(async () => {
+   398→    setLoading(true)
+   399→    try {
+   400→      // Admin dashboard has recentOrders, but for full list we use the admin endpoint
+   401→      // The orders endpoint is user-scoped, so we fetch from admin for recent orders and combine
+   402→      const res = await fetch('/api/admin', { headers: authHeaders() })
+   403→      if (!res.ok) throw new Error('Failed to fetch')
+   404→      const json = await res.json()
+   405→      // The admin endpoint returns recentOrders (10). For a full list we show these for now.
+   406→      // To get more, the admin could have a separate endpoint, but we work with what we have.
+   407→      setOrders(json.recentOrders || [])
+   408→    } catch (err: any) {
+   409→      showToast(err.message || 'Error loading orders', 'error')
+   410→    } finally {
+   411→      setLoading(false)
+   412→    }
+   413→  }, [showToast])
+   414→
+   415→  useEffect(() => { fetchOrders() }, [fetchOrders])
+   416→
+   417→  const handleStatusUpdate = async (orderId: string, newStatus: string) => {
+   418→    setUpdatingId(orderId)
+   419→    try {
+   420→      const res = await fetch(`/api/orders/${orderId}`, {
+   421→        method: 'PUT',
+   422→        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+   423→        body: JSON.stringify({ status: newStatus }),
+   424→      })
+   425→      if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Update failed') }
+   426→      showToast(`Order status updated to ${newStatus}`)
+   427→      fetchOrders()
+   428→    } catch (err: any) {
+   429→      showToast(err.message || 'Error updating order', 'error')
+   430→    } finally {
+   431→      setUpdatingId(null)
+   432→    }
+   433→  }
+   434→
+   435→  if (loading) {
+   436→    return <div className="space-y-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
+   437→  }
+   438→
+   439→  return (
+   440→    <div className="space-y-4">
+   441→      <div className="flex items-center justify-between">
+   442→        <h2 className="text-xl font-bold">Orders ({orders.length})</h2>
+   443→        <Button variant="outline" size="sm" onClick={fetchOrders} disabled={loading}>
+   444→          <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} /> Refresh
+   445→        </Button>
+   446→      </div>
+   447→
+   448→      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+   449→        <div className="max-h-[65vh] overflow-y-auto">
+   450→          <Table>
+   451→            <TableHeader>
+   452→              <TableRow>
+   453→                <TableHead className="text-xs">Order #</TableHead>
+   454→                <TableHead className="text-xs">Customer</TableHead>
+   455→                <TableHead className="text-xs hidden lg:table-cell">Date</TableHead>
+   456→                <TableHead className="text-xs hidden sm:table-cell">Items</TableHead>
+   457→                <TableHead className="text-xs">Total</TableHead>
+   458→                <TableHead className="text-xs">Status</TableHead>
+   459→                <TableHead className="text-xs hidden md:table-cell">Payment</TableHead>
+   460→                <TableHead className="text-xs text-right">Action</TableHead>
+   461→              </TableRow>
+   462→            </TableHeader>
+   463→            <TableBody>
+   464→              {orders.map((order) => (
+   465→                <TableRow key={order.id}>
+   466→                  <TableCell className="font-mono text-xs">{order.orderNumber?.slice(0, 16)}</TableCell>
+   467→                  <TableCell>
+   468→                    <div className="text-sm font-medium">{order.user?.name || '—'}</div>
+   469→                    <div className="text-xs text-muted-foreground">{order.user?.email || ''}</div>
+   470→                  </TableCell>
+   471→                  <TableCell className="text-xs hidden lg:table-cell">{fmtDate(order.createdAt)}</TableCell>
+   472→                  <TableCell className="text-xs hidden sm:table-cell">{order.items?.length || 0} item(s)</TableCell>
+   473→                  <TableCell className="text-sm font-semibold">₹{fmt(order.total)}</TableCell>
+   474→                  <TableCell>
+   475→                    <Badge className={STATUS_COLORS[order.status] || ''} variant="secondary">{order.status}</Badge>
+   476→                  </TableCell>
+   477→                  <TableCell className="hidden md:table-cell">
+   478→                    <Badge className={PAYMENT_COLORS[order.paymentStatus] || ''} variant="secondary">{order.paymentStatus}</Badge>
+   479→                  </TableCell>
+   480→                  <TableCell className="text-right">
+   481→                    {updatingId === order.id ? (
+   482→                      <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+   483→                    ) : (
+   484→                      <Select value={order.status} onValueChange={(v) => handleStatusUpdate(order.id, v)}>
+   485→                        <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
+   486→                        <SelectContent>
+   487→                          {['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'].map((s) => (
+   488→                            <SelectItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>
+   489→                          ))}
+   490→                        </SelectContent>
+   491→                      </Select>
+   492→                    )}
+   493→                  </TableCell>
+   494→                </TableRow>
+   495→              ))}
+   496→              {orders.length === 0 && (
+   497→                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No orders found</TableCell></TableRow>
+   498→              )}
+   499→            </TableBody>
+   500→          </Table>
+   501→        </div>
+   502→      </div>
+   503→    </div>
+   504→  )
+   505→}
+   506→
+   507→// ═══════════════════════════════════════════════════════════════════════════════
+   508→// CUSTOMERS TAB
+   509→// ═══════════════════════════════════════════════════════════════════════════════
+   510→function CustomersTab() {
+   511→  const { showToast } = useStore()
+   512→  const [customers, setCustomers] = useState<any[]>([])
+   513→  const [loading, setLoading] = useState(true)
+   514→  const [togglingId, setTogglingId] = useState<string | null>(null)
+   515→
+   516→  const fetchCustomers = useCallback(async () => {
+   517→    setLoading(true)
+   518→    try {
+   519→      const res = await fetch('/api/admin/customers?limit=100', { headers: authHeaders() })
+   520→      if (!res.ok) throw new Error('Failed to fetch')
+   521→      const json = await res.json()
+   522→      setCustomers(json.customers || [])
+   523→    } catch (err: any) {
+   524→      showToast(err.message || 'Error loading customers', 'error')
+   525→    } finally {
+   526→      setLoading(false)
+   527→    }
+   528→  }, [showToast])
+   529→
+   530→  useEffect(() => { fetchCustomers() }, [fetchCustomers])
+   531→
+   532→  const toggleActive = async (customer: any) => {
+   533→    setTogglingId(customer.id)
+   534→    try {
+   535→      const res = await fetch('/api/admin/customers', {
+   536→        method: 'PUT',
+   537→        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+   538→        body: JSON.stringify({ userId: customer.id, isActive: !customer.isActive }),
+   539→      })
+   540→      if (!res.ok) throw new Error('Update failed')
+   541→      showToast(`${customer.name} ${!customer.isActive ? 'activated' : 'deactivated'}`)
+   542→      fetchCustomers()
+   543→    } catch (err: any) {
+   544→      showToast(err.message || 'Error updating customer', 'error')
+   545→    } finally {
+   546→      setTogglingId(null)
+   547→    }
+   548→  }
+   549→
+   550→  if (loading) {
+   551→    return <div className="space-y-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+   552→  }
+   553→
+   554→  return (
+   555→    <div className="space-y-4">
+   556→      <h2 className="text-xl font-bold">Customers ({customers.length})</h2>
+   557→      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+   558→        <div className="max-h-[65vh] overflow-y-auto">
+   559→          <Table>
+   560→            <TableHeader>
+   561→              <TableRow>
+   562→                <TableHead className="text-xs">Name</TableHead>
+   563→                <TableHead className="text-xs">Email</TableHead>
+   564→                <TableHead className="text-xs hidden sm:table-cell">Phone</TableHead>
+   565→                <TableHead className="text-xs hidden md:table-cell">Role</TableHead>
+   566→                <TableHead className="text-xs">Active</TableHead>
+   567→                <TableHead className="text-xs hidden lg:table-cell">Orders</TableHead>
+   568→                <TableHead className="text-xs hidden lg:table-cell">Joined</TableHead>
+   569→                <TableHead className="text-xs text-right">Action</TableHead>
+   570→              </TableRow>
+   571→            </TableHeader>
+   572→            <TableBody>
+   573→              {customers.map((c) => (
+   574→                <TableRow key={c.id}>
+   575→                  <TableCell className="font-medium text-sm">{c.name}</TableCell>
+   576→                  <TableCell className="text-sm text-muted-foreground">{c.email}</TableCell>
+   577→                  <TableCell className="text-sm hidden sm:table-cell">{c.phone || '—'}</TableCell>
+   578→                  <TableCell className="hidden md:table-cell"><Badge variant="secondary">{c.role || 'customer'}</Badge></TableCell>
+   579→                  <TableCell>
+   580→                    <Badge variant="secondary" className={c.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+   581→                      {c.isActive ? 'Active' : 'Inactive'}
+   582→                    </Badge>
+   583→                  </TableCell>
+   584→                  <TableCell className="hidden lg:table-cell text-sm">{c._count?.orders || 0}</TableCell>
+   585→                  <TableCell className="hidden lg:table-cell text-xs text-muted-foreground">{fmtDate(c.createdAt)}</TableCell>
+   586→                  <TableCell className="text-right">
+   587→                    {togglingId === c.id ? (
+   588→                      <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+   589→                    ) : (
+   590→                      <Button
+   591→                        variant="ghost" size="sm"
+   592→                        className={c.isActive ? 'text-red-500 hover:text-red-700 hover:bg-red-50' : 'text-green-600 hover:text-green-800 hover:bg-green-50'}
+   593→                        onClick={() => toggleActive(c)}
+   594→                      >
+   595→                        {c.isActive ? 'Deactivate' : 'Activate'}
+   596→                      </Button>
+   597→                    )}
+   598→                  </TableCell>
+   599→                </TableRow>
+   600→              ))}
+   601→              {customers.length === 0 && (
+   602→                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No customers found</TableCell></TableRow>
+   603→              )}
+   604→            </TableBody>
+   605→          </Table>
+   606→        </div>
+   607→      </div>
+   608→    </div>
+   609→  )
+   610→}
+   611→
+   612→// ═══════════════════════════════════════════════════════════════════════════════
+   613→// COUPONS TAB
+   614→// ═══════════════════════════════════════════════════════════════════════════════
+   615→interface CouponFormState {
+   616→  code: string; description: string; discountType: string; discountValue: string;
+   617→  minOrder: string; maxDiscount: string; usageLimit: string; startDate: string; endDate: string;
+   618→}
+   619→
+   620→const emptyCouponForm: CouponFormState = {
+   621→  code: '', description: '', discountType: 'percentage', discountValue: '',
+   622→  minOrder: '', maxDiscount: '', usageLimit: '', startDate: '', endDate: '',
+   623→}
+   624→
+   625→function CouponForm({ form, setForm, loading, onSubmit, submitLabel }: {
+   626→  form: CouponFormState; setForm: (f: CouponFormState) => void; loading: boolean; onSubmit: () => void; submitLabel: string;
+   627→}) {
+   628→  const update = (field: keyof CouponFormState, value: string) => setForm({ ...form, [field]: value })
+   629→
+   630→  return (
+   631→    <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+   632→      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   633→        <div className="space-y-2">
+   634→          <Label>Coupon Code *</Label>
+   635→          <Input value={form.code} onChange={(e) => update('code', e.target.value.toUpperCase())} placeholder="SAVE20" />
+   636→        </div>
+   637→        <div className="space-y-2">
+   638→          <Label>Discount Type</Label>
+   639→          <Select value={form.discountType} onValueChange={(v) => update('discountType', v)}>
+   640→            <SelectTrigger><SelectValue /></SelectTrigger>
+   641→            <SelectContent>
+   642→              <SelectItem value="percentage">Percentage (%)</SelectItem>
+   643→              <SelectItem value="fixed">Fixed Amount (₹)</SelectItem>
+   644→            </SelectContent>
+   645→          </Select>
+   646→        </div>
+   647→      </div>
+   648→      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   649→        <div className="space-y-2">
+   650→          <Label>Discount Value *</Label>
+   651→          <Input type="number" value={form.discountValue} onChange={(e) => update('discountValue', e.target.value)} placeholder={form.discountType === 'percentage' ? '20' : '500'} />
+   652→        </div>
+   653→        <div className="space-y-2">
+   654→          <Label>Min Order Amount (₹)</Label>
+   655→          <Input type="number" value={form.minOrder} onChange={(e) => update('minOrder', e.target.value)} placeholder="0" />
+   656→        </div>
+   657→      </div>
+   658→      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   659→        <div className="space-y-2">
+   660→          <Label>Max Discount (₹)</Label>
+   661→          <Input type="number" value={form.maxDiscount} onChange={(e) => update('maxDiscount', e.target.value)} placeholder="No limit" />
+   662→        </div>
+   663→        <div className="space-y-2">
+   664→          <Label>Usage Limit</Label>
+   665→          <Input type="number" value={form.usageLimit} onChange={(e) => update('usageLimit', e.target.value)} placeholder="Unlimited" />
+   666→        </div>
+   667→      </div>
+   668→      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   669→        <div className="space-y-2">
+   670→          <Label>Start Date *</Label>
+   671→          <Input type="date" value={form.startDate} onChange={(e) => update('startDate', e.target.value)} />
+   672→        </div>
+   673→        <div className="space-y-2">
+   674→          <Label>End Date *</Label>
+   675→          <Input type="date" value={form.endDate} onChange={(e) => update('endDate', e.target.value)} />
+   676→        </div>
+   677→      </div>
+   678→      <div className="space-y-2">
+   679→        <Label>Description</Label>
+   680→        <Input value={form.description} onChange={(e) => update('description', e.target.value)} placeholder="Flat 20% off on all orders" />
+   681→      </div>
+   682→      <div className="flex justify-end pt-2">
+   683→        <Button onClick={onSubmit} disabled={loading || !form.code || !form.discountValue || !form.startDate || !form.endDate}>
+   684→          {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+   685→          {submitLabel}
+   686→        </Button>
+   687→      </div>
+   688→    </div>
+   689→  )
+   690→}
+   691→
+   692→function CouponsTab() {
+   693→  const { showToast } = useStore()
+   694→  const [coupons, setCoupons] = useState<any[]>([])
+   695→  const [loading, setLoading] = useState(true)
+   696→  const [formOpen, setFormOpen] = useState(false)
+   697→  const [editingId, setEditingId] = useState<string | null>(null)
+   698→  const [form, setForm] = useState<CouponFormState>(emptyCouponForm)
+   699→  const [submitting, setSubmitting] = useState(false)
+   700→  const [deleteId, setDeleteId] = useState<string | null>(null)
+   701→
+   702→  const fetchCoupons = useCallback(async () => {
+   703→    setLoading(true)
+   704→    try {
+   705→      const res = await fetch('/api/coupons', { headers: authHeaders() })
+   706→      if (!res.ok) throw new Error('Failed to fetch')
+   707→      const json = await res.json()
+   708→      setCoupons(json.coupons || [])
+   709→    } catch (err: any) {
+   710→      showToast(err.message || 'Error loading coupons', 'error')
+   711→    } finally {
+   712→      setLoading(false)
+   713→    }
+   714→  }, [showToast])
+   715→
+   716→  useEffect(() => { fetchCoupons() }, [fetchCoupons])
+   717→
+   718→  const openCreate = () => { setEditingId(null); setForm(emptyCouponForm); setFormOpen(true) }
+   719→
+   720→  const openEdit = (c: any) => {
+   721→    setEditingId(c.id)
+   722→    setForm({
+   723→      code: c.code, description: c.description || '',
+   724→      discountType: c.discountType, discountValue: String(c.discountValue),
+   725→      minOrder: String(c.minOrder || ''), maxDiscount: c.maxDiscount != null ? String(c.maxDiscount) : '',
+   726→      usageLimit: c.usageLimit != null ? String(c.usageLimit) : '',
+   727→      startDate: c.startDate?.slice(0, 10) || '', endDate: c.endDate?.slice(0, 10) || '',
+   728→    })
+   729→    setFormOpen(true)
+   730→  }
+   731→
+   732→  const handleSubmit = async () => {
+   733→    setSubmitting(true)
+   734→    try {
+   735→      const body = { ...form, discountValue: parseFloat(form.discountValue) }
+   736→      if (editingId) {
+   737→        const res = await fetch('/api/coupons', {
+   738→          method: 'PUT', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editingId, ...body }),
+   739→        })
+   740→        if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Update failed') }
+   741→        showToast('Coupon updated')
+   742→      } else {
+   743→        const res = await fetch('/api/coupons', {
+   744→          method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+   745→        })
+   746→        if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Create failed') }
+   747→        showToast('Coupon created')
+   748→      }
+   749→      setFormOpen(false)
+   750→      fetchCoupons()
+   751→    } catch (err: any) {
+   752→      showToast(err.message || 'Error saving coupon', 'error')
+   753→    } finally {
+   754→      setSubmitting(false)
+   755→    }
+   756→  }
+   757→
+   758→  const handleDelete = async () => {
+   759→    if (!deleteId) return
+   760→    try {
+   761→      const res = await fetch(`/api/coupons?id=${deleteId}`, { method: 'DELETE', headers: authHeaders() })
+   762→      if (!res.ok) throw new Error('Delete failed')
+   763→      showToast('Coupon deleted')
+   764→      setDeleteId(null)
+   765→      fetchCoupons()
+   766→    } catch (err: any) {
+   767→      showToast(err.message || 'Error deleting coupon', 'error')
+   768→    }
+   769→  }
+   770→
+   771→  if (loading) {
+   772→    return <div className="space-y-4">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
+   773→  }
+   774→
+   775→  return (
+   776→    <div className="space-y-4">
+   777→      <div className="flex items-center justify-between">
+   778→        <h2 className="text-xl font-bold">Coupons ({coupons.length})</h2>
+   779→        <Dialog open={formOpen} onOpenChange={(open) => { setFormOpen(open); if (!open) setEditingId(null) }}>
+   780→          <DialogTrigger asChild>
+   781→            <Button onClick={openCreate} className="bg-[#1e9ba6] hover:bg-[#1e9ba6]/90 text-white">
+   782→              <Plus className="h-4 w-4 mr-2" /> Create Coupon
+   783→            </Button>
+   784→          </DialogTrigger>
+   785→          <DialogContent className="sm:max-w-lg">
+   786→            <DialogHeader>
+   787→              <DialogTitle>{editingId ? 'Edit Coupon' : 'Create Coupon'}</DialogTitle>
+   788→              <DialogDescription>{editingId ? 'Update coupon details.' : 'Set up a new discount coupon.'}</DialogDescription>
+   789→            </DialogHeader>
+   790→            <CouponForm form={form} setForm={setForm} loading={submitting} onSubmit={handleSubmit} submitLabel={editingId ? 'Update' : 'Create'} />
+   791→          </DialogContent>
+   792→        </Dialog>
+   793→      </div>
+   794→
+   795→      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+   796→        <div className="max-h-[65vh] overflow-y-auto">
+   797→          <Table>
+   798→            <TableHeader>
+   799→              <TableRow>
+   800→                <TableHead className="text-xs">Code</TableHead>
+   801→                <TableHead className="text-xs hidden sm:table-cell">Description</TableHead>
+   802→                <TableHead className="text-xs">Discount</TableHead>
+   803→                <TableHead className="text-xs hidden md:table-cell">Min Order</TableHead>
+   804→                <TableHead className="text-xs">Usage</TableHead>
+   805→                <TableHead className="text-xs hidden lg:table-cell">Valid Until</TableHead>
+   806→                <TableHead className="text-xs">Active</TableHead>
+   807→                <TableHead className="text-xs text-right">Actions</TableHead>
+   808→              </TableRow>
+   809→            </TableHeader>
+   810→            <TableBody>
+   811→              {coupons.map((c) => (
+   812→                <TableRow key={c.id}>
+   813→                  <TableCell className="font-mono font-bold text-sm">{c.code}</TableCell>
+   814→                  <TableCell className="text-sm text-muted-foreground hidden sm:table-cell max-w-[200px] truncate">{c.description || '—'}</TableCell>
+   815→                  <TableCell className="text-sm font-semibold">
+   816→                    {c.discountType === 'percentage' ? `${c.discountValue}%` : `₹${fmt(c.discountValue)}`}
+   817→                  </TableCell>
+   818→                  <TableCell className="text-sm hidden md:table-cell">₹{fmt(c.minOrder || 0)}</TableCell>
+   819→                  <TableCell className="text-sm">
+   820→                    <span className={c.usageLimit && c.usedCount >= c.usageLimit ? 'text-red-600 font-semibold' : ''}>
+   821→                      {c.usedCount}{c.usageLimit ? `/${c.usageLimit}` : ''}
+   822→                    </span>
+   823→                  </TableCell>
+   824→                  <TableCell className="text-xs hidden lg:table-cell">{fmtDate(c.endDate)}</TableCell>
+   825→                  <TableCell>
+   826→                    <Badge variant="secondary" className={c.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}>
+   827→                      {c.isActive ? 'Active' : 'Inactive'}
+   828→                    </Badge>
+   829→                  </TableCell>
+   830→                  <TableCell className="text-right">
+   831→                    <div className="flex items-center justify-end gap-1">
+   832→                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(c)}><Pencil className="h-3.5 w-3.5" /></Button>
+   833→                      <AlertDialog open={deleteId === c.id} onOpenChange={(open) => !open && setDeleteId(null)}>
+   834→                        <AlertDialogTrigger asChild>
+   835→                          <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => setDeleteId(c.id)}>
+   836→                            <Trash2 className="h-3.5 w-3.5" />
+   837→                          </Button>
+   838→                        </AlertDialogTrigger>
+   839→                        <AlertDialogContent>
+   840→                          <AlertDialogHeader>
+   841→                            <AlertDialogTitle>Delete Coupon</AlertDialogTitle>
+   842→                            <AlertDialogDescription>Delete coupon &quot;{c.code}&quot;? This cannot be undone.</AlertDialogDescription>
+   843→                          </AlertDialogHeader>
+   844→                          <AlertDialogFooter>
+   845→                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+   846→                            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+   847→                          </AlertDialogFooter>
+   848→                        </AlertDialogContent>
+   849→                      </AlertDialog>
+   850→                    </div>
+   851→                  </TableCell>
+   852→                </TableRow>
+   853→              ))}
+   854→              {coupons.length === 0 && (
+   855→                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No coupons found</TableCell></TableRow>
+   856→              )}
+   857→            </TableBody>
+   858→          </Table>
+   859→        </div>
+   860→      </div>
+   861→    </div>
+   862→  )
+   863→}
+   864→
+   865→// ═══════════════════════════════════════════════════════════════════════════════
+   866→// REVIEWS TAB
+   867→// ═══════════════════════════════════════════════════════════════════════════════
+   868→function StarRating({ rating, size = 'sm' }: { rating: number; size?: 'sm' | 'md' }) {
+   869→  const sz = size === 'sm' ? 'h-3.5 w-3.5' : 'h-5 w-5'
+   870→  return (
+   871→    <div className="flex items-center gap-0.5">
+   872→      {[1, 2, 3, 4, 5].map((star) => (
+   873→        <Star
+   874→          key={star}
+   875→          className={`${sz} ${star <= rating ? 'text-amber-400 fill-amber-400' : 'text-gray-300'}`}
+   876→        />
+   877→      ))}
+   878→    </div>
+   879→  )
+   880→}
+   881→
+   882→function ReviewsTab() {
+   883→  const { showToast } = useStore()
+   884→  const [reviews, setReviews] = useState<any[]>([])
+   885→  const [loading, setLoading] = useState(true)
+   886→  const [actionLoading, setActionLoading] = useState<string | null>(null)
+   887→  const [deleteId, setDeleteId] = useState<string | null>(null)
+   888→
+   889→  const fetchReviews = useCallback(async () => {
+   890→    setLoading(true)
+   891→    try {
+   892→      const res = await fetch('/api/admin/reviews?limit=100', { headers: authHeaders() })
+   893→      if (!res.ok) throw new Error('Failed to fetch')
+   894→      const json = await res.json()
+   895→      setReviews(json.reviews || [])
+   896→    } catch (err: any) {
+   897→      showToast(err.message || 'Error loading reviews', 'error')
+   898→    } finally {
+   899→      setLoading(false)
+   900→    }
+   901→  }, [showToast])
+   902→
+   903→  useEffect(() => { fetchReviews() }, [fetchReviews])
+   904→
+   905→  const handleApprove = async (review: any) => {
+   906→    setActionLoading(review.id)
+   907→    try {
+   908→      const res = await fetch('/api/admin/reviews', {
+   909→        method: 'PUT',
+   910→        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+   911→        body: JSON.stringify({ reviewId: review.id, isApproved: !review.isApproved }),
+   912→      })
+   913→      if (!res.ok) throw new Error('Update failed')
+   914→      showToast(review.isApproved ? 'Review unapproved' : 'Review approved')
+   915→      fetchReviews()
+   916→    } catch (err: any) {
+   917→      showToast(err.message || 'Error updating review', 'error')
+   918→    } finally {
+   919→      setActionLoading(null)
+   920→    }
+   921→  }
+   922→
+   923→  const handleDelete = async () => {
+   924→    if (!deleteId) return
+   925→    setActionLoading(deleteId)
+   926→    try {
+   927→      const res = await fetch(`/api/admin/reviews?reviewId=${deleteId}`, { method: 'DELETE', headers: authHeaders() })
+   928→      if (!res.ok) throw new Error('Delete failed')
+   929→      showToast('Review deleted')
+   930→      setDeleteId(null)
+   931→      fetchReviews()
+   932→    } catch (err: any) {
+   933→      showToast(err.message || 'Error deleting review', 'error')
+   934→    } finally {
+   935→      setActionLoading(null)
+   936→    }
+   937→  }
+   938→
+   939→  if (loading) {
+   940→    return <div className="space-y-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
+   941→  }
+   942→
+   943→  return (
+   944→    <div className="space-y-4">
+   945→      <h2 className="text-xl font-bold">Reviews ({reviews.length})</h2>
+   946→      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+   947→        <div className="max-h-[65vh] overflow-y-auto">
+   948→          <Table>
+   949→            <TableHeader>
+   950→              <TableRow>
+   951→                <TableHead className="text-xs">Product</TableHead>
+   952→                <TableHead className="text-xs hidden sm:table-cell">Customer</TableHead>
+   953→                <TableHead className="text-xs">Rating</TableHead>
+   954→                <TableHead className="text-xs hidden md:table-cell">Title</TableHead>
+   955→                <TableHead className="text-xs hidden lg:table-cell">Date</TableHead>
+   956→                <TableHead className="text-xs">Status</TableHead>
+   957→                <TableHead className="text-xs text-right">Actions</TableHead>
+   958→              </TableRow>
+   959→            </TableHeader>
+   960→            <TableBody>
+   961→              {reviews.map((r) => (
+   962→                <TableRow key={r.id}>
+   963→                  <TableCell className="text-sm font-medium max-w-[150px] truncate">{r.product?.name || '—'}</TableCell>
+   964→                  <TableCell className="text-sm hidden sm:table-cell">{r.user?.name || '—'}</TableCell>
+   965→                  <TableCell><StarRating rating={r.rating} /></TableCell>
+   966→                  <TableCell className="text-sm text-muted-foreground hidden md:table-cell max-w-[200px] truncate">{r.title || '—'}</TableCell>
+   967→                  <TableCell className="text-xs text-muted-foreground hidden lg:table-cell">{fmtDate(r.createdAt)}</TableCell>
+   968→                  <TableCell>
+   969→                    <Badge variant="secondary" className={r.isApproved ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+   970→                      {r.isApproved ? 'Approved' : 'Pending'}
+   971→                    </Badge>
+   972→                  </TableCell>
+   973→                  <TableCell className="text-right">
+   974→                    <div className="flex items-center justify-end gap-1">
+   975→                      <Button
+   976→                        variant="ghost" size="sm" className="h-8 text-xs"
+   977→                        onClick={() => handleApprove(r)}
+   978→                        disabled={actionLoading === r.id}
+   979→                      >
+   980→                        {actionLoading === r.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : r.isApproved ? 'Unapprove' : 'Approve'}
+   981→                      </Button>
+   982→                      <AlertDialog open={deleteId === r.id} onOpenChange={(open) => !open && setDeleteId(null)}>
+   983→                        <AlertDialogTrigger asChild>
+   984→                          <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => setDeleteId(r.id)}>
+   985→                            <Trash2 className="h-3.5 w-3.5" />
+   986→                          </Button>
+   987→                        </AlertDialogTrigger>
+   988→                        <AlertDialogContent>
+   989→                          <AlertDialogHeader>
+   990→                            <AlertDialogTitle>Delete Review</AlertDialogTitle>
+   991→                            <AlertDialogDescription>Delete this review? This cannot be undone.</AlertDialogDescription>
+   992→                          </AlertDialogHeader>
+   993→                          <AlertDialogFooter>
+   994→                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+   995→                            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+   996→                          </AlertDialogFooter>
+   997→                        </AlertDialogContent>
+   998→                      </AlertDialog>
+   999→                    </div>
+  1000→                  </TableCell>
+  1001→                </TableRow>
+  1002→              ))}
+  1003→              {reviews.length === 0 && (
+  1004→                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No reviews found</TableCell></TableRow>
+  1005→              )}
+  1006→            </TableBody>
+  1007→          </Table>
+  1008→        </div>
+  1009→      </div>
+  1010→    </div>
+  1011→  )
+  1012→}
+  1013→
+  1014→// ═══════════════════════════════════════════════════════════════════════════════
+  1015→// CONTENT TAB
+  1016→// ═══════════════════════════════════════════════════════════════════════════════
+  1017→const CONTENT_FIELDS = [
+  1018→  { key: 'about_us', label: 'About Us', type: 'textarea', rows: 6 },
+  1019→  { key: 'contact_email', label: 'Contact Email', type: 'input' },
+  1020→  { key: 'contact_phone', label: 'Contact Phone', type: 'input' },
+  1021→  { key: 'contact_address', label: 'Contact Address', type: 'textarea', rows: 3 },
+  1022→  { key: 'social_instagram', label: 'Instagram URL', type: 'input' },
+  1023→  { key: 'social_facebook', label: 'Facebook URL', type: 'input' },
+  1024→  { key: 'social_twitter', label: 'Twitter / X URL', type: 'input' },
+  1025→  { key: 'social_youtube', label: 'YouTube URL', type: 'input' },
+  1026→  { key: 'social_pinterest', label: 'Pinterest URL', type: 'input' },
+  1027→  { key: 'shipping_policy', label: 'Shipping Policy', type: 'textarea', rows: 5 },
+  1028→  { key: 'return_policy', label: 'Return Policy', type: 'textarea', rows: 5 },
+  1029→  { key: 'privacy_policy', label: 'Privacy Policy', type: 'textarea', rows: 5 },
+  1030→  { key: 'terms_of_service', label: 'Terms of Service', type: 'textarea', rows: 5 },
+  1031→]
+  1032→
+  1033→function ContentTab() {
+  1034→  const { showToast } = useStore()
+  1035→  const [content, setContent] = useState<Record<string, string>>({})
+  1036→  const [loading, setLoading] = useState(true)
+  1037→  const [saving, setSaving] = useState(false)
+  1038→
+  1039→  const fetchContent = useCallback(async () => {
+  1040→    setLoading(true)
+  1041→    try {
+  1042→      const res = await fetch('/api/admin/content', { headers: authHeaders() })
+  1043→      if (!res.ok) throw new Error('Failed to fetch')
+  1044→      const json = await res.json()
+  1045→      const map: Record<string, string> = {}
+  1046→      for (const item of json.content || []) {
+  1047→        map[item.key] = item.value
+  1048→      }
+  1049→      setContent(map)
+  1050→    } catch (err: any) {
+  1051→      showToast(err.message || 'Error loading content', 'error')
+  1052→    } finally {
+  1053→      setLoading(false)
+  1054→    }
+  1055→  }, [showToast])
+  1056→
+  1057→  useEffect(() => { fetchContent() }, [fetchContent])
+  1058→
+  1059→  const updateField = (key: string, value: string) => {
+  1060→    setContent((prev) => ({ ...prev, [key]: value }))
+  1061→  }
+  1062→
+  1063→  const handleSave = async () => {
+  1064→    setSaving(true)
+  1065→    try {
+  1066→      const contentArray = CONTENT_FIELDS.map((f) => ({
+  1067→        key: f.key,
+  1068→        value: content[f.key] || '',
+  1069→        type: 'text',
+  1070→      }))
+  1071→      const res = await fetch('/api/admin/content', {
+  1072→        method: 'PUT',
+  1073→        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+  1074→        body: JSON.stringify({ content: contentArray }),
+  1075→      })
+  1076→      if (!res.ok) throw new Error('Save failed')
+  1077→      showToast('Content saved successfully')
+  1078→    } catch (err: any) {
+  1079→      showToast(err.message || 'Error saving content', 'error')
+  1080→    } finally {
+  1081→      setSaving(false)
+  1082→    }
+  1083→  }
+  1084→
+  1085→  if (loading) {
+  1086→    return <div className="space-y-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
+  1087→  }
+  1088→
+  1089→  return (
+  1090→    <div className="space-y-6">
+  1091→      <div className="flex items-center justify-between">
+  1092→        <h2 className="text-xl font-bold">Site Content</h2>
+  1093→        <Button onClick={handleSave} disabled={saving} className="bg-[#1e9ba6] hover:bg-[#1e9ba6]/90 text-white">
+  1094→          {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+  1095→          Save Changes
+  1096→        </Button>
+  1097→      </div>
+  1098→
+  1099→      <div className="bg-white rounded-xl border shadow-sm p-6 space-y-6">
+  1100→        {CONTENT_FIELDS.map((field) => (
+  1101→          <div key={field.key} className="space-y-2">
+  1102→            <Label htmlFor={`content-${field.key}`} className="text-sm font-medium">{field.label}</Label>
+  1103→            {field.type === 'textarea' ? (
+  1104→              <Textarea
+  1105→                id={`content-${field.key}`}
+  1106→                value={content[field.key] || ''}
+  1107→                onChange={(e) => updateField(field.key, e.target.value)}
+  1108→                rows={field.rows || 4}
+  1109→                placeholder={`Enter ${field.label.toLowerCase()}...`}
+  1110→              />
+  1111→            ) : (
+  1112→              <Input
+  1113→                id={`content-${field.key}`}
+  1114→                value={content[field.key] || ''}
+  1115→                onChange={(e) => updateField(field.key, e.target.value)}
+  1116→                placeholder={`Enter ${field.label.toLowerCase()}...`}
+  1117→              />
+  1118→            )}
+  1119→          </div>
+  1120→        ))}
+  1121→      </div>
+  1122→    </div>
+  1123→  )
+  1124→}
+  1125→
+  1126→// ═══════════════════════════════════════════════════════════════════════════════
+  1127→// INVENTORY TAB
+  1128→// ═══════════════════════════════════════════════════════════════════════════════
+  1129→function InventoryTab() {
+  1130→  const { showToast } = useStore()
+  1131→  const [inventory, setInventory] = useState<any[]>([])
+  1132→  const [loading, setLoading] = useState(true)
+  1133→  const [search, setSearch] = useState('')
+  1134→
+  1135→  const fetchInventory = useCallback(async () => {
+  1136→    setLoading(true)
+  1137→    try {
+  1138→      const res = await fetch('/api/products?limit=100', { headers: authHeaders() })
+  1139→      if (!res.ok) throw new Error('Failed to fetch')
+  1140→      const json = await res.json()
+  1141→      const items: any[] = []
+  1142→      for (const product of json.products || []) {
+  1143→        for (const variant of product.variants || []) {
+  1144→          items.push({
+  1145→            productId: product.id,
+  1146→            productName: product.name,
+  1147→            productImage: product.images?.[0]?.url || null,
+  1148→            variantId: variant.id,
+  1149→            color: variant.color,
+  1150→            size: variant.size,
+  1151→            sku: variant.sku,
+  1152→            stock: variant.inventory?.quantity || 0,
+  1153→            lowStock: variant.inventory?.lowStock || 5,
+  1154→          })
+  1155→        }
+  1156→      }
+  1157→      setInventory(items)
+  1158→    } catch (err: any) {
+  1159→      showToast(err.message || 'Error loading inventory', 'error')
+  1160→    } finally {
+  1161→      setLoading(false)
+  1162→    }
+  1163→  }, [showToast])
+  1164→
+  1165→  useEffect(() => { fetchInventory() }, [fetchInventory])
+  1166→
+  1167→  const filtered = search
+  1168→    ? inventory.filter((item) => item.productName.toLowerCase().includes(search.toLowerCase()))
+  1169→    : inventory
+  1170→
+  1171→  const getStockStatus = (stock: number, lowStock: number) => {
+  1172→    if (stock === 0) return { label: 'Out of Stock', className: 'bg-red-100 text-red-800', dot: 'bg-red-500' }
+  1173→    if (stock <= lowStock) return { label: 'Low Stock', className: 'bg-amber-100 text-amber-800', dot: 'bg-amber-500' }
+  1174→    return { label: 'In Stock', className: 'bg-green-100 text-green-800', dot: 'bg-green-500' }
+  1175→  }
+  1176→
+  1177→  if (loading) {
+  1178→    return <div className="space-y-4"><Skeleton className="h-10 w-60" />{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+  1179→  }
+  1180→
+  1181→  return (
+  1182→    <div className="space-y-4">
+  1183→      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+  1184→        <h2 className="text-xl font-bold">Inventory ({filtered.length})</h2>
+  1185→        <div className="relative w-full sm:w-64">
+  1186→          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+  1187→          <Input
+  1188→            placeholder="Search by product name..."
+  1189→            value={search}
+  1190→            onChange={(e) => setSearch(e.target.value)}
+  1191→            className="pl-9 h-9"
+  1192→          />
+  1193→        </div>
+  1194→      </div>
+  1195→
+  1196→      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+  1197→        <div className="max-h-[65vh] overflow-y-auto">
+  1198→          <Table>
+  1199→            <TableHeader>
+  1200→              <TableRow>
+  1201→                <TableHead className="text-xs">Product</TableHead>
+  1202→                <TableHead className="text-xs hidden sm:table-cell">Variant</TableHead>
+  1203→                <TableHead className="text-xs hidden md:table-cell">SKU</TableHead>
+  1204→                <TableHead className="text-xs">Stock</TableHead>
+  1205→                <TableHead className="text-xs hidden lg:table-cell">Threshold</TableHead>
+  1206→                <TableHead className="text-xs">Status</TableHead>
+  1207→              </TableRow>
+  1208→            </TableHeader>
+  1209→            <TableBody>
+  1210→              {filtered.map((item) => {
+  1211→                const status = getStockStatus(item.stock, item.lowStock)
+  1212→                return (
+  1213→                  <TableRow key={item.variantId}>
+  1214→                    <TableCell>
+  1215→                      <div className="flex items-center gap-2">
+  1216→                        {item.productImage && (
+  1217→                          <img src={item.productImage} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0" />
+  1218→                        )}
+  1219→                        <span className="text-sm font-medium truncate max-w-[180px]">{item.productName}</span>
+  1220→                      </div>
+  1221→                    </TableCell>
+  1222→                    <TableCell className="text-sm text-muted-foreground hidden sm:table-cell">
+  1223→                      <span className="inline-flex items-center gap-1">
+  1224→                        <span className="w-3 h-3 rounded-full border border-gray-300" style={{ backgroundColor: item.color.toLowerCase() === 'white' || item.color.toLowerCase() === 'off white' ? '#f5f5f5' : item.color }} />
+  1225→                        {item.color} / {item.size}
+  1226→                      </span>
+  1227→                    </TableCell>
+  1228→                    <TableCell className="font-mono text-xs hidden md:table-cell">{item.sku}</TableCell>
+  1229→                    <TableCell className="font-semibold text-sm">{item.stock}</TableCell>
+  1230→                    <TableCell className="text-sm text-muted-foreground hidden lg:table-cell">{item.lowStock}</TableCell>
+  1231→                    <TableCell>
+  1232→                      <Badge variant="secondary" className={status.className}>
+  1233→                        <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${status.dot}`} />
+  1234→                        {status.label}
+  1235→                      </Badge>
+  1236→                    </TableCell>
+  1237→                  </TableRow>
+  1238→                )
+  1239→              })}
+  1240→              {filtered.length === 0 && (
+  1241→                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">{search ? 'No matching items' : 'No inventory data'}</TableCell></TableRow>
+  1242→              )}
+  1243→            </TableBody>
+  1244→          </Table>
+  1245→        </div>
+  1246→      </div>
+  1247→    </div>
+  1248→  )
+  1249→}
+  1250→
+  1251→// ═══════════════════════════════════════════════════════════════════════════════
+  1252→// INSTAGRAM TAB
+  1253→// ═══════════════════════════════════════════════════════════════════════════════
+  1254→function InstagramTab() {
+  1255→  const IG_LINK = 'https://instagram.com/Style_withher01'
+  1256→
+  1257→  const statCards = [
+  1258→    { label: 'Followers', icon: Users, color: 'bg-[#1e9ba6]/10 text-[#1e9ba6]' },
+  1259→    { label: 'Posts', icon: ImageIcon, color: 'bg-[#f9b233]/10 text-[#f9b233]' },
+  1260→    { label: 'Engagement Rate', icon: BarChart3, color: 'bg-[#1e9ba6]/10 text-[#1e9ba6]' },
+  1261→  ]
+  1262→
+  1263→  return (
+  1264→    <div className="space-y-6">
+  1265→      {/* Connected Account Card */}
+  1266→      <Card className="border-0 shadow-sm">
+  1267→        <CardHeader className="pb-4">
+  1268→          <div className="flex items-center justify-between">
+  1269→            <div className="flex items-center gap-3">
+  1270→              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#f9b233] via-[#D96C8A] to-[#833AB4] flex items-center justify-center">
+  1271→                <Instagram className="h-6 w-6 text-white" />
+  1272→              </div>
+  1273→              <div>
+  1274→                <CardTitle className="text-lg text-[#4a5a6a]">@Style_withher01</CardTitle>
+  1275→                <a href={IG_LINK} target="_blank" rel="noopener noreferrer" className="text-sm text-[#1e9ba6] hover:underline flex items-center gap-1">
+  1276→                  {IG_LINK.replace('https://', '')} <ExternalLink className="h-3 w-3" />
+  1277→                </a>
+  1278→              </div>
+  1279→            </div>
+  1280→            <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+  1281→              <CheckCircle2 className="h-3 w-3 mr-1" /> Connected
+  1282→            </Badge>
+  1283→          </div>
+  1284→        </CardHeader>
+  1285→      </Card>
+  1286→
+  1287→      {/* Quick Actions */}
+  1288→      <Card className="border-0 shadow-sm">
+  1289→        <CardHeader>
+  1290→          <CardTitle className="text-base text-[#4a5a6a]">Quick Actions</CardTitle>
+  1291→        </CardHeader>
+  1292→        <CardContent>
+  1293→          <div className="flex flex-wrap gap-3">
+  1294→            <a href={IG_LINK} target="_blank" rel="noopener noreferrer">
+  1295→              <Button className="bg-[#1e9ba6] hover:bg-[#1e9ba6]/90 text-white">
+  1296→                <Instagram className="h-4 w-4 mr-2" /> Open Instagram
+  1297→              </Button>
+  1298→            </a>
+  1299→            <a href={IG_LINK} target="_blank" rel="noopener noreferrer">
+  1300→              <Button variant="outline" className="border-[#1e9ba6]/30 text-[#1e9ba6] hover:bg-[#1e9ba6]/10">
+  1301→                <ExternalLink className="h-4 w-4 mr-2" /> View Profile
+  1302→              </Button>
+  1303→            </a>
+  1304→            <a href={IG_LINK} target="_blank" rel="noopener noreferrer">
+  1305→              <Button variant="outline" className="border-[#f9b233]/30 text-[#f9b233] hover:bg-[#f9b233]/10">
+  1306→                <PlusCircle className="h-4 w-4 mr-2" /> Create Post
+  1307→              </Button>
+  1308→            </a>
+  1309→          </div>
+  1310→        </CardContent>
+  1311→      </Card>
+  1312→
+  1313→      {/* Stats Placeholder */}
+  1314→      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+  1315→        {statCards.map((s) => {
+  1316→          const Icon = s.icon
+  1317→          return (
+  1318→            <Card key={s.label} className="border-0 shadow-sm">
+  1319→              <CardContent className="p-5">
+  1320→                <div className="flex items-center gap-3 mb-3">
+  1321→                  <div className={`w-10 h-10 rounded-lg ${s.color} flex items-center justify-center`}>
+  1322→                    <Icon className="h-5 w-5" />
+  1323→                  </div>
+  1324→                  <p className="text-sm text-muted-foreground font-medium">{s.label}</p>
+  1325→                </div>
+  1326→                <p className="text-sm text-[#4a5a6a]/60 italic">Connect Meta API to view {s.label.toLowerCase()}</p>
+  1327→              </CardContent>
+  1328→            </Card>
+  1329→          )
+  1330→        })}
+  1331→      </div>
+  1332→
+  1333→      {/* Info Note */}
+  1334→      <Card className="border-0 shadow-sm bg-[#f9b233]/5 border border-[#f9b233]/20">
+  1335→        <CardContent className="p-5">
+  1336→          <div className="flex gap-3">
+  1337→            <AlertTriangle className="h-5 w-5 text-[#f9b233] shrink-0 mt-0.5" />
+  1338→            <div>
+  1339→              <p className="text-sm font-medium text-[#4a5a6a] mb-1">Meta Business Account Required</p>
+  1340→              <p className="text-sm text-[#4a5a6a]/70 leading-relaxed">
+  1341→                Full Instagram Graph API integration requires Meta Business Account setup. Connect your Meta Business account to enable automatic posting, analytics, and comment management.
+  1342→              </p>
+  1343→            </div>
+  1344→          </div>
+  1345→        </CardContent>
+  1346→      </Card>
+  1347→    </div>
+  1348→  )
+  1349→}
+  1350→
+  1351→// ═══════════════════════════════════════════════════════════════════════════════
+  1352→// PAYMENTS TAB
+  1353→// ═══════════════════════════════════════════════════════════════════════════════
+  1354→function PaymentsTab() {
+  1355→  const { showToast } = useStore()
+  1356→  const [payments, setPayments] = useState<any[]>([])
+  1357→  const [loading, setLoading] = useState(true)
+  1358→  const [updatingId, setUpdatingId] = useState<string | null>(null)
+  1359→  const [filterStatus, setFilterStatus] = useState<string>('all')
+  1360→  const [filterMethod, setFilterMethod] = useState<string>('all')
+  1361→
+  1362→  const fetchPayments = useCallback(async () => {
+  1363→    setLoading(true)
+  1364→    try {
+  1365→      const params = new URLSearchParams()
+  1366→      if (filterStatus !== 'all') params.set('status', filterStatus)
+  1367→      if (filterMethod !== 'all') params.set('method', filterMethod)
+  1368→      const res = await fetch(`/api/admin/payments?${params}`, { headers: authHeaders() })
+  1369→      if (!res.ok) throw new Error('Failed to fetch')
+  1370→      const json = await res.json()
+  1371→      setPayments(json.payments || [])
+  1372→    } catch (err: any) {
+  1373→      showToast(err.message || 'Error loading payments', 'error')
+  1374→    } finally {
+  1375→      setLoading(false)
+  1376→    }
+  1377→  }, [showToast, filterStatus, filterMethod])
+  1378→
+  1379→  useEffect(() => { fetchPayments() }, [fetchPayments])
+  1380→
+  1381→  const handlePaymentStatus = async (paymentId: string, orderId: string, newStatus: string) => {
+  1382→    setUpdatingId(paymentId)
+  1383→    try {
+  1384→      const res = await fetch(`/api/orders/${orderId}`, {
+  1385→        method: 'PUT',
+  1386→        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+  1387→        body: JSON.stringify({ paymentStatus: newStatus }),
+  1388→      })
+  1389→      if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Update failed') }
+  1390→      showToast(`Payment status updated to ${newStatus}`)
+  1391→      fetchPayments()
+  1392→    } catch (err: any) {
+  1393→      showToast(err.message || 'Error updating payment', 'error')
+  1394→    } finally {
+  1395→      setUpdatingId(null)
+  1396→    }
+  1397→  }
+  1398→
+  1399→  if (loading) {
+  1400→    return <div className="space-y-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
+  1401→  }
+  1402→
+  1403→  return (
+  1404→    <div className="space-y-4">
+  1405→      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+  1406→        <h2 className="text-xl font-bold">Payments ({payments.length})</h2>
+  1407→        <div className="flex gap-2">
+  1408→          <Select value={filterStatus} onValueChange={setFilterStatus}>
+  1409→            <SelectTrigger className="w-36 h-9 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+  1410→            <SelectContent>
+  1411→              <SelectItem value="all">All Status</SelectItem>
+  1412→              <SelectItem value="pending">Pending</SelectItem>
+  1413→              <SelectItem value="submitted">Submitted</SelectItem>
+  1414→              <SelectItem value="verified">Verified</SelectItem>
+  1415→              <SelectItem value="completed">Completed</SelectItem>
+  1416→              <SelectItem value="failed">Failed</SelectItem>
+  1417→              <SelectItem value="refunded">Refunded</SelectItem>
+  1418→            </SelectContent>
+  1419→          </Select>
+  1420→          <Select value={filterMethod} onValueChange={setFilterMethod}>
+  1421→            <SelectTrigger className="w-32 h-9 text-xs"><SelectValue placeholder="Method" /></SelectTrigger>
+  1422→            <SelectContent>
+  1423→              <SelectItem value="all">All Methods</SelectItem>
+  1424→              <SelectItem value="cod">COD</SelectItem>
+  1425→              <SelectItem value="upi">UPI</SelectItem>
+  1426→            </SelectContent>
+  1427→          </Select>
+  1428→        </div>
+  1429→      </div>
+  1430→
+  1431→      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+  1432→        <div className="max-h-[65vh] overflow-y-auto">
+  1433→          <Table>
+  1434→            <TableHeader>
+  1435→              <TableRow>
+  1436→                <TableHead className="text-xs">Date</TableHead>
+  1437→                <TableHead className="text-xs">Order #</TableHead>
+  1438→                <TableHead className="text-xs">Customer</TableHead>
+  1439→                <TableHead className="text-xs">Method</TableHead>
+  1440→                <TableHead className="text-xs">Amount</TableHead>
+  1441→                <TableHead className="text-xs">Status</TableHead>
+  1442→                <TableHead className="text-xs text-right">Action</TableHead>
+  1443→              </TableRow>
+  1444→            </TableHeader>
+  1445→            <TableBody>
+  1446→              {payments.map((p) => (
+  1447→                <TableRow key={p.id}>
+  1448→                  <TableCell className="text-xs">{fmtDateTime(p.createdAt)}</TableCell>
+  1449→                  <TableCell className="font-mono text-xs">{p.order?.orderNumber?.slice(0, 16) || '—'}</TableCell>
+  1450→                  <TableCell>
+  1451→                    <div className="text-sm">{p.user?.name || '—'}</div>
+  1452→                    <div className="text-xs text-muted-foreground">{p.user?.email || ''}</div>
+  1453→                  </TableCell>
+  1454→                  <TableCell>
+  1455→                    <Badge variant="outline" className="text-xs uppercase">{p.method}</Badge>
+  1456→                  </TableCell>
+  1457→                  <TableCell className="font-semibold text-sm">₹{fmt(p.amount)}</TableCell>
+  1458→                  <TableCell>
+  1459→                    <Badge className={PAYMENT_COLORS[p.status] || ''} variant="secondary">{p.status}</Badge>
+  1460→                  </TableCell>
+  1461→                  <TableCell className="text-right">
+  1462→                    {updatingId === p.id ? (
+  1463→                      <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+  1464→                    ) : (
+  1465→                      <Select value={p.status} onValueChange={(v) => handlePaymentStatus(p.id, p.orderId, v)}>
+  1466→                        <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
+  1467→                        <SelectContent>
+  1468→                          <SelectItem value="pending">Pending</SelectItem>
+  1469→                          <SelectItem value="submitted">Submitted</SelectItem>
+  1470→                          <SelectItem value="verified">Verified</SelectItem>
+  1471→                          <SelectItem value="completed">Completed</SelectItem>
+  1472→                          <SelectItem value="failed">Failed</SelectItem>
+  1473→                          <SelectItem value="refunded">Refunded</SelectItem>
+  1474→                        </SelectContent>
+  1475→                      </Select>
+  1476→                    )}
+  1477→                  </TableCell>
+  1478→                </TableRow>
+  1479→              ))}
+  1480→              {payments.length === 0 && (
+  1481→                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No payments found</TableCell></TableRow>
+  1482→              )}
+  1483→            </TableBody>
+  1484→          </Table>
+  1485→        </div>
+  1486→      </div>
+  1487→    </div>
+  1488→  )
+  1489→}
+  1490→
+  1491→// ═══════════════════════════════════════════════════════════════════════════════
+  1492→// SETTINGS TAB
+  1493→// ═══════════════════════════════════════════════════════════════════════════════
+  1494→const SETTINGS_FIELDS = [
+  1495→  { key: 'site_name', label: 'Site Name', type: 'input', group: 'General' },
+  1496→  { key: 'site_tagline', label: 'Site Tagline', type: 'input', group: 'General' },
+  1497→  { key: 'site_description', label: 'Site Description', type: 'textarea', rows: 3, group: 'General' },
+  1498→  { key: 'upi_id', label: 'UPI ID', type: 'input', group: 'Payment' },
+  1499→  { key: 'currency', label: 'Currency Code', type: 'input', group: 'Payment' },
+  1500→  { key: 'currency_symbol', label: 'Currency Symbol', type: 'input', group: 'Payment' },
+  1501→  { key: 'social_instagram', label: 'Instagram URL', type: 'input', group: 'Social Links' },
+  1502→  { key: 'social_facebook', label: 'Facebook URL', type: 'input', group: 'Social Links' },
+  1503→  { key: 'social_twitter', label: 'Twitter / X URL', type: 'input', group: 'Social Links' },
+  1504→  { key: 'social_youtube', label: 'YouTube URL', type: 'input', group: 'Social Links' },
+  1505→  { key: 'social_pinterest', label: 'Pinterest URL', type: 'input', group: 'Social Links' },
+  1506→  { key: 'seo_title', label: 'SEO Title', type: 'input', group: 'SEO' },
+  1507→  { key: 'seo_description', label: 'SEO Description', type: 'textarea', rows: 3, group: 'SEO' },
+  1508→  { key: 'seo_keywords', label: 'SEO Keywords', type: 'textarea', rows: 2, group: 'SEO' },
+  1509→  { key: 'google_analytics_id', label: 'Google Analytics ID', type: 'input', group: 'SEO' },
+  1510→]
+  1511→
+  1512→function SettingsTab() {
+  1513→  const { showToast } = useStore()
+  1514→  const [settings, setSettings] = useState<Record<string, string>>({})
+  1515→  const [loading, setLoading] = useState(true)
+  1516→  const [saving, setSaving] = useState(false)
+  1517→
+  1518→  const fetchSettings = useCallback(async () => {
+  1519→    setLoading(true)
+  1520→    try {
+  1521→      const res = await fetch('/api/admin/settings', { headers: authHeaders() })
+  1522→      if (!res.ok) throw new Error('Failed to fetch')
+  1523→      const json = await res.json()
+  1524→      setSettings(json.settings || {})
+  1525→    } catch (err: any) {
+  1526→      showToast(err.message || 'Error loading settings', 'error')
+  1527→    } finally {
+  1528→      setLoading(false)
+  1529→    }
+  1530→  }, [showToast])
+  1531→
+  1532→  useEffect(() => { fetchSettings() }, [fetchSettings])
+  1533→
+  1534→  const updateField = (key: string, value: string) => {
+  1535→    setSettings((prev) => ({ ...prev, [key]: value }))
+  1536→  }
+  1537→
+  1538→  const handleSave = async () => {
+  1539→    setSaving(true)
+  1540→    try {
+  1541→      const res = await fetch('/api/admin/settings', {
+  1542→        method: 'PUT',
+  1543→        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+  1544→        body: JSON.stringify({ settings }),
+  1545→      })
+  1546→      if (!res.ok) throw new Error('Save failed')
+  1547→      showToast('Settings saved successfully')
+  1548→    } catch (err: any) {
+  1549→      showToast(err.message || 'Error saving settings', 'error')
+  1550→    } finally {
+  1551→      setSaving(false)
+  1552→    }
+  1553→  }
+  1554→
+  1555→  if (loading) {
+  1556→    return <div className="space-y-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
+  1557→  }
+  1558→
+  1559→  // Group settings by group
+  1560→  const groups = SETTINGS_FIELDS.reduce((acc, field) => {
+  1561→    const g = field.group || 'Other'
+  1562→    if (!acc[g]) acc[g] = []
+  1563→    acc[g].push(field)
+  1564→    return acc
+  1565→  }, {} as Record<string, typeof SETTINGS_FIELDS>)
+  1566→
+  1567→  return (
+  1568→    <div className="space-y-6">
+  1569→      <div className="flex items-center justify-between">
+  1570→        <h2 className="text-xl font-bold">Settings</h2>
+  1571→        <Button onClick={handleSave} disabled={saving} className="bg-[#1e9ba6] hover:bg-[#1e9ba6]/90 text-white">
+  1572→          {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+  1573→          Save Settings
+  1574→        </Button>
+  1575→      </div>
+  1576→
+  1577→      {Object.entries(groups).map(([group, fields]) => (
+  1578→        <Card key={group} className="border-0 shadow-sm">
+  1579→          <CardHeader className="pb-3">
+  1580→            <CardTitle className="text-base">{group}</CardTitle>
+  1581→          </CardHeader>
+  1582→          <CardContent className="space-y-4">
+  1583→            {fields.map((field) => (
+  1584→              <div key={field.key} className="space-y-2">
+  1585→                <Label htmlFor={`settings-${field.key}`} className="text-sm font-medium">{field.label}</Label>
+  1586→                {field.type === 'textarea' ? (
+  1587→                  <Textarea
+  1588→                    id={`settings-${field.key}`}
+  1589→                    value={settings[field.key] || ''}
+  1590→                    onChange={(e) => updateField(field.key, e.target.value)}
+  1591→                    rows={field.rows || 4}
+  1592→                    placeholder={`Enter ${field.label.toLowerCase()}...`}
+  1593→                  />
+  1594→                ) : (
+  1595→                  <Input
+  1596→                    id={`settings-${field.key}`}
+  1597→                    value={settings[field.key] || ''}
+  1598→                    onChange={(e) => updateField(field.key, e.target.value)}
+  1599→                    placeholder={`Enter ${field.label.toLowerCase()}...`}
+  1600→                  />
+  1601→                )}
+  1602→              </div>
+  1603→            ))}
+  1604→          </CardContent>
+  1605→        </Card>
+  1606→      ))}
+  1607→
+  1608→      {/* UPI QR Code Preview */}
+  1609→      {settings.upi_id && (
+  1610→        <Card className="border-0 shadow-sm">
+  1611→          <CardHeader className="pb-3">
+  1612→            <CardTitle className="text-base">UPI QR Code Preview</CardTitle>
+  1613→          </CardHeader>
+  1614→          <CardContent>
+  1615→            <div className="flex flex-col sm:flex-row items-center gap-6">
+  1616→              <div className="bg-white p-4 rounded-xl border-2 border-dashed border-[#1e9ba6]/30">
+  1617→                <img 
+  1618→                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=${encodeURIComponent(settings.upi_id)}&pn=StyleWithHer`} 
+  1619→                  alt="UPI QR Code" 
+  1620→                  className="w-48 h-48"
+  1621→                />
+  1622→              </div>
+  1623→              <div>
+  1624→                <p className="text-sm font-medium mb-1">UPI ID: <span className="font-mono text-[#1e9ba6]">{settings.upi_id}</span></p>
+  1625→                <p className="text-sm text-muted-foreground">Customers can scan this QR code to pay via UPI</p>
+  1626→                <p className="text-xs text-muted-foreground mt-2">This QR code will be shown to customers during UPI checkout</p>
+  1627→              </div>
+  1628→            </div>
+  1629→          </CardContent>
+  1630→        </Card>
+  1631→      )}
+  1632→    </div>
+  1633→  )
+  1634→}
+  1635→
+  1636→// ═══════════════════════════════════════════════════════════════════════════════
+  1637→// ACTIVITY LOGS TAB
+  1638→// ═══════════════════════════════════════════════════════════════════════════════
+  1639→function ActivityLogsTab() {
+  1640→  const { showToast } = useStore()
+  1641→  const [logs, setLogs] = useState<any[]>([])
+  1642→  const [loading, setLoading] = useState(true)
+  1643→  const [search, setSearch] = useState('')
+  1644→  const [filterAction, setFilterAction] = useState('')
+  1645→
+  1646→  const fetchLogs = useCallback(async () => {
+  1647→    setLoading(true)
+  1648→    try {
+  1649→      const params = new URLSearchParams()
+  1650→      if (filterAction) params.set('action', filterAction)
+  1651→      if (search) params.set('search', search)
+  1652→      const res = await fetch(`/api/admin/audit-logs?${params}`, { headers: authHeaders() })
+  1653→      if (!res.ok) throw new Error('Failed to fetch')
+  1654→      const json = await res.json()
+  1655→      setLogs(json.logs || [])
+  1656→    } catch (err: any) {
+  1657→      showToast(err.message || 'Error loading logs', 'error')
+  1658→    } finally {
+  1659→      setLoading(false)
+  1660→    }
+  1661→  }, [showToast, filterAction, search])
+  1662→
+  1663→  useEffect(() => { fetchLogs() }, [fetchLogs])
+  1664→
+  1665→  const getActionColor = (action: string) => {
+  1666→    if (action.includes('LOGIN')) return 'bg-blue-100 text-blue-800'
+  1667→    if (action.includes('SIGNUP')) return 'bg-green-100 text-green-800'
+  1668→    if (action.includes('ORDER')) return 'bg-purple-100 text-purple-800'
+  1669→    if (action.includes('PAYMENT')) return 'bg-amber-100 text-amber-800'
+  1670→    if (action.includes('DELETE')) return 'bg-red-100 text-red-800'
+  1671→    if (action.includes('PASSWORD')) return 'bg-orange-100 text-orange-800'
+  1672→    if (action.includes('UPLOAD')) return 'bg-cyan-100 text-cyan-800'
+  1673→    return 'bg-gray-100 text-gray-800'
+  1674→  }
+  1675→
+  1676→  if (loading) {
+  1677→    return <div className="space-y-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+  1678→  }
+  1679→
+  1680→  return (
+  1681→    <div className="space-y-4">
+  1682→      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+  1683→        <h2 className="text-xl font-bold">Activity Logs ({logs.length})</h2>
+  1684→        <div className="flex gap-2">
+  1685→          <div className="relative w-48">
+  1686→            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+  1687→            <Input placeholder="Search logs..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9 text-xs" />
+  1688→          </div>
+  1689→          <Select value={filterAction} onValueChange={setFilterAction}>
+  1690→            <SelectTrigger className="w-36 h-9 text-xs"><SelectValue placeholder="All Actions" /></SelectTrigger>
+  1691→            <SelectContent>
+  1692→              <SelectItem value="">All Actions</SelectItem>
+  1693→              <SelectItem value="LOGIN">Login</SelectItem>
+  1694→              <SelectItem value="SIGNUP">Signup</SelectItem>
+  1695→              <SelectItem value="ORDER">Orders</SelectItem>
+  1696→              <SelectItem value="PAYMENT">Payments</SelectItem>
+  1697→              <SelectItem value="UPLOAD">Uploads</SelectItem>
+  1698→              <SelectItem value="PASSWORD">Password</SelectItem>
+  1699→            </SelectContent>
+  1700→          </Select>
+  1701→        </div>
+  1702→      </div>
+  1703→
+  1704→      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+  1705→        <div className="max-h-[65vh] overflow-y-auto">
+  1706→          <Table>
+  1707→            <TableHeader>
+  1708→              <TableRow>
+  1709→                <TableHead className="text-xs">Time</TableHead>
+  1710→                <TableHead className="text-xs">User</TableHead>
+  1711→                <TableHead className="text-xs">Action</TableHead>
+  1712→                <TableHead className="text-xs hidden md:table-cell">Details</TableHead>
+  1713→                <TableHead className="text-xs hidden lg:table-cell">IP</TableHead>
+  1714→              </TableRow>
+  1715→            </TableHeader>
+  1716→            <TableBody>
+  1717→              {logs.map((log) => (
+  1718→                <TableRow key={log.id}>
+  1719→                  <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{fmtDateTime(log.createdAt)}</TableCell>
+  1720→                  <TableCell className="text-sm font-medium">{log.userName}</TableCell>
+  1721→                  <TableCell>
+  1722→                    <Badge className={getActionColor(log.action)} variant="secondary" style={{ maxWidth: '160px' }}>
+  1723→                      <span className="truncate block">{log.action}</span>
+  1724→                    </Badge>
+  1725→                  </TableCell>
+  1726→                  <TableCell className="text-xs text-muted-foreground hidden md:table-cell max-w-[300px] truncate">{log.details || '—'}</TableCell>
+  1727→                  <TableCell className="text-xs text-muted-foreground font-mono hidden lg:table-cell">{log.ipAddress || '—'}</TableCell>
+  1728→                </TableRow>
+  1729→              ))}
+  1730→              {logs.length === 0 && (
+  1731→                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No activity logs found</TableCell></TableRow>
+  1732→              )}
+  1733→            </TableBody>
+  1734→          </Table>
+  1735→        </div>
+  1736→      </div>
+  1737→    </div>
+  1738→  )
+  1739→}
+  1740→
+  1741→// ═══════════════════════════════════════════════════════════════════════════════
+  1742→// MAIN ADMIN PANEL
+  1743→// ═══════════════════════════════════════════════════════════════════════════════
+  1744→export default function AdminPanel() {
+  1745→  const { adminTab } = useStore()
+  1746→  const [mobileOpen, setMobileOpen] = useState(false)
+  1747→
+  1748→  const renderContent = () => {
+  1749→    switch (adminTab) {
+  1750→      case 'dashboard': return <DashboardTab />
+  1751→      case 'products': return <AdminProductManager />
+  1752→      case 'orders': return <OrdersTab />
+  1753→      case 'payments': return <PaymentsTab />
+  1754→      case 'customers': return <CustomersTab />
+  1755→      case 'coupons': return <CouponsTab />
+  1756→      case 'reviews': return <ReviewsTab />
+  1757→      case 'content': return <ContentTab />
+  1758→      case 'posts': return <PostsTab />
+  1759→      case 'media': return <MediaTab />
+  1760→      case 'inventory': return <InventoryTab />
+  1761→      case 'settings': return <SettingsTab />
+  1762→      case 'instagram': return <InstagramTab />
+  1763→      case 'activity': return <ActivityLogsTab />
+  1764→      default: return <DashboardTab />
+  1765→    }
+  1766→  }
+  1767→
+  1768→  const currentTabLabel = NAV_ITEMS.find((n) => n.key === adminTab)?.label || 'Dashboard'
+  1769→
+  1770→  return (
+  1771→    <div className="min-h-screen bg-[#F8F9FA] flex">
+  1772→      {/* Desktop Sidebar */}
+  1773→      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-[#4a5a6a] z-30">
+  1774→        <SidebarNav />
+  1775→      </aside>
+  1776→
+  1777→      {/* Mobile Sidebar (Sheet) */}
+  1778→      <div className="lg:hidden fixed top-0 left-0 z-40 p-3">
+  1779→        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+  1780→          <SheetTrigger asChild>
+  1781→            <Button variant="ghost" size="icon" className="bg-[#4a5a6a] text-white hover:bg-[#4a5a6a]/90 h-10 w-10 rounded-lg">
+  1782→              <Menu className="h-5 w-5" />
+  1783→            </Button>
+  1784→          </SheetTrigger>
+  1785→          <SheetContent side="left" className="w-64 p-0 bg-[#4a5a6a] border-none">
+  1786→            <SheetTitle className="sr-only">Admin Navigation</SheetTitle>
+  1787→            <SidebarNav className="h-full" />
+  1788→          </SheetContent>
+  1789→        </Sheet>
+  1790→      </div>
+  1791→
+  1792→      {/* Main Content */}
+  1793→      <main className="flex-1 lg:pl-64 min-h-screen">
+  1794→        <div className="p-4 sm:p-6 lg:p-8 pt-16 lg:pt-8">
+  1795→          <header className="mb-6">
+  1796→            <h1 className="text-2xl font-bold text-[#4a5a6a]">{currentTabLabel}</h1>
+  1797→            <p className="text-sm text-muted-foreground mt-1">Manage your store&apos;s {currentTabLabel.toLowerCase()}</p>
+  1798→          </header>
+  1799→          {renderContent()}
+  1800→        </div>
+  1801→      </main>
+  1802→    </div>
+  1803→  )
+  1804→}

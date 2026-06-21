@@ -52,6 +52,7 @@ import {
   PenLine,
   Upload,
   Activity,
+  Copy,
 } from 'lucide-react'
 import AdminProductManager from './AdminProductManager'
 
@@ -1734,6 +1735,443 @@ function ActivityLogsTab() {
           </Table>
         </div>
       </div>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// POSTS TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+function PostsTab() {
+  const { showToast } = useStore()
+  const { t } = useTranslation()
+  const [posts, setPosts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [editingPost, setEditingPost] = useState<any>(null)
+  const [saving, setSaving] = useState(false)
+  const [filterStatus, setFilterStatus] = useState('all')
+
+  const emptyForm = { title: '', content: '', excerpt: '', category: '', tags: '', featuredImage: '', status: 'draft' as string, scheduledAt: '' }
+  const [form, setForm] = useState(emptyForm)
+
+  const fetchPosts = useCallback(async () => {
+    setLoading(true)
+    try {
+      const params = filterStatus !== 'all' ? `?status=${filterStatus}` : ''
+      const res = await fetch(`/api/admin/posts${params}`, { headers: authHeaders() })
+      if (!res.ok) throw new Error('Failed to fetch posts')
+      const json = await res.json()
+      setPosts(json.posts || [])
+    } catch (err: any) {
+      showToast(err.message || 'Error loading posts', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }, [filterStatus, showToast])
+
+  useEffect(() => { fetchPosts() }, [fetchPosts])
+
+  const openCreate = () => { setEditingPost(null); setForm(emptyForm); setShowForm(true) }
+  const openEdit = (post: any) => {
+    setEditingPost(post)
+    setForm({
+      title: post.title || '',
+      content: post.content || '',
+      excerpt: post.excerpt || '',
+      category: post.category || '',
+      tags: post.tags || '',
+      featuredImage: post.featuredImage || '',
+      status: post.status || 'draft',
+      scheduledAt: post.scheduledAt ? new Date(post.scheduledAt).toISOString().slice(0, 16) : '',
+    })
+    setShowForm(true)
+  }
+
+  const handleSave = async () => {
+    if (!form.title.trim()) { showToast('Title is required', 'error'); return }
+    setSaving(true)
+    try {
+      const url = editingPost ? `/api/admin/posts/${editingPost.id}` : '/api/admin/posts'
+      const method = editingPost ? 'PUT' : 'POST'
+      const body: any = { ...form }
+      if (body.status === 'draft' || !body.status) body.scheduledAt = null
+
+      const res = await fetch(url, {
+        method,
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Failed to save post')
+      }
+      showToast(editingPost ? 'Post updated!' : 'Post created!', 'success')
+      setShowForm(false)
+      fetchPosts()
+    } catch (err: any) {
+      showToast(err.message || 'Error saving post', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this post?')) return
+    try {
+      const res = await fetch(`/api/admin/posts/${id}`, { method: 'DELETE', headers: authHeaders() })
+      if (!res.ok) throw new Error('Failed to delete post')
+      showToast('Post deleted!', 'success')
+      fetchPosts()
+    } catch (err: any) {
+      showToast(err.message || 'Error deleting post', 'error')
+    }
+  }
+
+  const handleStatusChange = async (post: any, newStatus: string) => {
+    try {
+      const res = await fetch(`/api/admin/posts/${post.id}`, {
+        method: 'PUT',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      })
+      if (!res.ok) throw new Error('Failed to update status')
+      showToast(`Post ${newStatus}!`, 'success')
+      fetchPosts()
+    } catch (err: any) {
+      showToast(err.message || 'Error updating status', 'error')
+    }
+  }
+
+  const statusBadge = (status: string) => {
+    const colors: Record<string, string> = {
+      draft: 'bg-gray-100 text-gray-700',
+      published: 'bg-green-100 text-green-800',
+      scheduled: 'bg-blue-100 text-blue-800',
+    }
+    return <Badge className={`${colors[status] || 'bg-gray-100 text-gray-700'} text-xs`} variant="secondary">{status}</Badge>
+  }
+
+  if (loading) return <div className="space-y-4"><Skeleton className="h-12 w-full" /><Skeleton className="h-64 w-full" /><Skeleton className="h-64 w-full" /></div>
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <p className="text-sm text-muted-foreground">{posts.length} post{posts.length !== 1 ? 's' : ''} found</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-36 h-9 text-sm"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="published">Published</SelectItem>
+              <SelectItem value="scheduled">Scheduled</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button onClick={openCreate} className="bg-[#0B1F3A] hover:bg-[#0B1F3A]/90 text-white h-9">
+            <Plus className="h-4 w-4 mr-2" /> Add Post
+          </Button>
+        </div>
+      </div>
+
+      {/* Posts List */}
+      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+        <div className="max-h-[65vh] overflow-y-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-xs">Title</TableHead>
+                <TableHead className="text-xs hidden md:table-cell">Category</TableHead>
+                <TableHead className="text-xs">Status</TableHead>
+                <TableHead className="text-xs hidden lg:table-cell">Date</TableHead>
+                <TableHead className="text-xs text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {posts.map((post) => (
+                <TableRow key={post.id}>
+                  <TableCell>
+                    <div>
+                      <p className="text-sm font-medium text-[#0B1F3A]">{post.title}</p>
+                      {post.excerpt && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1 max-w-[250px]">{post.excerpt}</p>}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm hidden md:table-cell">{post.category || '—'}</TableCell>
+                  <TableCell>{statusBadge(post.status)}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground hidden lg:table-cell whitespace-nowrap">{fmtDate(post.createdAt)}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-end gap-1">
+                      {post.status === 'draft' && (
+                        <Button size="sm" variant="ghost" className="h-7 text-xs text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => handleStatusChange(post, 'published')}>
+                          <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Publish
+                        </Button>
+                      )}
+                      {post.status === 'published' && (
+                        <Button size="sm" variant="ghost" className="h-7 text-xs text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50" onClick={() => handleStatusChange(post, 'draft')}>
+                          <XCircle className="h-3.5 w-3.5 mr-1" /> Unpublish
+                        </Button>
+                      )}
+                      <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => openEdit(post)}><Pencil className="h-3.5 w-3.5" /></Button>
+                      <Button size="sm" variant="ghost" className="h-7 text-xs text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => handleDelete(post.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {posts.length === 0 && (
+                <TableRow><TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                  <FileText className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                  <p>No posts yet. Create your first post!</p>
+                </TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
+      {/* Create/Edit Dialog */}
+      <Dialog open={showForm} onOpenChange={setShowForm}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingPost ? 'Edit Post' : 'Create New Post'}</DialogTitle>
+            <DialogDescription>{editingPost ? 'Update post details below.' : 'Fill in the details to create a new post.'}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Title *</Label>
+              <Input value={form.title} onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Enter post title..." />
+            </div>
+            <div className="space-y-2">
+              <Label>Excerpt</Label>
+              <Textarea value={form.excerpt} onChange={(e) => setForm(f => ({ ...f, excerpt: e.target.value }))} placeholder="Brief summary..." rows={2} />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Category</Label>
+                <Input value={form.category} onChange={(e) => setForm(f => ({ ...f, category: e.target.value }))} placeholder="e.g. Fashion Tips" />
+              </div>
+              <div className="space-y-2">
+                <Label>Tags (comma-separated)</Label>
+                <Input value={form.tags} onChange={(e) => setForm(f => ({ ...f, tags: e.target.value }))} placeholder="fashion, style, couple" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Featured Image URL</Label>
+              <Input value={form.featuredImage} onChange={(e) => setForm(f => ({ ...f, featuredImage: e.target.value }))} placeholder="https://... or /uploads/..." />
+              {form.featuredImage && (
+                <div className="mt-2 rounded-lg overflow-hidden border max-h-40 bg-gray-50">
+                  <img src={form.featuredImage} alt="Preview" className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>Content</Label>
+              <Textarea value={form.content} onChange={(e) => setForm(f => ({ ...f, content: e.target.value }))} placeholder="Write your post content here... (HTML supported)" rows={8} className="font-mono text-sm" />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select value={form.status} onValueChange={(v) => setForm(f => ({ ...f, status: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="published">Published</SelectItem>
+                    <SelectItem value="scheduled">Scheduled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {form.status === 'scheduled' && (
+                <div className="space-y-2">
+                  <Label>Schedule At</Label>
+                  <Input type="datetime-local" value={form.scheduledAt} onChange={(e) => setForm(f => ({ ...f, scheduledAt: e.target.value }))} />
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild><Button variant="outline">{t('admin.cancel')}</Button></DialogClose>
+            <Button onClick={handleSave} disabled={saving} className="bg-[#0B1F3A] hover:bg-[#0B1F3A]/90 text-white">
+              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {editingPost ? 'Update Post' : 'Create Post'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MEDIA TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+function MediaTab() {
+  const { showToast } = useStore()
+  const [files, setFiles] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
+  const [filterType, setFilterType] = useState('all')
+
+  const fetchMedia = useCallback(async () => {
+    setLoading(true)
+    try {
+      const params = filterType !== 'all' ? `?type=${filterType}` : ''
+      const res = await fetch(`/api/admin/media${params}`, { headers: authHeaders() })
+      if (!res.ok) throw new Error('Failed to fetch media')
+      const json = await res.json()
+      setFiles(json.files || [])
+    } catch (err: any) {
+      showToast(err.message || 'Error loading media', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }, [filterType, showToast])
+
+  useEffect(() => { fetchMedia() }, [fetchMedia])
+
+  const uploadFiles = async (fileList: FileList | File[]) => {
+    if (fileList.length === 0) return
+    setUploading(true)
+    let success = 0
+    for (let i = 0; i < fileList.length; i++) {
+      const file = fileList[i]
+      const fd = new FormData()
+      fd.append('file', file)
+      try {
+        const res = await fetch('/api/admin/media', { method: 'POST', headers: authHeaders(), body: fd })
+        if (!res.ok) {
+          const err = await res.json()
+          throw new Error(err.error || 'Upload failed')
+        }
+        success++
+      } catch (err: any) {
+        showToast(`${file.name}: ${err.message}`, 'error')
+      }
+    }
+    setUploading(false)
+    if (success > 0) {
+      showToast(`${success} file${success > 1 ? 's' : ''} uploaded!`, 'success')
+      fetchMedia()
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+    if (e.dataTransfer.files.length > 0) uploadFiles(e.dataTransfer.files)
+  }
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) uploadFiles(e.target.files)
+    e.target.value = ''
+  }
+
+  const handleDelete = async (fileId: string, filename: string) => {
+    if (!confirm(`Delete "${filename}"?`)) return
+    try {
+      const res = await fetch(`/api/admin/media?fileId=${fileId}`, { method: 'DELETE', headers: authHeaders() })
+      if (!res.ok) throw new Error('Failed to delete file')
+      showToast('File deleted!', 'success')
+      fetchMedia()
+    } catch (err: any) {
+      showToast(err.message || 'Error deleting file', 'error')
+    }
+  }
+
+  const copyUrl = (url: string) => {
+    const fullUrl = url.startsWith('http') ? url : `${window.location.origin}${url}`
+    navigator.clipboard.writeText(fullUrl)
+    showToast('URL copied to clipboard!', 'success')
+  }
+
+  const formatSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  }
+
+  const isImage = (mimeType: string) => mimeType.startsWith('image/')
+
+  if (loading) return <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">{[...Array(8)].map((_, i) => <Skeleton key={i} className="aspect-square rounded-xl" />)}</div>
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <p className="text-sm text-muted-foreground">{files.length} file{files.length !== 1 ? 's' : ''}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className="w-32 h-9 text-sm"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="image">Images</SelectItem>
+              <SelectItem value="video">Videos</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button onClick={() => document.getElementById('media-file-input')?.click()} className="bg-[#0B1F3A] hover:bg-[#0B1F3A]/90 text-white h-9" disabled={uploading}>
+            {uploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
+            {uploading ? 'Uploading...' : 'Upload Files'}
+          </Button>
+          <input id="media-file-input" type="file" multiple accept="image/*,video/*" className="hidden" onChange={handleFileInput} />
+        </div>
+      </div>
+
+      {/* Drop Zone */}
+      <div
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
+        className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
+          dragOver ? 'border-[#0B1F3A] bg-[#0B1F3A]/5' : 'border-gray-300 hover:border-gray-400 bg-gray-50/50'
+        }`}
+      >
+        <Upload className={`h-10 w-10 mx-auto mb-3 ${dragOver ? 'text-[#0B1F3A]' : 'text-gray-400'}`} />
+        <p className="text-sm font-medium text-[#0B1F3A]">Drag & drop files here</p>
+        <p className="text-xs text-muted-foreground mt-1">or click Upload above. Images (JPG, PNG, WebP, GIF) up to 10MB, Videos up to 50MB</p>
+        <p className="text-xs text-muted-foreground mt-1">Images are auto-compressed to WebP for faster loading</p>
+      </div>
+
+      {/* Media Grid */}
+      {files.length === 0 ? (
+        <div className="text-center py-16 text-muted-foreground">
+          <ImageIcon className="h-12 w-12 mx-auto mb-3 opacity-30" />
+          <p>No media files yet. Upload your first file!</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          {files.map((file) => (
+            <div key={file.id} className="group relative bg-white rounded-xl border shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+              <div className="aspect-square bg-gray-100 relative">
+                {isImage(file.mimeType) ? (
+                  <img src={file.url} alt={file.alt || file.filename} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
+                    <FileText className="h-8 w-8 mb-1" />
+                    <span className="text-[10px]">Video</span>
+                  </div>
+                )}
+                {/* Overlay Actions */}
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+                  <button onClick={() => copyUrl(file.url)} className="h-8 w-8 rounded-full bg-white/90 flex items-center justify-center text-[#0B1F3A] hover:bg-white" title="Copy URL">
+                    <Copy className="h-4 w-4" />
+                  </button>
+                  <button onClick={() => handleDelete(file.id, file.filename)} className="h-8 w-8 rounded-full bg-red-500/90 flex items-center justify-center text-white hover:bg-red-600" title="Delete">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="p-2">
+                <p className="text-xs font-medium text-[#0B1F3A] truncate">{file.filename}</p>
+                <p className="text-[10px] text-muted-foreground">{formatSize(file.size)}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
