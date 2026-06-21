@@ -9,42 +9,6 @@ const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime']
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024
 
-async function compressImage(buffer: Buffer, mimeType: string): Promise<{ buffer: Buffer; ext: string; mimeType: string }> {
-  const sharp = (await import('sharp')).default
-  const MAX_DIMENSION = 1200
-  const QUALITY = 80
-
-  try {
-    let img = sharp(buffer)
-    const metadata = await img.metadata()
-
-    // SVG: no compression possible, return as-is
-    if (mimeType === 'image/svg+xml') {
-      return { buffer, ext: 'svg', mimeType: 'image/svg+xml' }
-    }
-
-    // GIF: keep as-is (animated GIFs lose animation on resize)
-    if (mimeType === 'image/gif') {
-      return { buffer, ext: 'gif', mimeType: 'image/gif' }
-    }
-
-    // Only resize if larger than max dimension
-    const needsResize = (metadata.width && metadata.width > MAX_DIMENSION) || (metadata.height && metadata.height > MAX_DIMENSION)
-
-    if (needsResize) {
-      img = img.resize(MAX_DIMENSION, MAX_DIMENSION, { fit: 'inside', withoutEnlargement: true })
-    }
-
-    // Convert to WebP for better compression
-    const output = await img.webp({ quality: QUALITY }).toBuffer()
-    return { buffer: output, ext: 'webp', mimeType: 'image/webp' }
-  } catch (err) {
-    console.warn('Image compression failed, saving original:', err)
-    const ext = mimeType.split('/')[1] || 'jpg'
-    return { buffer, ext, mimeType }
-  }
-}
-
 export async function GET(request: NextRequest) {
   try {
     const payload = getUserFromRequest(request)
@@ -76,65 +40,41 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// Accept JSON with pre-compressed base64 data URL from client
+// No Sharp, no filesystem, no FormData — works on any serverless platform
 export async function POST(request: NextRequest) {
   try {
     const payload = getUserFromRequest(request)
     if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     if (payload.role !== 'admin') return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
 
-    const formData = await request.formData()
-    const file = formData.get('file') as File | null
+    const body = await request.json()
+    const { filename, url, mimeType, size, alt } = body
 
-    if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
-
-    const isImage = ALLOWED_IMAGE_TYPES.includes(file.type)
-    const isVideo = ALLOWED_VIDEO_TYPES.includes(file.type)
-
-    if (!isImage && !isVideo) {
-      return NextResponse.json({ error: 'Invalid file type. Allowed: jpg, png, gif, webp, svg, mp4, webm, mov.' }, { status: 400 })
+    if (!url || !filename) {
+      return NextResponse.json({ error: 'url and filename are required' }, { status: 400 })
     }
 
-    const maxSize = isImage ? MAX_IMAGE_SIZE : MAX_VIDEO_SIZE
-    if (file.size > maxSize) {
-      return NextResponse.json({ error: `File too large. Maximum size: ${isImage ? '10MB' : '50MB'}.` }, { status: 400 })
+    if (!url.startsWith('data:')) {
+      return NextResponse.json({ error: 'Invalid data URL' }, { status: 400 })
     }
-
-    const bytes = await file.arrayBuffer()
-    let buffer = Buffer.from(bytes)
-    let originalSize = file.size
-
-    // Compress images automatically
-    let finalMimeType = file.type
-    if (isImage) {
-      const compressed = await compressImage(buffer, file.type)
-      buffer = compressed.buffer
-      finalMimeType = compressed.mimeType
-      console.log(`Image compressed: ${(originalSize / 1024).toFixed(1)}KB → ${(buffer.length / 1024).toFixed(1)}KB (${Math.round((1 - buffer.length / originalSize) * 100)}% reduction)`)
-    }
-
-    // Store as base64 data URL (works on serverless / Vercel — no filesystem needed)
-    const base64 = buffer.toString('base64')
-    const dataUrl = `data:${finalMimeType};base64,${base64}`
 
     const mediaFile = await db.mediaFile.create({
       data: {
-        filename: file.name,
-        url: dataUrl,
-        mimeType: finalMimeType,
-        size: buffer.length,
-        alt: formData.get('alt') as string || null,
+        filename,
+        url,
+        mimeType: mimeType || 'image/webp',
+        size: size || 0,
+        alt: alt || null,
         uploadedBy: payload.userId,
       },
     })
 
     const ip = getClientIp(request)
     await recordAudit(payload.userId, 'Admin', 'MEDIA_UPLOAD',
-      `Uploaded ${isImage ? 'image' : 'video'}: ${file.name} (${(originalSize / 1024).toFixed(1)}KB)`, ip)
+      `Uploaded image: ${filename} (${size ? ((size / 1024).toFixed(1) + 'KB') : 'unknown size'})`, ip)
 
-    return NextResponse.json({
-      file: mediaFile,
-      compressed: isImage ? { originalSize, compressedSize: buffer.length, saved: originalSize - buffer.length } : undefined,
-    }, { status: 201 })
+    return NextResponse.json({ file: mediaFile }, { status: 201 })
   } catch (error) {
     console.error('Media POST error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

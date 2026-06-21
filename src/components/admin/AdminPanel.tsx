@@ -2031,18 +2031,53 @@ function MediaTab() {
 
   useEffect(() => { fetchMedia() }, [fetchMedia])
 
+  // Client-side compression using canvas (no server-side Sharp needed)
+  const compressOnClient = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      if (file.type === 'image/gif' || file.type === 'image/svg+xml') {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = () => reject(new Error('Failed to read'))
+        reader.readAsDataURL(file)
+        return
+      }
+      const img = new Image()
+      const url = URL.createObjectURL(file)
+      img.onload = () => {
+        const MAX = 1200
+        let w = img.width, h = img.height
+        if (w > MAX || h > MAX) {
+          if (w > h) { h = Math.round(h * MAX / w); w = MAX }
+          else { w = Math.round(w * MAX / h); h = MAX }
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = w; canvas.height = h
+        canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
+        URL.revokeObjectURL(url)
+        resolve(canvas.toDataURL('image/webp', 0.8))
+      }
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Failed to load image')) }
+      img.src = url
+    })
+
   const uploadFiles = async (fileList: FileList | File[]) => {
     if (fileList.length === 0) return
     setUploading(true)
     let success = 0
     for (let i = 0; i < fileList.length; i++) {
       const file = fileList[i]
-      const fd = new FormData()
-      fd.append('file', file)
+      if (!file.type.startsWith('image/')) {
+        showToast(`${file.name}: Only images supported`, 'error'); continue
+      }
       try {
-        const res = await fetch('/api/admin/media', { method: 'POST', headers: authHeaders(), body: fd })
+        const dataUrl = await compressOnClient(file)
+        const res = await fetch('/api/admin/media', {
+          method: 'POST',
+          headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: file.name, url: dataUrl, mimeType: file.type, size: file.size, alt: file.name }),
+        })
         if (!res.ok) {
-          const err = await res.json()
+          const err = await res.json().catch(() => ({ error: 'Upload failed' }))
           throw new Error(err.error || 'Upload failed')
         }
         success++

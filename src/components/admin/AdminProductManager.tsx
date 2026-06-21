@@ -118,34 +118,79 @@ function ImageUploader({ images, setImages, helperText }: {
   const fileRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
 
+  // Client-side file → base64 (works on any serverless platform, no Sharp needed)
+  const fileToBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = () => reject(new Error('Failed to read file'))
+      reader.readAsDataURL(file)
+    })
+
+  // Resize image on client side using canvas (auto WebP, max 1200px)
+  const compressImage = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      if (file.type === 'image/gif' || file.type === 'image/svg+xml') {
+        // Can't compress GIF (animation) or SVG — return as-is
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = () => reject(new Error('Failed to read file'))
+        reader.readAsDataURL(file)
+        return
+      }
+      const img = new Image()
+      const url = URL.createObjectURL(file)
+      img.onload = () => {
+        const MAX = 1200
+        let w = img.width, h = img.height
+        if (w > MAX || h > MAX) {
+          if (w > h) { h = Math.round(h * MAX / w); w = MAX }
+          else { w = Math.round(w * MAX / h); h = MAX }
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = w; canvas.height = h
+        const ctx = canvas.getContext('2d')!
+        ctx.drawImage(img, 0, 0, w, h)
+        URL.revokeObjectURL(url)
+        const dataUrl = canvas.toDataURL('image/webp', 0.8)
+        resolve(dataUrl)
+      }
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Failed to load image')) }
+      img.src = url
+    })
+
   const uploadFiles = async (files: FileList | File[]) => {
     setUploading(true)
     const fileArray = Array.from(files)
     const validFiles = fileArray.filter(f => f.type.startsWith('image/') && f.size <= 10 * 1024 * 1024)
-    if (validFiles.length === 0) { showToast('No valid images selected. Use JPG, PNG, WebP, or GIF under 10MB.', 'error'); setUploading(false); return }
+    if (validFiles.length === 0) { showToast('No valid images. Use JPG, PNG, WebP, GIF under 10MB.', 'error'); setUploading(false); return }
 
     const results: ProductImage[] = []
     for (let i = 0; i < validFiles.length; i++) {
       const file = validFiles[i]
       setUploadCount(`${i + 1}/${validFiles.length}`)
       try {
-        const fd = new FormData()
-        fd.append('file', file)
-        const res = await fetch('/api/admin/media', { method: 'POST', headers: authHeaders(), body: fd })
+        // Compress on client, get base64 data URL
+        const dataUrl = await compressImage(file)
+        // Save to DB via API (just stores the data URL string)
+        const res = await fetch('/api/admin/media', {
+          method: 'POST',
+          headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: file.name, url: dataUrl, mimeType: file.type, size: file.size, alt: file.name }),
+        })
         if (res.ok) {
-          const data = await res.json()
-          results.push({ url: data.file.url, alt: file.name, sortOrder: images.length + results.length, isNew: true })
+          results.push({ url: dataUrl, alt: file.name, sortOrder: images.length + results.length, isNew: true })
         } else {
           const err = await res.json().catch(() => ({ error: 'Upload failed' }))
           showToast(`${file.name}: ${err.error || 'Upload failed'}`, 'error')
         }
       } catch (err: any) {
-        showToast(`${file.name}: ${err.message || 'Network error'}`, 'error')
+        showToast(`${file.name}: ${err.message || 'Error'}`, 'error')
       }
     }
     if (results.length > 0) {
       setImages([...images, ...results])
-      showToast(`${results.length} photo${results.length > 1 ? 's' : ''} uploaded successfully!`, 'success')
+      showToast(`${results.length} photo${results.length > 1 ? 's' : ''} uploaded!`, 'success')
     }
     setUploadCount('')
     setUploading(false)
