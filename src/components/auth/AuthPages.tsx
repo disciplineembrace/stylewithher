@@ -215,12 +215,6 @@ export function LoginPage() {
                 </Button>
               </form>
 
-              <div className="mt-6 p-3 bg-[#FFF5F7] rounded-lg">
-                <p className="text-xs text-center text-gray-600">
-                  Demo: <span className="font-mono font-semibold text-[#0B1F3A]">demo@stylewithher.com</span> / <span className="font-mono font-semibold text-[#0B1F3A]">User@123</span>
-                </p>
-              </div>
-
               <Separator className="my-6" />
 
               <p className="text-center text-sm text-gray-500">
