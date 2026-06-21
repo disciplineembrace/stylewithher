@@ -1,0 +1,537 @@
+     1→   200→  const handleRemoveCoupon = () => {
+     2→   201→    setCouponCode('')
+     3→   202→    setCouponValidation(null)
+     4→   203→  }
+     5→   204→
+     6→   205→  const getItemPrice = (item: typeof cart[0]) => {
+     7→   206→    if (item.variantId) {
+     8→   207→      const variant = item.product.variants.find((v) => v.id === item.variantId)
+     9→   208→      return variant?.price ?? item.product.salePrice ?? item.product.basePrice
+    10→   209→    }
+    11→   210→    return item.product.salePrice ?? item.product.basePrice
+    12→   211→  }
+    13→   212→
+    14→   213→  const getItemVariant = (item: typeof cart[0]) => {
+    15→   214→    if (!item.variantId) return null
+    16→   215→    return item.product.variants.find((v) => v.id === item.variantId)
+    17→   216→  }
+    18→   217→
+    19→   218→  const handlePlaceOrder = async () => {
+    20→   219→    if (!user?.token) return
+    21→   220→    if (!selectedAddressId) {
+    22→   221→      showToast('Please select or add a shipping address', 'error')
+    23→   222→      return
+    24→   223→    }
+    25→   224→
+    26→   225→    if (paymentMethod !== 'cod') {
+    27→   226→      setSimulatedPayment(true)
+    28→   227→      // Simulate payment processing
+    29→   228→      await new Promise((resolve) => setTimeout(resolve, 2000))
+    30→   229→      setSimulatedPayment(false)
+    31→   230→    }
+    32→   231→
+    33→   232→    try {
+    34→   233→      setPlacingOrder(true)
+    35→   234→      const res = await fetch('/api/orders', {
+    36→   235→        method: 'POST',
+    37→   236→        headers: {
+    38→   237→          'Content-Type': 'application/json',
+    39→   238→          Authorization: `Bearer ${user.token}`,
+    40→   239→        },
+    41→   240→        body: JSON.stringify({
+    42→   241→          addressId: selectedAddressId,
+    43→   242→          paymentMethod,
+    44→   243→          couponCode: couponValidation?.valid ? couponCode : null,
+    45→   244→          notes: notes || null,
+    46→   245→        }),
+    47→   246→      })
+    48→   247→      if (res.ok) {
+    49→   248→        setCart([])
+    50→   249→        setCouponCode('')
+    51→   250→        setCouponValidation(null)
+    52→   251→        showToast('Order placed successfully! 🎉', 'success')
+    53→   252→        navigate('orders')
+    54→   253→      } else {
+    55→   254→        const err = await res.json()
+    56→   255→        showToast(err.error || 'Failed to place order', 'error')
+    57→   256→      }
+    58→   257→    } catch {
+    59→   258→      showToast('Failed to place order. Please try again.', 'error')
+    60→   259→    } finally {
+    61→   260→      setPlacingOrder(false)
+    62→   261→    }
+    63→   262→  }
+    64→   263→
+    65→   264→  const paymentMethods = [
+    66→   265→    { id: 'cod', label: 'Cash on Delivery', description: 'Pay when your order is delivered', icon: Truck },
+    67→   266→    { id: 'razorpay', label: 'Razorpay (Online Payment)', description: 'Pay securely via Razorpay gateway', icon: CreditCard },
+    68→   267→    { id: 'upi', label: 'UPI', description: 'Google Pay, PhonePe, Paytm, etc.', icon: CreditCard },
+    69→   268→    { id: 'card', label: 'Credit / Debit Card', description: 'Visa, Mastercard, RuPay', icon: CreditCard },
+    70→   269→  ]
+    71→   270→
+    72→   271→  return (
+    73→   272→    <div className="min-h-screen bg-white">
+    74→   273→      {/* Header */}
+    75→   274→      <div className="bg-[#0B1F3A] py-6 px-4">
+    76→   275→        <div className="max-w-7xl mx-auto">
+    77→   276→          <button
+    78→   277→            onClick={() => navigate('cart')}
+    79→   278→            className="flex items-center gap-2 text-[#F7C8D0] hover:text-white transition-colors mb-4"
+    80→   279→          >
+    81→   280→            <ArrowLeft className="w-4 h-4" />
+    82→   281→            <span className="text-sm">Back to Cart</span>
+    83→   282→          </button>
+    84→   283→          <h1 className="text-2xl sm:text-3xl font-bold text-white">Checkout</h1>
+    85→   284→          <p className="text-[#F7C8D0] text-sm mt-1">Complete your order</p>
+    86→   285→        </div>
+    87→   286→      </div>
+    88→   287→
+    89→   288→      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+    90→   289→        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+    91→   290→          {/* Left Column - Forms */}
+    92→   291→          <div className="lg:col-span-2 space-y-6">
+    93→   292→            {/* Shipping Address */}
+    94→   293→            <Card className="border-[#F7C8D0]/30 shadow-sm">
+    95→   294→              <CardHeader className="pb-4">
+    96→   295→                <CardTitle className="flex items-center gap-2 text-[#0B1F3A] text-lg">
+    97→   296→                  <MapPin className="w-5 h-5 text-[#D96C8A]" />
+    98→   297→                  Shipping Address
+    99→   298→                </CardTitle>
+   100→   299→              </CardHeader>
+   101→   300→              <CardContent className="space-y-4">
+   102→   301→                {addressesLoading ? (
+   103→   302→                  <div className="space-y-3">
+   104→   303→                    <Skeleton className="h-24 w-full" />
+   105→   304→                    <Skeleton className="h-24 w-full" />
+   106→   305→                  </div>
+   107→   306→                ) : addresses.length > 0 ? (
+   108→   307→                  <>
+   109→   308→                    <div className="space-y-3">
+   110→   309→                      {addresses.map((addr) => (
+   111→   310→                        <button
+   112→   311→                          key={addr.id}
+   113→   312→                          onClick={() => { setSelectedAddressId(addr.id); setShowNewAddress(false) }}
+   114→   313→                          className={`w-full text-left p-4 rounded-xl border-2 transition-all duration-200 ${
+   115→   314→                            selectedAddressId === addr.id
+   116→   315→                              ? 'border-[#D96C8A] bg-[#FFF5F7]'
+   117→   316→                              : 'border-gray-200 hover:border-[#F7C8D0] bg-white'
+   118→   317→                          }`}
+   119→   318→                        >
+   120→   319→                          <div className="flex items-start justify-between">
+   121→   320→                            <div className="flex-1">
+   122→   321→                              <div className="flex items-center gap-2 mb-1">
+   123→   322→                                <span className="font-semibold text-[#222222] text-sm">{addr.fullName}</span>
+   124→   323→                                {addr.isDefault && (
+   125→   324→                                  <Badge className="bg-[#D96C8A]/10 text-[#D96C8A] border-0 text-[10px] px-2 py-0">
+   126→   325→                                    Default
+   127→   326→                                  </Badge>
+   128→   327→                                )}
+   129→   328→                                {addr.label && (
+   130→   329→                                  <Badge variant="outline" className="text-[10px] px-2 py-0 border-[#F7C8D0] text-[#222222]/60">
+   131→   330→                                    {addr.label}
+   132→   331→                                  </Badge>
+   133→   332→                                )}
+   134→   333→                              </div>
+   135→   334→                              <p className="text-sm text-[#222222]/70">{addr.phone}</p>
+   136→   335→                              <p className="text-sm text-[#222222]/70 mt-1">
+   137→   336→                                {addr.addressLine1}
+   138→   337→                                {addr.addressLine2 ? `, ${addr.addressLine2}` : ''}
+   139→   338→                              </p>
+   140→   339→                              <p className="text-sm text-[#222222]/70">
+   141→   340→                                {addr.city}, {addr.state} - {addr.pincode}
+   142→   341→                              </p>
+   143→   342→                            </div>
+   144→   343→                            {selectedAddressId === addr.id && (
+   145→   344→                              <div className="w-5 h-5 bg-[#D96C8A] rounded-full flex items-center justify-center shrink-0 ml-2">
+   146→   345→                                <Check className="w-3 h-3 text-white" />
+   147→   346→                              </div>
+   148→   347→                            )}
+   149→   348→                          </div>
+   150→   349→                        </button>
+   151→   350→                      ))}
+   152→   351→                    </div>
+   153→   352→                    <Button
+   154→   353→                      variant="outline"
+   155→   354→                      onClick={() => setShowNewAddress(!showNewAddress)}
+   156→   355→                      className="w-full border-dashed border-2 border-[#F7C8D0] text-[#D96C8A] hover:bg-[#FFF5F7] hover:text-[#D96C8A] py-3"
+   157→   356→                    >
+   158→   357→                      + Add New Address
+   159→   358→                    </Button>
+   160→   359→                  </>
+   161→   360→                ) : (
+   162→   361→                  <p className="text-sm text-[#222222]/60 mb-3">No saved addresses. Please add a new one.</p>
+   163→   362→                )}
+   164→   363→
+   165→   364→                {showNewAddress && (
+   166→   365→                  <div className="border-2 border-[#F7C8D0]/50 rounded-xl p-4 sm:p-6 bg-[#FFF5F7]/30 space-y-4">
+   167→   366→                    <h4 className="font-semibold text-[#0B1F3A] text-sm">New Address</h4>
+   168→   367→                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   169→   368→                      <div className="space-y-1.5">
+   170→   369→                        <Label htmlFor="fullName" className="text-xs font-medium text-[#222222]">Full Name *</Label>
+   171→   370→                        <Input
+   172→   371→                          id="fullName"
+   173→   372→                          value={newAddress.fullName}
+   174→   373→                          onChange={(e) => setNewAddress({ ...newAddress, fullName: e.target.value })}
+   175→   374→                          placeholder="John Doe"
+   176→   375→                          className="bg-white border-[#F7C8D0]/50 focus-visible:ring-[#D96C8A]/30"
+   177→   376→                        />
+   178→   377→                      </div>
+   179→   378→                      <div className="space-y-1.5">
+   180→   379→                        <Label htmlFor="phone" className="text-xs font-medium text-[#222222]">Phone Number *</Label>
+   181→   380→                        <Input
+   182→   381→                          id="phone"
+   183→   382→                          value={newAddress.phone}
+   184→   383→                          onChange={(e) => setNewAddress({ ...newAddress, phone: e.target.value })}
+   185→   384→                          placeholder="9876543210"
+   186→   385→                          className="bg-white border-[#F7C8D0]/50 focus-visible:ring-[#D96C8A]/30"
+   187→   386→                        />
+   188→   387→                      </div>
+   189→   388→                    </div>
+   190→   389→                    <div className="space-y-1.5">
+   191→   390→                      <Label htmlFor="addressLine1" className="text-xs font-medium text-[#222222]">Address Line 1 *</Label>
+   192→   391→                      <Input
+   193→   392→                        id="addressLine1"
+   194→   393→                        value={newAddress.addressLine1}
+   195→   394→                        onChange={(e) => setNewAddress({ ...newAddress, addressLine1: e.target.value })}
+   196→   395→                        placeholder="House/Flat No., Building, Street"
+   197→   396→                        className="bg-white border-[#F7C8D0]/50 focus-visible:ring-[#D96C8A]/30"
+   198→   397→                      />
+   199→   398→                    </div>
+   200→   399→                    <div className="space-y-1.5">
+   201→   400→                      <Label htmlFor="addressLine2" className="text-xs font-medium text-[#222222]">Address Line 2</Label>
+   202→   401→                      <Input
+   203→   402→                        id="addressLine2"
+   204→   403→                        value={newAddress.addressLine2}
+   205→   404→                        onChange={(e) => setNewAddress({ ...newAddress, addressLine2: e.target.value })}
+   206→   405→                        placeholder="Landmark, Area (optional)"
+   207→   406→                        className="bg-white border-[#F7C8D0]/50 focus-visible:ring-[#D96C8A]/30"
+   208→   407→                      />
+   209→   408→                    </div>
+   210→   409→                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+   211→   410→                      <div className="space-y-1.5">
+   212→   411→                        <Label htmlFor="city" className="text-xs font-medium text-[#222222]">City *</Label>
+   213→   412→                        <Input
+   214→   413→                          id="city"
+   215→   414→                          value={newAddress.city}
+   216→   415→                          onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
+   217→   416→                          placeholder="Mumbai"
+   218→   417→                          className="bg-white border-[#F7C8D0]/50 focus-visible:ring-[#D96C8A]/30"
+   219→   418→                        />
+   220→   419→                      </div>
+   221→   420→                      <div className="space-y-1.5">
+   222→   421→                        <Label htmlFor="state" className="text-xs font-medium text-[#222222]">State *</Label>
+   223→   422→                        <Input
+   224→   423→                          id="state"
+   225→   424→                          value={newAddress.state}
+   226→   425→                          onChange={(e) => setNewAddress({ ...newAddress, state: e.target.value })}
+   227→   426→                          placeholder="Maharashtra"
+   228→   427→                          className="bg-white border-[#F7C8D0]/50 focus-visible:ring-[#D96C8A]/30"
+   229→   428→                        />
+   230→   429→                      </div>
+   231→   430→                      <div className="space-y-1.5">
+   232→   431→                        <Label htmlFor="pincode" className="text-xs font-medium text-[#222222]">Pincode *</Label>
+   233→   432→                        <Input
+   234→   433→                          id="pincode"
+   235→   434→                          value={newAddress.pincode}
+   236→   435→                          onChange={(e) => setNewAddress({ ...newAddress, pincode: e.target.value })}
+   237→   436→                          placeholder="400001"
+   238→   437→                          className="bg-white border-[#F7C8D0]/50 focus-visible:ring-[#D96C8A]/30"
+   239→   438→                        />
+   240→   439→                      </div>
+   241→   440→                    </div>
+   242→   441→                    <div className="flex gap-3 pt-2">
+   243→   442→                      <Button
+   244→   443→                        onClick={handleSaveNewAddress}
+   245→   444→                        disabled={savingAddress}
+   246→   445→                        className="bg-[#0B1F3A] hover:bg-[#0B1F3A]/90 text-white"
+   247→   446→                      >
+   248→   447→                        {savingAddress ? 'Saving...' : 'Save Address'}
+   249→   448→                      </Button>
+   250→   449→                      <Button
+   251→   450→                        variant="ghost"
+   252→   451→                        onClick={() => setShowNewAddress(false)}
+   253→   452→                        className="text-[#222222]/60 hover:text-[#222222]"
+   254→   453→                      >
+   255→   454→                        Cancel
+   256→   455→                      </Button>
+   257→   456→                    </div>
+   258→   457→                  </div>
+   259→   458→                )}
+   260→   459→              </CardContent>
+   261→   460→            </Card>
+   262→   461→
+   263→   462→            {/* Payment Method */}
+   264→   463→            <Card className="border-[#F7C8D0]/30 shadow-sm">
+   265→   464→              <CardHeader className="pb-4">
+   266→   465→                <CardTitle className="flex items-center gap-2 text-[#0B1F3A] text-lg">
+   267→   466→                  <CreditCard className="w-5 h-5 text-[#D96C8A]" />
+   268→   467→                  Payment Method
+   269→   468→                </CardTitle>
+   270→   469→              </CardHeader>
+   271→   470→              <CardContent className="space-y-4">
+   272→   471→                <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod} className="space-y-3">
+   273→   472→                  {paymentMethods.map((method) => {
+   274→   473→                    const Icon = method.icon
+   275→   474→                    return (
+   276→   475→                      <label
+   277→   476→                        key={method.id}
+   278→   477→                        htmlFor={`payment-${method.id}`}
+   279→   478→                        className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+   280→   479→                          paymentMethod === method.id
+   281→   480→                            ? 'border-[#D96C8A] bg-[#FFF5F7]'
+   282→   481→                            : 'border-gray-200 hover:border-[#F7C8D0] bg-white'
+   283→   482→                        }`}
+   284→   483→                      >
+   285→   484→                        <RadioGroupItem value={method.id} id={`payment-${method.id}`} className="data-[state=checked]:border-[#D96C8A]" />
+   286→   485→                        <Icon className="w-5 h-5 text-[#D96C8A] shrink-0" />
+   287→   486→                        <div className="flex-1 min-w-0">
+   288→   487→                          <p className="font-medium text-[#222222] text-sm">{method.label}</p>
+   289→   488→                          <p className="text-xs text-[#222222]/50">{method.description}</p>
+   290→   489→                        </div>
+   291→   490→                        {paymentMethod === method.id && (
+   292→   491→                          <div className="w-5 h-5 bg-[#D96C8A] rounded-full flex items-center justify-center shrink-0">
+   293→   492→                            <Check className="w-3 h-3 text-white" />
+   294→   493→                          </div>
+   295→   494→                        )}
+   296→   495→                      </label>
+   297→   496→                    )
+   298→   497→                  })}
+   299→   498→                </RadioGroup>
+   300→   499→
+   301→   500→                {/* Simulated Payment Area */}
+   302→   501→                {paymentMethod !== 'cod' && (
+   303→   502→                  <div className="mt-4 border-2 border-[#F7C8D0]/50 rounded-xl p-4 sm:p-6 bg-[#FFF5F7]/30">
+   304→   503→                    <div className="flex items-center gap-2 mb-4">
+   305→   504→                      <Lock className="w-4 h-4 text-[#D96C8A]" />
+   306→   505→                      <h4 className="font-semibold text-[#0B1F3A] text-sm">Simulated Payment</h4>
+   307→   506→                      <Badge className="bg-amber-100 text-amber-700 border-0 text-[10px] px-2 py-0">
+   308→   507→                        Demo Mode
+   309→   508→                      </Badge>
+   310→   509→                    </div>
+   311→   510→                    {simulatedPayment ? (
+   312→   511→                      <div className="flex flex-col items-center gap-3 py-6">
+   313→   512→                        <div className="w-10 h-10 border-3 border-[#D96C8A] border-t-transparent rounded-full animate-spin" />
+   314→   513→                        <p className="text-sm font-medium text-[#222222]">Processing payment...</p>
+   315→   514→                        <p className="text-xs text-[#222222]/50">Please do not close this page</p>
+   316→   515→                      </div>
+   317→   516→                    ) : (
+   318→   517→                      <div className="space-y-3">
+   319→   518→                        <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-green-200">
+   320→   519→                          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center shrink-0">
+   321→   520→                            <Shield className="w-4 h-4 text-green-600" />
+   322→   521→                          </div>
+   323→   522→                          <div>
+   324→   523→                            <p className="text-sm font-medium text-green-700">Secure Payment Simulation</p>
+   325→   524→                            <p className="text-xs text-green-600/70">
+   326→   525→                              In production, this would redirect to {paymentMethod === 'razorpay' ? 'Razorpay' : paymentMethod === 'upi' ? 'your UPI app' : 'the card payment gateway'}
+   327→   526→                            </p>
+   328→   527→                          </div>
+   329→   528→                        </div>
+   330→   529→                        <div className="p-3 bg-white rounded-lg border border-gray-100">
+   331→   530→                          <p className="text-xs text-[#222222]/50">
+   332→   531→                            {paymentMethod === 'razorpay' && 'Razorpay supports cards, UPI, wallets, and netbanking. A secure popup would appear for authentication.'}
+   333→   532→                            {paymentMethod === 'upi' && 'You would be redirected to your UPI app (GPay, PhonePe, Paytm) to complete the payment.'}
+   334→   533→                            {paymentMethod === 'card' && 'Enter your card details in a secure iframe. We never store your card information.'}
+   335→   534→                          </p>
+   336→   535→                        </div>
+   337→   536→                        <div className="flex items-center gap-2 text-xs text-[#222222]/40">
+   338→   537→                          <Lock className="w-3 h-3" />
+   339→   538→                          <span>256-bit SSL encrypted</span>
+   340→   539→                        </div>
+   341→   540→                      </div>
+   342→   541→                    )}
+   343→   542→                  </div>
+   344→   543→                )}
+   345→   544→
+   346→   545→                {paymentMethod === 'cod' && (
+   347→   546→                  <div className="mt-3 flex items-center gap-2 p-3 bg-amber-50 rounded-lg border border-amber-200">
+   348→   547→                    <Truck className="w-4 h-4 text-amber-600 shrink-0" />
+   349→   548→                    <p className="text-xs text-amber-700">Cash will be collected at the time of delivery. Please keep exact change ready.</p>
+   350→   549→                  </div>
+   351→   550→                )}
+   352→   551→              </CardContent>
+   353→   552→            </Card>
+   354→   553→
+   355→   554→            {/* Order Notes */}
+   356→   555→            <Card className="border-[#F7C8D0]/30 shadow-sm">
+   357→   556→              <CardHeader className="pb-4">
+   358→   557→                <CardTitle className="text-[#0B1F3A] text-lg">Order Notes (Optional)</CardTitle>
+   359→   558→              </CardHeader>
+   360→   559→              <CardContent>
+   361→   560→                <Textarea
+   362→   561→                  value={notes}
+   363→   562→                  onChange={(e) => setNotes(e.target.value)}
+   364→   563→                  placeholder="Any special instructions for delivery (e.g., leave at reception, ring doorbell twice)..."
+   365→   564→                  className="min-h-[80px] border-[#F7C8D0]/50 focus-visible:ring-[#D96C8A]/30 resize-none"
+   366→   565→                  maxLength={500}
+   367→   566→                />
+   368→   567→                <p className="text-[10px] text-[#222222]/40 mt-1 text-right">{notes.length}/500</p>
+   369→   568→              </CardContent>
+   370→   569→            </Card>
+   371→   570→          </div>
+   372→   571→
+   373→   572→          {/* Right Column - Order Summary */}
+   374→   573→          <div className="lg:col-span-1">
+   375→   574→            <Card className="border-[#F7C8D0]/30 shadow-sm sticky top-24">
+   376→   575→              <CardHeader className="pb-4">
+   377→   576→                <CardTitle className="text-[#0B1F3A] text-lg">Order Summary</CardTitle>
+   378→   577→                <p className="text-xs text-[#222222]/50">{cart.length} item{cart.length !== 1 ? 's' : ''} in cart</p>
+   379→   578→              </CardHeader>
+   380→   579→              <CardContent className="space-y-4">
+   381→   580→                {/* Cart Items */}
+   382→   581→                <div className="max-h-72 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
+   383→   582→                  {cart.map((item) => {
+   384→   583→                    const variant = getItemVariant(item)
+   385→   584→                    const price = getItemPrice(item)
+   386→   585→                    const image = item.product.images?.[0]?.url
+   387→   586→                    return (
+   388→   587→                      <div key={item.id} className="flex gap-3 py-2">
+   389→   588→                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden bg-[#FFF5F7] shrink-0">
+   390→   589→                          {image ? (
+   391→   590→                            <img src={image} alt={item.product.name} className="w-full h-full object-cover" />
+   392→   591→                          ) : (
+   393→   592→                            <div className="w-full h-full flex items-center justify-center text-[#D96C8A]/30">
+   394→   593→                              <Truck className="w-6 h-6" />
+   395→   594→                            </div>
+   396→   595→                          )}
+   397→   596→                        </div>
+   398→   597→                        <div className="flex-1 min-w-0">
+   399→   598→                          <p className="text-sm font-medium text-[#222222] truncate">{item.product.name}</p>
+   400→   599→                          {variant && (
+   401→   600→                            <p className="text-[11px] text-[#222222]/50">
+   402→   601→                              {variant.color && <span className="text-[#D96C8A]">{variant.color}</span>}
+   403→   602→                              {variant.color && variant.size && ' / '}
+   404→   603→                              {variant.size && <span>{variant.size}</span>}
+   405→   604→                            </p>
+   406→   605→                          )}
+   407→   606→                          <div className="flex items-center justify-between mt-1">
+   408→   607→                            <span className="text-xs text-[#222222]/50">Qty: {item.quantity}</span>
+   409→   608→                            <span className="text-sm font-semibold text-[#0B1F3A]">
+   410→   609→                              ₹{(price * item.quantity).toLocaleString('en-IN')}
+   411→   610→                            </span>
+   412→   611→                          </div>
+   413→   612→                        </div>
+   414→   613→                      </div>
+   415→   614→                    )
+   416→   615→                  })}
+   417→   616→                </div>
+   418→   617→
+   419→   618→                <Separator className="bg-[#F7C8D0]/30" />
+   420→   619→
+   421→   620→                {/* Coupon */}
+   422→   621→                <div className="space-y-2">
+   423→   622→                  <div className="flex items-center gap-2">
+   424→   623→                    <Tag className="w-4 h-4 text-[#D96C8A]" />
+   425→   624→                    <span className="text-sm font-medium text-[#222222]">Coupon Code</span>
+   426→   625→                  </div>
+   427→   626→                  {couponValidation?.valid ? (
+   428→   627→                    <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+   429→   628→                      <div>
+   430→   629→                        <p className="text-sm font-medium text-green-700">{couponCode.toUpperCase()}</p>
+   431→   630→                        <p className="text-xs text-green-600/70">{couponValidation.message}</p>
+   432→   631→                      </div>
+   433→   632→                      <Button
+   434→   633→                        variant="ghost"
+   435→   634→                        size="sm"
+   436→   635→                        onClick={handleRemoveCoupon}
+   437→   636→                        className="text-red-500 hover:text-red-600 hover:bg-red-50 text-xs h-7 px-2"
+   438→   637→                      >
+   439→   638→                        Remove
+   440→   639→                      </Button>
+   441→   640→                    </div>
+   442→   641→                  ) : (
+   443→   642→                    <div className="flex gap-2">
+   444→   643→                      <Input
+   445→   644→                        value={couponCode}
+   446→   645→                        onChange={(e) => setCouponCode(e.target.value)}
+   447→   646→                        placeholder="Enter coupon code"
+   448→   647→                        className="flex-1 h-9 text-sm border-[#F7C8D0]/50 focus-visible:ring-[#D96C8A]/30"
+   449→   648→                        onKeyDown={(e) => e.key === 'Enter' && handleValidateCoupon()}
+   450→   649→                      />
+   451→   650→                      <Button
+   452→   651→                        variant="outline"
+   453→   652→                        onClick={handleValidateCoupon}
+   454→   653→                        disabled={!couponCode.trim() || validatingCoupon}
+   455→   654→                        className="border-[#D96C8A] text-[#D96C8A] hover:bg-[#FFF5F7] hover:text-[#D96C8A] h-9 px-3 text-sm shrink-0"
+   456→   655→                      >
+   457→   656→                        {validatingCoupon ? '...' : 'Apply'}
+   458→   657→                      </Button>
+   459→   658→                    </div>
+   460→   659→                  )}
+   461→   660→                </div>
+   462→   661→
+   463→   662→                <Separator className="bg-[#F7C8D0]/30" />
+   464→   663→
+   465→   664→                {/* Price Breakdown */}
+   466→   665→                <div className="space-y-2.5">
+   467→   666→                  <div className="flex items-center justify-between text-sm">
+   468→   667→                    <span className="text-[#222222]/70">Subtotal</span>
+   469→   668→                    <span className="text-[#222222]">₹{subtotal.toLocaleString('en-IN')}</span>
+   470→   669→                  </div>
+   471→   670→                  <div className="flex items-center justify-between text-sm">
+   472→   671→                    <span className="text-[#222222]/70">Tax (18% GST)</span>
+   473→   672→                    <span className="text-[#222222]">₹{tax.toLocaleString('en-IN')}</span>
+   474→   673→                  </div>
+   475→   674→                  <div className="flex items-center justify-between text-sm">
+   476→   675→                    <span className="text-[#222222]/70">Shipping</span>
+   477→   676→                    {shipping === 0 ? (
+   478→   677→                      <span className="text-green-600 font-medium text-xs">FREE</span>
+   479→   678→                    ) : (
+   480→   679→                      <span className="text-[#222222]">₹{shipping.toLocaleString('en-IN')}</span>
+   481→   680→                    )}
+   482→   681→                  </div>
+   483→   682→                  {discountAmount > 0 && (
+   484→   683→                    <div className="flex items-center justify-between text-sm">
+   485→   684→                      <span className="text-green-600">Discount</span>
+   486→   685→                      <span className="text-green-600 font-medium">-₹{discountAmount.toLocaleString('en-IN')}</span>
+   487→   686→                    </div>
+   488→   687→                  )}
+   489→   688→                  <Separator className="bg-[#F7C8D0]/30" />
+   490→   689→                  <div className="flex items-center justify-between pt-1">
+   491→   690→                    <span className="font-bold text-[#0B1F3A] text-base">Total</span>
+   492→   691→                    <span className="font-bold text-[#0B1F3A] text-xl">₹{total.toLocaleString('en-IN')}</span>
+   493→   692→                  </div>
+   494→   693→                </div>
+   495→   694→
+   496→   695→                {subtotal < 999 && (
+   497→   696→                  <div className="p-3 bg-[#FFF5F7] rounded-lg border border-[#F7C8D0]/30">
+   498→   697→                    <p className="text-xs text-[#D96C8A] text-center font-medium">
+   499→   698→                      Add ₹{(999 - subtotal).toLocaleString('en-IN')} more for FREE shipping! 🚚
+   500→   699→                    </p>
+   501→   700→                  </div>
+   502→   701→                )}
+   503→   702→
+   504→   703→                {/* Place Order Button */}
+   505→   704→                <Button
+   506→   705→                  onClick={handlePlaceOrder}
+   507→   706→                  disabled={placingOrder || simulatedPayment || !selectedAddressId}
+   508→   707→                  className="w-full bg-[#D96C8A] hover:bg-[#D96C8A]/90 text-white py-6 text-base font-semibold rounded-xl transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+   509→   708→                >
+   510→   709→                  {placingOrder ? (
+   511→   710→                    <span className="flex items-center gap-2">
+   512→   711→                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+   513→   712→                      Placing Order...
+   514→   713→                    </span>
+   515→   714→                  ) : simulatedPayment ? (
+   516→   715→                    <span className="flex items-center gap-2">
+   517→   716→                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+   518→   717→                      Processing Payment...
+   519→   718→                    </span>
+   520→   719→                  ) : (
+   521→   720→                    `Place Order — ₹${total.toLocaleString('en-IN')}`
+   522→   721→                  )}
+   523→   722→                </Button>
+   524→   723→
+   525→   724→                {/* Security Badge */}
+   526→   725→                <div className="flex items-center justify-center gap-2 text-[10px] text-[#222222]/40 pt-1">
+   527→   726→                  <Shield className="w-3.5 h-3.5" />
+   528→   727→                  <span>100% Secure Checkout · SSL Encrypted</span>
+   529→   728→                </div>
+   530→   729→              </CardContent>
+   531→   730→            </Card>
+   532→   731→          </div>
+   533→   732→        </div>
+   534→   733→      </div>
+   535→   734→    </div>
+   536→   735→  )
+   537→   736→}

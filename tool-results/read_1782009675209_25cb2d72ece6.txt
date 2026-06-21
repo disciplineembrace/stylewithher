@@ -1,0 +1,1163 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect } from 'react'
+     4→import { useStore } from '@/store/use-store'
+     5→import { useForm } from 'react-hook-form'
+     6→import { z } from 'zod'
+     7→import { zodResolver } from '@hookform/resolvers/zod'
+     8→import { Button } from '@/components/ui/button'
+     9→import { Input } from '@/components/ui/input'
+    10→import { Label } from '@/components/ui/label'
+    11→import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+    12→import { Separator } from '@/components/ui/separator'
+    13→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    14→import { Badge } from '@/components/ui/badge'
+    15→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+    16→import { User, Mail, Lock, Phone, MapPin, Trash2, Plus, ArrowLeft, Eye, EyeOff, Save } from 'lucide-react'
+    17→import type { AddressData } from '@/store/use-store'
+    18→import { Skeleton } from '@/components/ui/skeleton'
+    19→
+    20→import { useTranslation } from '@/i18n/use-language'
+    21→// ─── Zod Schemas ────────────────────────────────────────────────────────────
+    22→
+    23→const loginSchema = z.object({
+    24→  email: z.string().min(1, 'Email is required').email('Please enter a valid email'),
+    25→  password: z.string().min(1, 'Password is required'),
+    26→})
+    27→
+    28→const signupSchema = z.object({
+    29→  name: z.string().min(2, 'Name must be at least 2 characters'),
+    30→  email: z.string().min(1, 'Email is required').email('Please enter a valid email'),
+    31→  password: z.string().min(6, 'Password must be at least 6 characters'),
+    32→  confirmPassword: z.string().min(1, 'Please confirm your password'),
+    33→}).refine((d) => d.password === d.confirmPassword, {
+    34→  message: 'Passwords do not match',
+    35→  path: ['confirmPassword'],
+    36→})
+    37→
+    38→const forgotSchema = z.object({
+    39→  email: z.string().min(1, 'Email is required').email('Please enter a valid email'),
+    40→})
+    41→
+    42→const profileSchema = z.object({
+    43→  name: z.string().min(2, 'Name must be at least 2 characters'),
+    44→  email: z.string().email('Please enter a valid email'),
+    45→  phone: z.string().optional(),
+    46→})
+    47→
+    48→const passwordSchema = z.object({
+    49→  oldPassword: z.string().min(1, 'Current password is required'),
+    50→  newPassword: z.string().min(6, 'New password must be at least 6 characters'),
+    51→  confirmPassword: z.string().min(1, 'Please confirm new password'),
+    52→}).refine((d) => d.newPassword === d.confirmPassword, {
+    53→  message: 'Passwords do not match',
+    54→  path: ['confirmPassword'],
+    55→})
+    56→
+    57→const addressSchema = z.object({
+    58→  label: z.string().optional(),
+    59→  fullName: z.string().min(2, 'Full name is required'),
+    60→  phone: z.string().min(10, 'Valid phone number required'),
+    61→  addressLine1: z.string().min(5, 'Address is required'),
+    62→  addressLine2: z.string().optional(),
+    63→  city: z.string().min(2, 'City is required'),
+    64→  state: z.string().min(2, 'State is required'),
+    65→  pincode: z.string().min(5, 'Valid pincode required'),
+    66→  country: z.string().optional(),
+    67→  isDefault: z.boolean().optional(),
+    68→})
+    69→
+    70→type LoginFormData = z.infer<typeof loginSchema>
+    71→type SignupFormData = z.infer<typeof signupSchema>
+    72→type ForgotFormData = z.infer<typeof forgotSchema>
+    73→type ProfileFormData = z.infer<typeof profileSchema>
+    74→type PasswordFormData = z.infer<typeof passwordSchema>
+    75→type AddressFormData = z.infer<typeof addressSchema>
+    76→
+    77→// ─── Brand Split Layout Helper ──────────────────────────────────────────────
+    78→
+    79→function BrandSide({ tagline }: { tagline: string }) {
+    80→  return (
+    81→    <div className="hidden lg:flex lg:w-1/2 bg-[#0B1F3A] text-white flex-col items-center justify-center p-12 rounded-l-2xl relative overflow-hidden">
+    82→      <div className="absolute inset-0 opacity-10">
+    83→        <div className="absolute top-20 left-10 w-40 h-40 rounded-full bg-[#F7C8D0]" />
+    84→        <div className="absolute bottom-20 right-10 w-60 h-60 rounded-full bg-[#D96C8A]" />
+    85→        <div className="absolute top-1/2 left-1/3 w-20 h-20 rounded-full bg-[#F7C8D0]" />
+    86→      </div>
+    87→      <div className="relative z-10 text-center max-w-sm">
+    88→        <div className="text-4xl font-bold mb-4 tracking-tight" style={{ fontFamily: 'Georgia, serif' }}>
+    89→          Style<span className="text-[#F7C8D0]">With</span>Her
+    90→        </div>
+    91→        <p className="text-[#F7C8D0] text-lg leading-relaxed">{tagline}</p>
+    92→        <div className="mt-8 w-16 h-0.5 bg-[#D96C8A] mx-auto" />
+    93→      </div>
+    94→    </div>
+    95→  )
+    96→}
+    97→
+    98→function LoadingSpinner() {
+    99→  return (
+   100→    <div className="flex items-center justify-center py-8">
+   101→      <div className="w-6 h-6 border-2 border-[#0B1F3A] border-t-transparent rounded-full animate-spin" />
+   102→    </div>
+   103→  )
+   104→}
+   105→
+   106→// ─── Login Page ─────────────────────────────────────────────────────────────
+   107→
+   108→export function LoginPage() {
+   109→  const { t } = useTranslation()
+   110→  const { setUser, navigate, showToast } = useStore()
+   111→  const [showPassword, setShowPassword] = useState(false)
+   112→  const [loading, setLoading] = useState(false)
+   113→
+   114→  const {
+   115→    register,
+   116→    handleSubmit,
+   117→    formState: { errors },
+   118→  } = useForm<LoginFormData>({ resolver: zodResolver(loginSchema) })
+   119→
+   120→  const onSubmit = async (data: LoginFormData) => {
+   121→    setLoading(true)
+   122→    try {
+   123→      const res = await fetch('/api/auth', {
+   124→        method: 'POST',
+   125→        headers: { 'Content-Type': 'application/json' },
+   126→        body: JSON.stringify({ action: 'login', ...data }),
+   127→      })
+   128→      const result = await res.json()
+   129→      if (!res.ok) {
+   130→        showToast(result.error || 'Login failed', 'error')
+   131→        return
+   132→      }
+   133→      setUser({
+   134→        userId: result.user.id,
+   135→        email: result.user.email,
+   136→        role: result.user.role,
+   137→        token: result.token,
+   138→      })
+   139→      showToast('Welcome back!')
+   140→      navigate('home')
+   141→    } catch {
+   142→      showToast('Something went wrong. Please try again.', 'error')
+   143→    } finally {
+   144→      setLoading(false)
+   145→    }
+   146→  }
+   147→
+   148→  return (
+   149→    <section className="min-h-[80vh] flex items-center justify-center px-4 py-12">
+   150→      <Card className="w-full max-w-4xl overflow-hidden border-0 shadow-2xl">
+   151→        <div className="flex flex-col lg:flex-row">
+   152→          <BrandSide tagline="Discover your signature style with curated fashion essentials." />
+   153→
+   154→          <div className="w-full lg:w-1/2 p-6 sm:p-10">
+   155→            <CardHeader className="px-0 pt-0 pb-4">
+   156→              <CardTitle className="text-2xl sm:text-3xl font-bold text-[#222222]">Welcome Back</CardTitle>
+   157→              <CardDescription className="text-gray-500">Sign in to your account</CardDescription>
+   158→            </CardHeader>
+   159→
+   160→            <CardContent className="px-0">
+   161→              <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+   162→                <div className="space-y-2">
+   163→                  <Label htmlFor="login-email" className="text-[#222222] font-medium">Email</Label>
+   164→                  <div className="relative">
+   165→                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+   166→                    <Input
+   167→                      id="login-email"
+   168→                      type="email"
+   169→                      placeholder="you@example.com"
+   170→                      className="pl-10 h-11 border-gray-200 focus:border-[#D96C8A] focus:ring-[#D96C8A]/20"
+   171→                      {...register('email')}
+   172→                    />
+   173→                  </div>
+   174→                  {errors.email && <p className="text-red-500 text-xs">{errors.email.message}</p>}
+   175→                </div>
+   176→
+   177→                <div className="space-y-2">
+   178→                  <Label htmlFor="login-password" className="text-[#222222] font-medium">Password</Label>
+   179→                  <div className="relative">
+   180→                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+   181→                    <Input
+   182→                      id="login-password"
+   183→                      type={showPassword ? 'text' : 'password'}
+   184→                      placeholder="Enter your password"
+   185→                      className="pl-10 pr-10 h-11 border-gray-200 focus:border-[#D96C8A] focus:ring-[#D96C8A]/20"
+   186→                      {...register('password')}
+   187→                    />
+   188→                    <button
+   189→                      type="button"
+   190→                      onClick={() => setShowPassword(!showPassword)}
+   191→                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+   192→                    >
+   193→                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+   194→                    </button>
+   195→                  </div>
+   196→                  {errors.password && <p className="text-red-500 text-xs">{errors.password.message}</p>}
+   197→                </div>
+   198→
+   199→                <div className="flex justify-end">
+   200→                  <button
+   201→                    type="button"
+   202→                    onClick={() => navigate('forgot-password')}
+   203→                    className="text-sm text-[#D96C8A] hover:text-[#D96C8A]/80 font-medium"
+   204→                  >
+   205→                    Forgot password?
+   206→                  </button>
+   207→                </div>
+   208→
+   209→                <Button
+   210→                  type="submit"
+   211→                  disabled={loading}
+   212→                  className="w-full h-11 bg-[#0B1F3A] hover:bg-[#0B1F3A]/90 text-white font-medium rounded-lg"
+   213→                >
+   214→                  {loading ? <LoadingSpinner /> : 'Sign In'}
+   215→                </Button>
+   216→              </form>
+   217→
+   218→              <div className="mt-6 p-3 bg-[#FFF5F7] rounded-lg">
+   219→                <p className="text-xs text-center text-gray-600">
+   220→                  Demo: <span className="font-mono font-semibold text-[#0B1F3A]">demo@stylewithher.com</span> / <span className="font-mono font-semibold text-[#0B1F3A]">User@123</span>
+   221→                </p>
+   222→              </div>
+   223→
+   224→              <Separator className="my-6" />
+   225→
+   226→              <p className="text-center text-sm text-gray-500">
+   227→                Don&apos;t have an account?{' '}
+   228→                <button
+   229→                  onClick={() => navigate('signup')}
+   230→                  className="text-[#D96C8A] hover:text-[#D96C8A]/80 font-semibold"
+   231→                >
+   232→                  Create one
+   233→                </button>
+   234→              </p>
+   235→            </CardContent>
+   236→          </div>
+   237→        </div>
+   238→      </Card>
+   239→    </section>
+   240→  )
+   241→}
+   242→
+   243→// ─── Signup Page ────────────────────────────────────────────────────────────
+   244→
+   245→export function SignupPage() {
+   246→  const { setUser, navigate, showToast } = useStore()
+   247→  const [showPassword, setShowPassword] = useState(false)
+   248→  const [showConfirm, setShowConfirm] = useState(false)
+   249→  const [loading, setLoading] = useState(false)
+   250→
+   251→  const {
+   252→    register,
+   253→    handleSubmit,
+   254→    formState: { errors },
+   255→  } = useForm<SignupFormData>({ resolver: zodResolver(signupSchema) })
+   256→
+   257→  const onSubmit = async (data: SignupFormData) => {
+   258→    setLoading(true)
+   259→    try {
+   260→      const res = await fetch('/api/auth', {
+   261→        method: 'POST',
+   262→        headers: { 'Content-Type': 'application/json' },
+   263→        body: JSON.stringify({ action: 'signup', name: data.name, email: data.email, password: data.password }),
+   264→      })
+   265→      const result = await res.json()
+   266→      if (!res.ok) {
+   267→        showToast(result.error || 'Signup failed', 'error')
+   268→        return
+   269→      }
+   270→      setUser({
+   271→        userId: result.user.id,
+   272→        email: result.user.email,
+   273→        role: result.user.role,
+   274→        token: result.token,
+   275→      })
+   276→      showToast('Account created successfully!')
+   277→      navigate('home')
+   278→    } catch {
+   279→      showToast('Something went wrong. Please try again.', 'error')
+   280→    } finally {
+   281→      setLoading(false)
+   282→    }
+   283→  }
+   284→
+   285→  return (
+   286→    <section className="min-h-[80vh] flex items-center justify-center px-4 py-12">
+   287→      <Card className="w-full max-w-4xl overflow-hidden border-0 shadow-2xl">
+   288→        <div className="flex flex-col lg:flex-row">
+   289→          <BrandSide tagline="Join our community of fashion-forward women." />
+   290→
+   291→          <div className="w-full lg:w-1/2 p-6 sm:p-10">
+   292→            <CardHeader className="px-0 pt-0 pb-4">
+   293→              <CardTitle className="text-2xl sm:text-3xl font-bold text-[#222222]">Create Account</CardTitle>
+   294→              <CardDescription className="text-gray-500">Start your style journey today</CardDescription>
+   295→            </CardHeader>
+   296→
+   297→            <CardContent className="px-0">
+   298→              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+   299→                <div className="space-y-2">
+   300→                  <Label htmlFor="signup-name" className="text-[#222222] font-medium">Full Name</Label>
+   301→                  <div className="relative">
+   302→                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+   303→                    <Input
+   304→                      id="signup-name"
+   305→                      placeholder="Your full name"
+   306→                      className="pl-10 h-11 border-gray-200 focus:border-[#D96C8A] focus:ring-[#D96C8A]/20"
+   307→                      {...register('name')}
+   308→                    />
+   309→                  </div>
+   310→                  {errors.name && <p className="text-red-500 text-xs">{errors.name.message}</p>}
+   311→                </div>
+   312→
+   313→                <div className="space-y-2">
+   314→                  <Label htmlFor="signup-email" className="text-[#222222] font-medium">Email</Label>
+   315→                  <div className="relative">
+   316→                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+   317→                    <Input
+   318→                      id="signup-email"
+   319→                      type="email"
+   320→                      placeholder="you@example.com"
+   321→                      className="pl-10 h-11 border-gray-200 focus:border-[#D96C8A] focus:ring-[#D96C8A]/20"
+   322→                      {...register('email')}
+   323→                    />
+   324→                  </div>
+   325→                  {errors.email && <p className="text-red-500 text-xs">{errors.email.message}</p>}
+   326→                </div>
+   327→
+   328→                <div className="space-y-2">
+   329→                  <Label htmlFor="signup-password" className="text-[#222222] font-medium">Password</Label>
+   330→                  <div className="relative">
+   331→                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+   332→                    <Input
+   333→                      id="signup-password"
+   334→                      type={showPassword ? 'text' : 'password'}
+   335→                      placeholder="At least 6 characters"
+   336→                      className="pl-10 pr-10 h-11 border-gray-200 focus:border-[#D96C8A] focus:ring-[#D96C8A]/20"
+   337→                      {...register('password')}
+   338→                    />
+   339→                    <button
+   340→                      type="button"
+   341→                      onClick={() => setShowPassword(!showPassword)}
+   342→                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+   343→                    >
+   344→                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+   345→                    </button>
+   346→                  </div>
+   347→                  {errors.password && <p className="text-red-500 text-xs">{errors.password.message}</p>}
+   348→                </div>
+   349→
+   350→                <div className="space-y-2">
+   351→                  <Label htmlFor="signup-confirm" className="text-[#222222] font-medium">Confirm Password</Label>
+   352→                  <div className="relative">
+   353→                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+   354→                    <Input
+   355→                      id="signup-confirm"
+   356→                      type={showConfirm ? 'text' : 'password'}
+   357→                      placeholder="Confirm your password"
+   358→                      className="pl-10 pr-10 h-11 border-gray-200 focus:border-[#D96C8A] focus:ring-[#D96C8A]/20"
+   359→                      {...register('confirmPassword')}
+   360→                    />
+   361→                    <button
+   362→                      type="button"
+   363→                      onClick={() => setShowConfirm(!showConfirm)}
+   364→                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+   365→                    >
+   366→                      {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+   367→                    </button>
+   368→                  </div>
+   369→                  {errors.confirmPassword && <p className="text-red-500 text-xs">{errors.confirmPassword.message}</p>}
+   370→                </div>
+   371→
+   372→                <Button
+   373→                  type="submit"
+   374→                  disabled={loading}
+   375→                  className="w-full h-11 bg-[#0B1F3A] hover:bg-[#0B1F3A]/90 text-white font-medium rounded-lg mt-2"
+   376→                >
+   377→                  {loading ? <LoadingSpinner /> : 'Create Account'}
+   378→                </Button>
+   379→              </form>
+   380→
+   381→              <Separator className="my-6" />
+   382→
+   383→              <p className="text-center text-sm text-gray-500">
+   384→                Already have an account?{' '}
+   385→                <button
+   386→                  onClick={() => navigate('login')}
+   387→                  className="text-[#D96C8A] hover:text-[#D96C8A]/80 font-semibold"
+   388→                >
+   389→                  Sign in
+   390→                </button>
+   391→              </p>
+   392→            </CardContent>
+   393→          </div>
+   394→        </div>
+   395→      </Card>
+   396→    </section>
+   397→  )
+   398→}
+   399→
+   400→// ─── Forgot Password Page ───────────────────────────────────────────────────
+   401→
+   402→export function ForgotPasswordPage() {
+   403→  const { navigate, showToast } = useStore()
+   404→  const [loading, setLoading] = useState(false)
+   405→  const [sent, setSent] = useState(false)
+   406→
+   407→  const {
+   408→    register,
+   409→    handleSubmit,
+   410→    formState: { errors },
+   411→  } = useForm<ForgotFormData>({ resolver: zodResolver(forgotSchema) })
+   412→
+   413→  const onSubmit = async (data: ForgotFormData) => {
+   414→    setLoading(true)
+   415→    try {
+   416→      // Simulated - no email service
+   417→      await new Promise((r) => setTimeout(r, 1000))
+   418→      setSent(true)
+   419→    } catch {
+   420→      showToast('Something went wrong. Please try again.', 'error')
+   421→    } finally {
+   422→      setLoading(false)
+   423→    }
+   424→  }
+   425→
+   426→  return (
+   427→    <section className="min-h-[80vh] flex items-center justify-center px-4 py-12">
+   428→      <Card className="w-full max-w-md border-0 shadow-xl">
+   429→        <CardHeader className="text-center pb-2">
+   430→          <div className="mx-auto w-16 h-16 rounded-full bg-[#FFF5F7] flex items-center justify-center mb-4">
+   431→            <Lock className="h-7 w-7 text-[#D96C8A]" />
+   432→          </div>
+   433→          <CardTitle className="text-2xl font-bold text-[#222222]">Forgot Password?</CardTitle>
+   434→          <CardDescription className="text-gray-500 mt-1">
+   435→            {sent ? 'Check your email for reset instructions' : "Enter your email and we'll send you a reset link"}
+   436→          </CardDescription>
+   437→        </CardHeader>
+   438→
+   439→        <CardContent>
+   440→          {sent ? (
+   441→            <div className="text-center space-y-4">
+   442→              <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+   443→                <p className="text-sm text-green-700 font-medium">If an account exists with this email, a reset link has been sent.</p>
+   444→              </div>
+   445→              <Button
+   446→                onClick={() => navigate('login')}
+   447→                variant="outline"
+   448→                className="border-[#0B1F3A] text-[#0B1F3A] hover:bg-[#0B1F3A] hover:text-white"
+   449→              >
+   450→                <ArrowLeft className="h-4 w-4 mr-2" /> Back to Sign In
+   451→              </Button>
+   452→            </div>
+   453→          ) : (
+   454→            <>
+   455→              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+   456→                <div className="space-y-2">
+   457→                  <Label htmlFor="forgot-email" className="text-[#222222] font-medium">Email Address</Label>
+   458→                  <div className="relative">
+   459→                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+   460→                    <Input
+   461→                      id="forgot-email"
+   462→                      type="email"
+   463→                      placeholder="you@example.com"
+   464→                      className="pl-10 h-11 border-gray-200 focus:border-[#D96C8A] focus:ring-[#D96C8A]/20"
+   465→                      {...register('email')}
+   466→                    />
+   467→                  </div>
+   468→                  {errors.email && <p className="text-red-500 text-xs">{errors.email.message}</p>}
+   469→                </div>
+   470→
+   471→                <Button
+   472→                  type="submit"
+   473→                  disabled={loading}
+   474→                  className="w-full h-11 bg-[#0B1F3A] hover:bg-[#0B1F3A]/90 text-white font-medium rounded-lg"
+   475→                >
+   476→                  {loading ? <LoadingSpinner /> : 'Send Reset Link'}
+   477→                </Button>
+   478→              </form>
+   479→
+   480→              <div className="mt-6 text-center">
+   481→                <button
+   482→                  onClick={() => navigate('login')}
+   483→                  className="text-sm text-[#D96C8A] hover:text-[#D96C8A]/80 font-medium inline-flex items-center gap-1"
+   484→                >
+   485→                  <ArrowLeft className="h-3.5 w-3.5" /> Back to Sign In
+   486→                </button>
+   487→              </div>
+   488→            </>
+   489→          )}
+   490→        </CardContent>
+   491→      </Card>
+   492→    </section>
+   493→  )
+   494→}
+   495→
+   496→// ─── Profile Page ───────────────────────────────────────────────────────────
+   497→
+   498→interface ProfileUserData {
+   499→  id: string
+   500→  name: string
+   501→  email: string
+   502→  role: string
+   503→  phone?: string | null
+   504→  avatar?: string | null
+   505→}
+   506→
+   507→export function ProfilePage() {
+   508→  const { user, isAuthenticated, navigate, setUser, showToast } = useStore()
+   509→  const [profileLoading, setProfileLoading] = useState(true)
+   510→  const [profileData, setProfileData] = useState<ProfileUserData | null>(null)
+   511→  const [addresses, setAddresses] = useState<AddressData[]>([])
+   512→  const [addressLoading, setAddressLoading] = useState(true)
+   513→  const [addressDialogOpen, setAddressDialogOpen] = useState(false)
+   514→  const [editingAddress, setEditingAddress] = useState<AddressData | null>(null)
+   515→  const [saving, setSaving] = useState(false)
+   516→  const [savingPassword, setSavingPassword] = useState(false)
+   517→  const [savingAddress, setSavingAddress] = useState(false)
+   518→  const [deletingAddress, setDeletingAddress] = useState<string | null>(null)
+   519→
+   520→  // Profile form
+   521→  const profileForm = useForm<ProfileFormData>({ resolver: zodResolver(profileSchema) })
+   522→  // Password form
+   523→  const passwordForm = useForm<PasswordFormData>({ resolver: zodResolver(passwordSchema) })
+   524→  // Address form
+   525→  const addressForm = useForm<AddressFormData>({
+   526→    resolver: zodResolver(addressSchema),
+   527→    defaultValues: {
+   528→      label: '',
+   529→      fullName: '',
+   530→      phone: '',
+   531→      addressLine1: '',
+   532→      addressLine2: '',
+   533→      city: '',
+   534→      state: '',
+   535→      pincode: '',
+   536→      country: 'India',
+   537→      isDefault: false,
+   538→    },
+   539→  })
+   540→
+   541→  useEffect(() => {
+   542→    if (!isAuthenticated || !user) {
+   543→      navigate('login')
+   544→      return
+   545→    }
+   546→    fetchProfile()
+   547→    fetchAddresses()
+   548→  }, [isAuthenticated, user])
+   549→
+   550→  const fetchProfile = async () => {
+   551→    setProfileLoading(true)
+   552→    try {
+   553→      const res = await fetch('/api/auth', {
+   554→        headers: { Authorization: `Bearer ${user?.token}` },
+   555→      })
+   556→      if (res.ok) {
+   557→        const data = await res.json()
+   558→        if (data.user) {
+   559→          setProfileData(data.user)
+   560→          profileForm.reset({
+   561→            name: data.user.name || '',
+   562→            email: data.user.email || '',
+   563→            phone: data.user.phone || '',
+   564→          })
+   565→        } else {
+   566→          // Fallback: use store data
+   567→          setProfileData({
+   568→            id: user!.userId,
+   569→            name: user!.email.split('@')[0],
+   570→            email: user!.email,
+   571→            role: user!.role,
+   572→          })
+   573→          profileForm.reset({
+   574→            name: user!.email.split('@')[0],
+   575→            email: user!.email,
+   576→            phone: '',
+   577→          })
+   578→        }
+   579→      } else {
+   580→        // Fallback: use store data
+   581→        setProfileData({
+   582→          id: user!.userId,
+   583→          name: user!.email.split('@')[0],
+   584→          email: user!.email,
+   585→          role: user!.role,
+   586→        })
+   587→        profileForm.reset({
+   588→          name: user!.email.split('@')[0],
+   589→          email: user!.email,
+   590→          phone: '',
+   591→        })
+   592→      }
+   593→    } catch {
+   594→      setProfileData({
+   595→        id: user!.userId,
+   596→        name: user!.email.split('@')[0],
+   597→        email: user!.email,
+   598→        role: user!.role,
+   599→      })
+   600→      profileForm.reset({
+   601→        name: user!.email.split('@')[0],
+   602→        email: user!.email,
+   603→        phone: '',
+   604→      })
+   605→    } finally {
+   606→      setProfileLoading(false)
+   607→    }
+   608→  }
+   609→
+   610→  const fetchAddresses = async () => {
+   611→    setAddressLoading(true)
+   612→    try {
+   613→      const res = await fetch('/api/addresses', {
+   614→        headers: { Authorization: `Bearer ${user?.token}` },
+   615→      })
+   616→      if (res.ok) {
+   617→        const data = await res.json()
+   618→        setAddresses(data.addresses || [])
+   619→      }
+   620→    } catch {
+   621→      showToast('Failed to load addresses', 'error')
+   622→    } finally {
+   623→      setAddressLoading(false)
+   624→    }
+   625→  }
+   626→
+   627→  const handleProfileSave = async (data: ProfileFormData) => {
+   628→    setSaving(true)
+   629→    try {
+   630→      const res = await fetch('/api/auth', {
+   631→        method: 'PUT',
+   632→        headers: { Authorization: `Bearer ${user?.token}`, 'Content-Type': 'application/json' },
+   633→        body: JSON.stringify({ name: data.name, phone: data.phone || '' }),
+   634→      })
+   635→      const result = await res.json()
+   636→      if (res.ok) {
+   637→        showToast('Profile updated successfully!')
+   638→        setProfileData((prev) => prev ? { ...prev, name: data.name, phone: data.phone } : prev)
+   639→      } else {
+   640→        showToast(result.error || 'Failed to update profile', 'error')
+   641→      }
+   642→    } catch {
+   643→      showToast('Failed to update profile', 'error')
+   644→    } finally {
+   645→      setSaving(false)
+   646→    }
+   647→  }
+   648→
+   649→  const handlePasswordChange = async (data: PasswordFormData) => {
+   650→    setSavingPassword(true)
+   651→    try {
+   652→      const res = await fetch('/api/auth', {
+   653→        method: 'PUT',
+   654→        headers: { Authorization: `Bearer ${user?.token}`, 'Content-Type': 'application/json' },
+   655→        body: JSON.stringify({ oldPassword: data.oldPassword, newPassword: data.newPassword }),
+   656→      })
+   657→      const result = await res.json()
+   658→      if (res.ok) {
+   659→        showToast('Password changed successfully!')
+   660→        passwordForm.reset()
+   661→      } else {
+   662→        showToast(result.error || 'Failed to change password', 'error')
+   663→      }
+   664→    } catch {
+   665→      showToast('Failed to change password', 'error')
+   666→    } finally {
+   667→      setSavingPassword(false)
+   668→    }
+   669→  }
+   670→
+   671→  const openAddressDialog = (address?: AddressData) => {
+   672→    if (address) {
+   673→      setEditingAddress(address)
+   674→      addressForm.reset({
+   675→        label: address.label || '',
+   676→        fullName: address.fullName,
+   677→        phone: address.phone,
+   678→        addressLine1: address.addressLine1,
+   679→        addressLine2: address.addressLine2 || '',
+   680→        city: address.city,
+   681→        state: address.state,
+   682→        pincode: address.pincode,
+   683→        country: address.country,
+   684→        isDefault: address.isDefault,
+   685→      })
+   686→    } else {
+   687→      setEditingAddress(null)
+   688→      addressForm.reset({
+   689→        label: '',
+   690→        fullName: '',
+   691→        phone: '',
+   692→        addressLine1: '',
+   693→        addressLine2: '',
+   694→        city: '',
+   695→        state: '',
+   696→        pincode: '',
+   697→        country: 'India',
+   698→        isDefault: false,
+   699→      })
+   700→    }
+   701→    setAddressDialogOpen(true)
+   702→  }
+   703→
+   704→  const handleAddressSave = async (data: AddressFormData) => {
+   705→    setSavingAddress(true)
+   706→    try {
+   707→      const payload = {
+   708→        ...data,
+   709→        isDefault: data.isDefault || false,
+   710→        country: data.country || 'India',
+   711→      }
+   712→
+   713→      const isEdit = !!editingAddress
+   714→      const res = await fetch('/api/addresses', {
+   715→        method: isEdit ? 'PUT' : 'POST',
+   716→        headers: { Authorization: `Bearer ${user?.token}`, 'Content-Type': 'application/json' },
+   717→        body: JSON.stringify(isEdit ? { addressId: editingAddress.id, ...payload } : payload),
+   718→      })
+   719→      const result = await res.json()
+   720→      if (res.ok) {
+   721→        showToast(isEdit ? 'Address updated!' : 'Address added!')
+   722→        setAddressDialogOpen(false)
+   723→        fetchAddresses()
+   724→      } else {
+   725→        showToast(result.error || 'Failed to save address', 'error')
+   726→      }
+   727→    } catch {
+   728→      showToast('Failed to save address', 'error')
+   729→    } finally {
+   730→      setSavingAddress(false)
+   731→    }
+   732→  }
+   733→
+   734→  const handleDeleteAddress = async (addressId: string) => {
+   735→    setDeletingAddress(addressId)
+   736→    try {
+   737→      const res = await fetch(`/api/addresses?addressId=${addressId}`, {
+   738→        method: 'DELETE',
+   739→        headers: { Authorization: `Bearer ${user?.token}` },
+   740→      })
+   741→      if (res.ok) {
+   742→        showToast('Address deleted')
+   743→        fetchAddresses()
+   744→      } else {
+   745→        showToast('Failed to delete address', 'error')
+   746→      }
+   747→    } catch {
+   748→      showToast('Failed to delete address', 'error')
+   749→    } finally {
+   750→      setDeletingAddress(null)
+   751→    }
+   752→  }
+   753→
+   754→  if (profileLoading) {
+   755→    return (
+   756→      <section className="max-w-4xl mx-auto px-4 py-12">
+   757→        <Skeleton className="h-10 w-64 mb-8" />
+   758→        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+   759→          <Skeleton className="h-96 lg:col-span-2" />
+   760→          <Skeleton className="h-96" />
+   761→        </div>
+   762→      </section>
+   763→    )
+   764→  }
+   765→
+   766→  return (
+   767→    <section className="max-w-4xl mx-auto px-4 py-8 sm:py-12">
+   768→      {/* Header */}
+   769→      <div className="flex items-center gap-3 mb-8">
+   770→        <button
+   771→          onClick={() => navigate('home')}
+   772→          className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+   773→        >
+   774→          <ArrowLeft className="h-5 w-5 text-[#222222]" />
+   775→        </button>
+   776→        <div>
+   777→          <h1 className="text-2xl sm:text-3xl font-bold text-[#222222]">My Profile</h1>
+   778→          <p className="text-sm text-gray-500 mt-0.5">Manage your account settings</p>
+   779→        </div>
+   780→      </div>
+   781→
+   782→      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+   783→        {/* Main Content */}
+   784→        <div className="lg:col-span-2">
+   785→          <Tabs defaultValue="personal" className="w-full">
+   786→            <TabsList className="w-full bg-gray-100 p-1">
+   787→              <TabsTrigger value="personal" className="flex-1 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+   788→                <User className="h-4 w-4 mr-2" /> Personal Info
+   789→              </TabsTrigger>
+   790→              <TabsTrigger value="password" className="flex-1 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+   791→                <Lock className="h-4 w-4 mr-2" /> Password
+   792→              </TabsTrigger>
+   793→            </TabsList>
+   794→
+   795→            {/* Personal Info Tab */}
+   796→            <TabsContent value="personal">
+   797→              <Card className="border-0 shadow-sm mt-4">
+   798→                <CardHeader>
+   799→                  <CardTitle className="text-lg text-[#222222]">Personal Information</CardTitle>
+   800→                  <CardDescription>Update your personal details</CardDescription>
+   801→                </CardHeader>
+   802→                <CardContent>
+   803→                  <form onSubmit={profileForm.handleSubmit(handleProfileSave)} className="space-y-4">
+   804→                    <div className="space-y-2">
+   805→                      <Label htmlFor="profile-name" className="text-[#222222] font-medium">Full Name</Label>
+   806→                      <div className="relative">
+   807→                        <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+   808→                        <Input
+   809→                          id="profile-name"
+   810→                          className="pl-10 h-11 border-gray-200 focus:border-[#D96C8A] focus:ring-[#D96C8A]/20"
+   811→                          {...profileForm.register('name')}
+   812→                        />
+   813→                      </div>
+   814→                      {profileForm.formState.errors.name && (
+   815→                        <p className="text-red-500 text-xs">{profileForm.formState.errors.name.message}</p>
+   816→                      )}
+   817→                    </div>
+   818→
+   819→                    <div className="space-y-2">
+   820→                      <Label htmlFor="profile-email" className="text-[#222222] font-medium">Email</Label>
+   821→                      <div className="relative">
+   822→                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+   823→                        <Input
+   824→                          id="profile-email"
+   825→                          className="pl-10 h-11 border-gray-200 bg-gray-50"
+   826→                          disabled
+   827→                          {...profileForm.register('email')}
+   828→                        />
+   829→                      </div>
+   830→                      <p className="text-xs text-gray-400">Email cannot be changed</p>
+   831→                    </div>
+   832→
+   833→                    <div className="space-y-2">
+   834→                      <Label htmlFor="profile-phone" className="text-[#222222] font-medium">Phone</Label>
+   835→                      <div className="relative">
+   836→                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+   837→                        <Input
+   838→                          id="profile-phone"
+   839→                          placeholder="Your phone number"
+   840→                          className="pl-10 h-11 border-gray-200 focus:border-[#D96C8A] focus:ring-[#D96C8A]/20"
+   841→                          {...profileForm.register('phone')}
+   842→                        />
+   843→                      </div>
+   844→                      {profileForm.formState.errors.phone && (
+   845→                        <p className="text-red-500 text-xs">{profileForm.formState.errors.phone.message}</p>
+   846→                      )}
+   847→                    </div>
+   848→
+   849→                    <Button
+   850→                      type="submit"
+   851→                      disabled={saving}
+   852→                      className="bg-[#0B1F3A] hover:bg-[#0B1F3A]/90 text-white h-11 px-6"
+   853→                    >
+   854→                      {saving ? <LoadingSpinner /> : <><Save className="h-4 w-4 mr-2" /> Save Changes</>}
+   855→                    </Button>
+   856→                  </form>
+   857→                </CardContent>
+   858→              </Card>
+   859→            </TabsContent>
+   860→
+   861→            {/* Password Tab */}
+   862→            <TabsContent value="password">
+   863→              <Card className="border-0 shadow-sm mt-4">
+   864→                <CardHeader>
+   865→                  <CardTitle className="text-lg text-[#222222]">Change Password</CardTitle>
+   866→                  <CardDescription>Ensure your account stays secure</CardDescription>
+   867→                </CardHeader>
+   868→                <CardContent>
+   869→                  <form onSubmit={passwordForm.handleSubmit(handlePasswordChange)} className="space-y-4">
+   870→                    <div className="space-y-2">
+   871→                      <Label htmlFor="old-password" className="text-[#222222] font-medium">Current Password</Label>
+   872→                      <div className="relative">
+   873→                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+   874→                        <Input
+   875→                          id="old-password"
+   876→                          type="password"
+   877→                          className="pl-10 h-11 border-gray-200 focus:border-[#D96C8A] focus:ring-[#D96C8A]/20"
+   878→                          {...passwordForm.register('oldPassword')}
+   879→                        />
+   880→                      </div>
+   881→                      {passwordForm.formState.errors.oldPassword && (
+   882→                        <p className="text-red-500 text-xs">{passwordForm.formState.errors.oldPassword.message}</p>
+   883→                      )}
+   884→                    </div>
+   885→
+   886→                    <div className="space-y-2">
+   887→                      <Label htmlFor="new-password" className="text-[#222222] font-medium">New Password</Label>
+   888→                      <div className="relative">
+   889→                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+   890→                        <Input
+   891→                          id="new-password"
+   892→                          type="password"
+   893→                          placeholder="At least 6 characters"
+   894→                          className="pl-10 h-11 border-gray-200 focus:border-[#D96C8A] focus:ring-[#D96C8A]/20"
+   895→                          {...passwordForm.register('newPassword')}
+   896→                        />
+   897→                      </div>
+   898→                      {passwordForm.formState.errors.newPassword && (
+   899→                        <p className="text-red-500 text-xs">{passwordForm.formState.errors.newPassword.message}</p>
+   900→                      )}
+   901→                    </div>
+   902→
+   903→                    <div className="space-y-2">
+   904→                      <Label htmlFor="confirm-new-password" className="text-[#222222] font-medium">Confirm New Password</Label>
+   905→                      <div className="relative">
+   906→                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+   907→                        <Input
+   908→                          id="confirm-new-password"
+   909→                          type="password"
+   910→                          placeholder="Confirm new password"
+   911→                          className="pl-10 h-11 border-gray-200 focus:border-[#D96C8A] focus:ring-[#D96C8A]/20"
+   912→                          {...passwordForm.register('confirmPassword')}
+   913→                        />
+   914→                      </div>
+   915→                      {passwordForm.formState.errors.confirmPassword && (
+   916→                        <p className="text-red-500 text-xs">{passwordForm.formState.errors.confirmPassword.message}</p>
+   917→                      )}
+   918→                    </div>
+   919→
+   920→                    <Button
+   921→                      type="submit"
+   922→                      disabled={savingPassword}
+   923→                      className="bg-[#0B1F3A] hover:bg-[#0B1F3A]/90 text-white h-11 px-6"
+   924→                    >
+   925→                      {savingPassword ? <LoadingSpinner /> : <><Save className="h-4 w-4 mr-2" /> Update Password</>}
+   926→                    </Button>
+   927→                  </form>
+   928→                </CardContent>
+   929→              </Card>
+   930→            </TabsContent>
+   931→          </Tabs>
+   932→        </div>
+   933→
+   934→        {/* Sidebar - Address Management */}
+   935→        <div className="lg:col-span-1">
+   936→          <Card className="border-0 shadow-sm sticky top-4">
+   937→            <CardHeader className="pb-3">
+   938→              <div className="flex items-center justify-between">
+   939→                <div>
+   940→                  <CardTitle className="text-lg text-[#222222] flex items-center gap-2">
+   941→                    <MapPin className="h-5 w-5 text-[#D96C8A]" /> Addresses
+   942→                  </CardTitle>
+   943→                  <CardDescription className="text-sm mt-1">Manage delivery addresses</CardDescription>
+   944→                </div>
+   945→                <Dialog open={addressDialogOpen} onOpenChange={setAddressDialogOpen}>
+   946→                  <DialogTrigger asChild>
+   947→                    <Button
+   948→                      size="sm"
+   949→                      className="bg-[#D96C8A] hover:bg-[#D96C8A]/90 text-white h-9 px-3"
+   950→                      onClick={() => openAddressDialog()}
+   951→                    >
+   952→                      <Plus className="h-4 w-4 mr-1" /> Add
+   953→                    </Button>
+   954→                  </DialogTrigger>
+   955→                  <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+   956→                    <DialogHeader>
+   957→                      <DialogTitle className="text-[#222222]">
+   958→                        {editingAddress ? 'Edit Address' : 'Add New Address'}
+   959→                      </DialogTitle>
+   960→                    </DialogHeader>
+   961→                    <form onSubmit={addressForm.handleSubmit(handleAddressSave)} className="space-y-4 mt-2">
+   962→                      <div className="grid grid-cols-2 gap-4">
+   963→                        <div className="space-y-2 col-span-2 sm:col-span-1">
+   964→                          <Label className="text-sm font-medium text-[#222222]">Label</Label>
+   965→                          <Input
+   966→                            placeholder="Home, Office, etc."
+   967→                            className="h-10 border-gray-200 focus:border-[#D96C8A] focus:ring-[#D96C8A]/20"
+   968→                            {...addressForm.register('label')}
+   969→                          />
+   970→                        </div>
+   971→                        <div className="space-y-2 col-span-2 sm:col-span-1">
+   972→                          <Label className="text-sm font-medium text-[#222222]">Full Name *</Label>
+   973→                          <Input
+   974→                            placeholder="Recipient name"
+   975→                            className="h-10 border-gray-200 focus:border-[#D96C8A] focus:ring-[#D96C8A]/20"
+   976→                            {...addressForm.register('fullName')}
+   977→                          />
+   978→                          {addressForm.formState.errors.fullName && (
+   979→                            <p className="text-red-500 text-xs">{addressForm.formState.errors.fullName.message}</p>
+   980→                          )}
+   981→                        </div>
+   982→                      </div>
+   983→
+   984→                      <div className="space-y-2">
+   985→                        <Label className="text-sm font-medium text-[#222222]">Phone *</Label>
+   986→                        <Input
+   987→                          placeholder="Phone number"
+   988→                          className="h-10 border-gray-200 focus:border-[#D96C8A] focus:ring-[#D96C8A]/20"
+   989→                          {...addressForm.register('phone')}
+   990→                        />
+   991→                        {addressForm.formState.errors.phone && (
+   992→                          <p className="text-red-500 text-xs">{addressForm.formState.errors.phone.message}</p>
+   993→                        )}
+   994→                      </div>
+   995→
+   996→                      <div className="space-y-2">
+   997→                        <Label className="text-sm font-medium text-[#222222]">Address Line 1 *</Label>
+   998→                        <Input
+   999→                          placeholder="House no, Street, Area"
+  1000→                          className="h-10 border-gray-200 focus:border-[#D96C8A] focus:ring-[#D96C8A]/20"
+  1001→                          {...addressForm.register('addressLine1')}
+  1002→                        />
+  1003→                        {addressForm.formState.errors.addressLine1 && (
+  1004→                          <p className="text-red-500 text-xs">{addressForm.formState.errors.addressLine1.message}</p>
+  1005→                        )}
+  1006→                      </div>
+  1007→
+  1008→                      <div className="space-y-2">
+  1009→                        <Label className="text-sm font-medium text-[#222222]">Address Line 2</Label>
+  1010→                        <Input
+  1011→                          placeholder="Landmark, etc. (optional)"
+  1012→                          className="h-10 border-gray-200 focus:border-[#D96C8A] focus:ring-[#D96C8A]/20"
+  1013→                          {...addressForm.register('addressLine2')}
+  1014→                        />
+  1015→                      </div>
+  1016→
+  1017→                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+  1018→                        <div className="space-y-2">
+  1019→                          <Label className="text-sm font-medium text-[#222222]">City *</Label>
+  1020→                          <Input
+  1021→                            placeholder="City"
+  1022→                            className="h-10 border-gray-200 focus:border-[#D96C8A] focus:ring-[#D96C8A]/20"
+  1023→                            {...addressForm.register('city')}
+  1024→                          />
+  1025→                          {addressForm.formState.errors.city && (
+  1026→                            <p className="text-red-500 text-xs">{addressForm.formState.errors.city.message}</p>
+  1027→                          )}
+  1028→                        </div>
+  1029→                        <div className="space-y-2">
+  1030→                          <Label className="text-sm font-medium text-[#222222]">State *</Label>
+  1031→                          <Input
+  1032→                            placeholder="State"
+  1033→                            className="h-10 border-gray-200 focus:border-[#D96C8A] focus:ring-[#D96C8A]/20"
+  1034→                            {...addressForm.register('state')}
+  1035→                          />
+  1036→                          {addressForm.formState.errors.state && (
+  1037→                            <p className="text-red-500 text-xs">{addressForm.formState.errors.state.message}</p>
+  1038→                          )}
+  1039→                        </div>
+  1040→                        <div className="space-y-2">
+  1041→                          <Label className="text-sm font-medium text-[#222222]">Pincode *</Label>
+  1042→                          <Input
+  1043→                            placeholder="Pincode"
+  1044→                            className="h-10 border-gray-200 focus:border-[#D96C8A] focus:ring-[#D96C8A]/20"
+  1045→                            {...addressForm.register('pincode')}
+  1046→                          />
+  1047→                          {addressForm.formState.errors.pincode && (
+  1048→                            <p className="text-red-500 text-xs">{addressForm.formState.errors.pincode.message}</p>
+  1049→                          )}
+  1050→                        </div>
+  1051→                      </div>
+  1052→
+  1053→                      <div className="flex items-center gap-2 pt-2">
+  1054→                        <input
+  1055→                          type="checkbox"
+  1056→                          id="address-default"
+  1057→                          className="rounded border-gray-300 text-[#D96C8A] focus:ring-[#D96C8A]"
+  1058→                          {...addressForm.register('isDefault')}
+  1059→                        />
+  1060→                        <Label htmlFor="address-default" className="text-sm text-gray-600 cursor-pointer">
+  1061→                          Set as default address
+  1062→                        </Label>
+  1063→                      </div>
+  1064→
+  1065→                      <div className="flex gap-3 pt-2">
+  1066→                        <Button
+  1067→                          type="button"
+  1068→                          variant="outline"
+  1069→                          onClick={() => setAddressDialogOpen(false)}
+  1070→                          className="flex-1 h-11 border-gray-200"
+  1071→                        >
+  1072→                          Cancel
+  1073→                        </Button>
+  1074→                        <Button
+  1075→                          type="submit"
+  1076→                          disabled={savingAddress}
+  1077→                          className="flex-1 h-11 bg-[#0B1F3A] hover:bg-[#0B1F3A]/90 text-white"
+  1078→                        >
+  1079→                          {savingAddress ? <LoadingSpinner /> : <><Save className="h-4 w-4 mr-2" /> {editingAddress ? 'Update' : 'Save'}</>}
+  1080→                        </Button>
+  1081→                      </div>
+  1082→                    </form>
+  1083→                  </DialogContent>
+  1084→                </Dialog>
+  1085→              </div>
+  1086→            </CardHeader>
+  1087→
+  1088→            <CardContent className="pt-0">
+  1089→              {addressLoading ? (
+  1090→                <div className="space-y-3">
+  1091→                  {[1, 2].map((i) => (
+  1092→                    <Skeleton key={i} className="h-24 w-full rounded-lg" />
+  1093→                  ))}
+  1094→                </div>
+  1095→              ) : addresses.length === 0 ? (
+  1096→                <div className="text-center py-8">
+  1097→                  <MapPin className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+  1098→                  <p className="text-sm text-gray-500">No saved addresses</p>
+  1099→                  <Button
+  1100→                    variant="outline"
+  1101→                    size="sm"
+  1102→                    className="mt-3 border-[#D96C8A] text-[#D96C8A] hover:bg-[#D96C8A] hover:text-white"
+  1103→                    onClick={() => openAddressDialog()}
+  1104→                  >
+  1105→                    <Plus className="h-4 w-4 mr-1" /> Add Address
+  1106→                  </Button>
+  1107→                </div>
+  1108→              ) : (
+  1109→                <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+  1110→                  {addresses.map((addr) => (
+  1111→                    <div
+  1112→                      key={addr.id}
+  1113→                      className="p-4 rounded-lg border border-gray-100 hover:border-[#D96C8A]/30 transition-colors relative group"
+  1114→                    >
+  1115→                      {addr.isDefault && (
+  1116→                        <Badge className="absolute top-2 right-2 bg-[#D96C8A] text-white text-[10px] px-2 py-0.5">
+  1117→                          Default
+  1118→                        </Badge>
+  1119→                      )}
+  1120→                      {addr.label && (
+  1121→                        <p className="text-xs font-semibold text-[#D96C8A] uppercase tracking-wider mb-1">{addr.label}</p>
+  1122→                      )}
+  1123→                      <p className="text-sm font-medium text-[#222222]">{addr.fullName}</p>
+  1124→                      <p className="text-sm text-gray-600 mt-1">{addr.addressLine1}</p>
+  1125→                      {addr.addressLine2 && <p className="text-sm text-gray-600">{addr.addressLine2}</p>}
+  1126→                      <p className="text-sm text-gray-500 mt-1">
+  1127→                        {addr.city}, {addr.state} - {addr.pincode}
+  1128→                      </p>
+  1129→                      <p className="text-xs text-gray-400 mt-1">{addr.phone}</p>
+  1130→                      <div className="flex gap-2 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
+  1131→                        <Button
+  1132→                          variant="outline"
+  1133→                          size="sm"
+  1134→                          className="h-8 text-xs border-gray-200 hover:border-[#0B1F3A] hover:text-[#0B1F3A]"
+  1135→                          onClick={() => openAddressDialog(addr)}
+  1136→                        >
+  1137→                          Edit
+  1138→                        </Button>
+  1139→                        <Button
+  1140→                          variant="outline"
+  1141→                          size="sm"
+  1142→                          className="h-8 text-xs border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300"
+  1143→                          disabled={deletingAddress === addr.id}
+  1144→                          onClick={() => handleDeleteAddress(addr.id)}
+  1145→                        >
+  1146→                          {deletingAddress === addr.id ? (
+  1147→                            <div className="w-3 h-3 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+  1148→                          ) : (
+  1149→                            <><Trash2 className="h-3 w-3 mr-1" /> Remove</>
+  1150→                          )}
+  1151→                        </Button>
+  1152→                      </div>
+  1153→                    </div>
+  1154→                  ))}
+  1155→                </div>
+  1156→              )}
+  1157→            </CardContent>
+  1158→          </Card>
+  1159→        </div>
+  1160→      </div>
+  1161→    </section>
+  1162→  )
+  1163→}

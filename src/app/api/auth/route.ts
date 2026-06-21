@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
 import { signToken, getUserFromRequest } from '@/lib/auth'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
+import { sanitizeEmail, sanitizeInput } from '@/lib/sanitize'
 
 export async function GET(request: NextRequest) {
   try {
@@ -27,16 +29,33 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  // ── Rate limit: 10 requests per minute per IP ──
+  const ip = getClientIp(request)
+  const { success, retryAfterMs } = rateLimit(ip, 10, 60 * 1000)
+  if (!success) {
+    return NextResponse.json(
+      { error: 'Too many attempts. Please try again later.' },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(Math.ceil(retryAfterMs! / 1000)) },
+      },
+    )
+  }
+
   try {
     const body = await request.json()
     const { action, name, email, password } = body
 
+    // ── Signup ──
     if (action === 'signup') {
       if (!name || !email || !password) {
         return NextResponse.json({ error: 'Name, email, and password are required' }, { status: 400 })
       }
 
-      const existingUser = await db.user.findUnique({ where: { email: email.toLowerCase() } })
+      const cleanEmail = sanitizeEmail(email)
+      const cleanName = sanitizeInput(name)
+
+      const existingUser = await db.user.findUnique({ where: { email: cleanEmail } })
       if (existingUser) {
         return NextResponse.json({ error: 'Email already registered' }, { status: 400 })
       }
@@ -45,8 +64,8 @@ export async function POST(request: NextRequest) {
       const userCount = await db.user.count()
       const user = await db.user.create({
         data: {
-          name,
-          email: email.toLowerCase(),
+          name: cleanName,
+          email: cleanEmail,
           password: hashedPassword,
           role: userCount === 0 ? 'admin' : 'customer',
           isVerified: userCount === 0,
@@ -60,12 +79,14 @@ export async function POST(request: NextRequest) {
       }, { status: 201 })
     }
 
-    // Login
+    // ── Login ──
     if (!email || !password) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 })
     }
 
-    const user = await db.user.findUnique({ where: { email: email.toLowerCase() } })
+    const cleanEmail = sanitizeEmail(email)
+
+    const user = await db.user.findUnique({ where: { email: cleanEmail } })
     if (!user) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
     }
@@ -142,7 +163,7 @@ export async function PUT(request: NextRequest) {
 
     // Update profile
     const updateData: Record<string, string> = {}
-    if (name) updateData.name = name
+    if (name) updateData.name = sanitizeInput(name)
     if (phone !== undefined) updateData.phone = phone
 
     if (Object.keys(updateData).length === 0) {

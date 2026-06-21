@@ -1,0 +1,537 @@
+   200→  const handleRemoveCoupon = () => {
+   201→    setCouponCode('')
+   202→    setCouponValidation(null)
+   203→  }
+   204→
+   205→  const getItemPrice = (item: typeof cart[0]) => {
+   206→    if (item.variantId) {
+   207→      const variant = item.product.variants.find((v) => v.id === item.variantId)
+   208→      return variant?.price ?? item.product.salePrice ?? item.product.basePrice
+   209→    }
+   210→    return item.product.salePrice ?? item.product.basePrice
+   211→  }
+   212→
+   213→  const getItemVariant = (item: typeof cart[0]) => {
+   214→    if (!item.variantId) return null
+   215→    return item.product.variants.find((v) => v.id === item.variantId)
+   216→  }
+   217→
+   218→  const handlePlaceOrder = async () => {
+   219→    if (!user?.token) return
+   220→    if (!selectedAddressId) {
+   221→      showToast('Please select or add a shipping address', 'error')
+   222→      return
+   223→    }
+   224→
+   225→    if (paymentMethod !== 'cod') {
+   226→      setSimulatedPayment(true)
+   227→      // Simulate payment processing
+   228→      await new Promise((resolve) => setTimeout(resolve, 2000))
+   229→      setSimulatedPayment(false)
+   230→    }
+   231→
+   232→    try {
+   233→      setPlacingOrder(true)
+   234→      const res = await fetch('/api/orders', {
+   235→        method: 'POST',
+   236→        headers: {
+   237→          'Content-Type': 'application/json',
+   238→          Authorization: `Bearer ${user.token}`,
+   239→        },
+   240→        body: JSON.stringify({
+   241→          addressId: selectedAddressId,
+   242→          paymentMethod,
+   243→          couponCode: couponValidation?.valid ? couponCode : null,
+   244→          notes: notes || null,
+   245→        }),
+   246→      })
+   247→      if (res.ok) {
+   248→        setCart([])
+   249→        setCouponCode('')
+   250→        setCouponValidation(null)
+   251→        showToast('Order placed successfully! 🎉', 'success')
+   252→        navigate('orders')
+   253→      } else {
+   254→        const err = await res.json()
+   255→        showToast(err.error || 'Failed to place order', 'error')
+   256→      }
+   257→    } catch {
+   258→      showToast('Failed to place order. Please try again.', 'error')
+   259→    } finally {
+   260→      setPlacingOrder(false)
+   261→    }
+   262→  }
+   263→
+   264→  const paymentMethods = [
+   265→    { id: 'cod', label: 'Cash on Delivery', description: 'Pay when your order is delivered', icon: Truck },
+   266→    { id: 'razorpay', label: 'Razorpay (Online Payment)', description: 'Pay securely via Razorpay gateway', icon: CreditCard },
+   267→    { id: 'upi', label: 'UPI', description: 'Google Pay, PhonePe, Paytm, etc.', icon: CreditCard },
+   268→    { id: 'card', label: 'Credit / Debit Card', description: 'Visa, Mastercard, RuPay', icon: CreditCard },
+   269→  ]
+   270→
+   271→  return (
+   272→    <div className="min-h-screen bg-white">
+   273→      {/* Header */}
+   274→      <div className="bg-[#0B1F3A] py-6 px-4">
+   275→        <div className="max-w-7xl mx-auto">
+   276→          <button
+   277→            onClick={() => navigate('cart')}
+   278→            className="flex items-center gap-2 text-[#F7C8D0] hover:text-white transition-colors mb-4"
+   279→          >
+   280→            <ArrowLeft className="w-4 h-4" />
+   281→            <span className="text-sm">Back to Cart</span>
+   282→          </button>
+   283→          <h1 className="text-2xl sm:text-3xl font-bold text-white">Checkout</h1>
+   284→          <p className="text-[#F7C8D0] text-sm mt-1">Complete your order</p>
+   285→        </div>
+   286→      </div>
+   287→
+   288→      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+   289→        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+   290→          {/* Left Column - Forms */}
+   291→          <div className="lg:col-span-2 space-y-6">
+   292→            {/* Shipping Address */}
+   293→            <Card className="border-[#F7C8D0]/30 shadow-sm">
+   294→              <CardHeader className="pb-4">
+   295→                <CardTitle className="flex items-center gap-2 text-[#0B1F3A] text-lg">
+   296→                  <MapPin className="w-5 h-5 text-[#D96C8A]" />
+   297→                  Shipping Address
+   298→                </CardTitle>
+   299→              </CardHeader>
+   300→              <CardContent className="space-y-4">
+   301→                {addressesLoading ? (
+   302→                  <div className="space-y-3">
+   303→                    <Skeleton className="h-24 w-full" />
+   304→                    <Skeleton className="h-24 w-full" />
+   305→                  </div>
+   306→                ) : addresses.length > 0 ? (
+   307→                  <>
+   308→                    <div className="space-y-3">
+   309→                      {addresses.map((addr) => (
+   310→                        <button
+   311→                          key={addr.id}
+   312→                          onClick={() => { setSelectedAddressId(addr.id); setShowNewAddress(false) }}
+   313→                          className={`w-full text-left p-4 rounded-xl border-2 transition-all duration-200 ${
+   314→                            selectedAddressId === addr.id
+   315→                              ? 'border-[#D96C8A] bg-[#FFF5F7]'
+   316→                              : 'border-gray-200 hover:border-[#F7C8D0] bg-white'
+   317→                          }`}
+   318→                        >
+   319→                          <div className="flex items-start justify-between">
+   320→                            <div className="flex-1">
+   321→                              <div className="flex items-center gap-2 mb-1">
+   322→                                <span className="font-semibold text-[#222222] text-sm">{addr.fullName}</span>
+   323→                                {addr.isDefault && (
+   324→                                  <Badge className="bg-[#D96C8A]/10 text-[#D96C8A] border-0 text-[10px] px-2 py-0">
+   325→                                    Default
+   326→                                  </Badge>
+   327→                                )}
+   328→                                {addr.label && (
+   329→                                  <Badge variant="outline" className="text-[10px] px-2 py-0 border-[#F7C8D0] text-[#222222]/60">
+   330→                                    {addr.label}
+   331→                                  </Badge>
+   332→                                )}
+   333→                              </div>
+   334→                              <p className="text-sm text-[#222222]/70">{addr.phone}</p>
+   335→                              <p className="text-sm text-[#222222]/70 mt-1">
+   336→                                {addr.addressLine1}
+   337→                                {addr.addressLine2 ? `, ${addr.addressLine2}` : ''}
+   338→                              </p>
+   339→                              <p className="text-sm text-[#222222]/70">
+   340→                                {addr.city}, {addr.state} - {addr.pincode}
+   341→                              </p>
+   342→                            </div>
+   343→                            {selectedAddressId === addr.id && (
+   344→                              <div className="w-5 h-5 bg-[#D96C8A] rounded-full flex items-center justify-center shrink-0 ml-2">
+   345→                                <Check className="w-3 h-3 text-white" />
+   346→                              </div>
+   347→                            )}
+   348→                          </div>
+   349→                        </button>
+   350→                      ))}
+   351→                    </div>
+   352→                    <Button
+   353→                      variant="outline"
+   354→                      onClick={() => setShowNewAddress(!showNewAddress)}
+   355→                      className="w-full border-dashed border-2 border-[#F7C8D0] text-[#D96C8A] hover:bg-[#FFF5F7] hover:text-[#D96C8A] py-3"
+   356→                    >
+   357→                      + Add New Address
+   358→                    </Button>
+   359→                  </>
+   360→                ) : (
+   361→                  <p className="text-sm text-[#222222]/60 mb-3">No saved addresses. Please add a new one.</p>
+   362→                )}
+   363→
+   364→                {showNewAddress && (
+   365→                  <div className="border-2 border-[#F7C8D0]/50 rounded-xl p-4 sm:p-6 bg-[#FFF5F7]/30 space-y-4">
+   366→                    <h4 className="font-semibold text-[#0B1F3A] text-sm">New Address</h4>
+   367→                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   368→                      <div className="space-y-1.5">
+   369→                        <Label htmlFor="fullName" className="text-xs font-medium text-[#222222]">Full Name *</Label>
+   370→                        <Input
+   371→                          id="fullName"
+   372→                          value={newAddress.fullName}
+   373→                          onChange={(e) => setNewAddress({ ...newAddress, fullName: e.target.value })}
+   374→                          placeholder="John Doe"
+   375→                          className="bg-white border-[#F7C8D0]/50 focus-visible:ring-[#D96C8A]/30"
+   376→                        />
+   377→                      </div>
+   378→                      <div className="space-y-1.5">
+   379→                        <Label htmlFor="phone" className="text-xs font-medium text-[#222222]">Phone Number *</Label>
+   380→                        <Input
+   381→                          id="phone"
+   382→                          value={newAddress.phone}
+   383→                          onChange={(e) => setNewAddress({ ...newAddress, phone: e.target.value })}
+   384→                          placeholder="9876543210"
+   385→                          className="bg-white border-[#F7C8D0]/50 focus-visible:ring-[#D96C8A]/30"
+   386→                        />
+   387→                      </div>
+   388→                    </div>
+   389→                    <div className="space-y-1.5">
+   390→                      <Label htmlFor="addressLine1" className="text-xs font-medium text-[#222222]">Address Line 1 *</Label>
+   391→                      <Input
+   392→                        id="addressLine1"
+   393→                        value={newAddress.addressLine1}
+   394→                        onChange={(e) => setNewAddress({ ...newAddress, addressLine1: e.target.value })}
+   395→                        placeholder="House/Flat No., Building, Street"
+   396→                        className="bg-white border-[#F7C8D0]/50 focus-visible:ring-[#D96C8A]/30"
+   397→                      />
+   398→                    </div>
+   399→                    <div className="space-y-1.5">
+   400→                      <Label htmlFor="addressLine2" className="text-xs font-medium text-[#222222]">Address Line 2</Label>
+   401→                      <Input
+   402→                        id="addressLine2"
+   403→                        value={newAddress.addressLine2}
+   404→                        onChange={(e) => setNewAddress({ ...newAddress, addressLine2: e.target.value })}
+   405→                        placeholder="Landmark, Area (optional)"
+   406→                        className="bg-white border-[#F7C8D0]/50 focus-visible:ring-[#D96C8A]/30"
+   407→                      />
+   408→                    </div>
+   409→                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+   410→                      <div className="space-y-1.5">
+   411→                        <Label htmlFor="city" className="text-xs font-medium text-[#222222]">City *</Label>
+   412→                        <Input
+   413→                          id="city"
+   414→                          value={newAddress.city}
+   415→                          onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
+   416→                          placeholder="Mumbai"
+   417→                          className="bg-white border-[#F7C8D0]/50 focus-visible:ring-[#D96C8A]/30"
+   418→                        />
+   419→                      </div>
+   420→                      <div className="space-y-1.5">
+   421→                        <Label htmlFor="state" className="text-xs font-medium text-[#222222]">State *</Label>
+   422→                        <Input
+   423→                          id="state"
+   424→                          value={newAddress.state}
+   425→                          onChange={(e) => setNewAddress({ ...newAddress, state: e.target.value })}
+   426→                          placeholder="Maharashtra"
+   427→                          className="bg-white border-[#F7C8D0]/50 focus-visible:ring-[#D96C8A]/30"
+   428→                        />
+   429→                      </div>
+   430→                      <div className="space-y-1.5">
+   431→                        <Label htmlFor="pincode" className="text-xs font-medium text-[#222222]">Pincode *</Label>
+   432→                        <Input
+   433→                          id="pincode"
+   434→                          value={newAddress.pincode}
+   435→                          onChange={(e) => setNewAddress({ ...newAddress, pincode: e.target.value })}
+   436→                          placeholder="400001"
+   437→                          className="bg-white border-[#F7C8D0]/50 focus-visible:ring-[#D96C8A]/30"
+   438→                        />
+   439→                      </div>
+   440→                    </div>
+   441→                    <div className="flex gap-3 pt-2">
+   442→                      <Button
+   443→                        onClick={handleSaveNewAddress}
+   444→                        disabled={savingAddress}
+   445→                        className="bg-[#0B1F3A] hover:bg-[#0B1F3A]/90 text-white"
+   446→                      >
+   447→                        {savingAddress ? 'Saving...' : 'Save Address'}
+   448→                      </Button>
+   449→                      <Button
+   450→                        variant="ghost"
+   451→                        onClick={() => setShowNewAddress(false)}
+   452→                        className="text-[#222222]/60 hover:text-[#222222]"
+   453→                      >
+   454→                        Cancel
+   455→                      </Button>
+   456→                    </div>
+   457→                  </div>
+   458→                )}
+   459→              </CardContent>
+   460→            </Card>
+   461→
+   462→            {/* Payment Method */}
+   463→            <Card className="border-[#F7C8D0]/30 shadow-sm">
+   464→              <CardHeader className="pb-4">
+   465→                <CardTitle className="flex items-center gap-2 text-[#0B1F3A] text-lg">
+   466→                  <CreditCard className="w-5 h-5 text-[#D96C8A]" />
+   467→                  Payment Method
+   468→                </CardTitle>
+   469→              </CardHeader>
+   470→              <CardContent className="space-y-4">
+   471→                <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod} className="space-y-3">
+   472→                  {paymentMethods.map((method) => {
+   473→                    const Icon = method.icon
+   474→                    return (
+   475→                      <label
+   476→                        key={method.id}
+   477→                        htmlFor={`payment-${method.id}`}
+   478→                        className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+   479→                          paymentMethod === method.id
+   480→                            ? 'border-[#D96C8A] bg-[#FFF5F7]'
+   481→                            : 'border-gray-200 hover:border-[#F7C8D0] bg-white'
+   482→                        }`}
+   483→                      >
+   484→                        <RadioGroupItem value={method.id} id={`payment-${method.id}`} className="data-[state=checked]:border-[#D96C8A]" />
+   485→                        <Icon className="w-5 h-5 text-[#D96C8A] shrink-0" />
+   486→                        <div className="flex-1 min-w-0">
+   487→                          <p className="font-medium text-[#222222] text-sm">{method.label}</p>
+   488→                          <p className="text-xs text-[#222222]/50">{method.description}</p>
+   489→                        </div>
+   490→                        {paymentMethod === method.id && (
+   491→                          <div className="w-5 h-5 bg-[#D96C8A] rounded-full flex items-center justify-center shrink-0">
+   492→                            <Check className="w-3 h-3 text-white" />
+   493→                          </div>
+   494→                        )}
+   495→                      </label>
+   496→                    )
+   497→                  })}
+   498→                </RadioGroup>
+   499→
+   500→                {/* Simulated Payment Area */}
+   501→                {paymentMethod !== 'cod' && (
+   502→                  <div className="mt-4 border-2 border-[#F7C8D0]/50 rounded-xl p-4 sm:p-6 bg-[#FFF5F7]/30">
+   503→                    <div className="flex items-center gap-2 mb-4">
+   504→                      <Lock className="w-4 h-4 text-[#D96C8A]" />
+   505→                      <h4 className="font-semibold text-[#0B1F3A] text-sm">Simulated Payment</h4>
+   506→                      <Badge className="bg-amber-100 text-amber-700 border-0 text-[10px] px-2 py-0">
+   507→                        Demo Mode
+   508→                      </Badge>
+   509→                    </div>
+   510→                    {simulatedPayment ? (
+   511→                      <div className="flex flex-col items-center gap-3 py-6">
+   512→                        <div className="w-10 h-10 border-3 border-[#D96C8A] border-t-transparent rounded-full animate-spin" />
+   513→                        <p className="text-sm font-medium text-[#222222]">Processing payment...</p>
+   514→                        <p className="text-xs text-[#222222]/50">Please do not close this page</p>
+   515→                      </div>
+   516→                    ) : (
+   517→                      <div className="space-y-3">
+   518→                        <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-green-200">
+   519→                          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center shrink-0">
+   520→                            <Shield className="w-4 h-4 text-green-600" />
+   521→                          </div>
+   522→                          <div>
+   523→                            <p className="text-sm font-medium text-green-700">Secure Payment Simulation</p>
+   524→                            <p className="text-xs text-green-600/70">
+   525→                              In production, this would redirect to {paymentMethod === 'razorpay' ? 'Razorpay' : paymentMethod === 'upi' ? 'your UPI app' : 'the card payment gateway'}
+   526→                            </p>
+   527→                          </div>
+   528→                        </div>
+   529→                        <div className="p-3 bg-white rounded-lg border border-gray-100">
+   530→                          <p className="text-xs text-[#222222]/50">
+   531→                            {paymentMethod === 'razorpay' && 'Razorpay supports cards, UPI, wallets, and netbanking. A secure popup would appear for authentication.'}
+   532→                            {paymentMethod === 'upi' && 'You would be redirected to your UPI app (GPay, PhonePe, Paytm) to complete the payment.'}
+   533→                            {paymentMethod === 'card' && 'Enter your card details in a secure iframe. We never store your card information.'}
+   534→                          </p>
+   535→                        </div>
+   536→                        <div className="flex items-center gap-2 text-xs text-[#222222]/40">
+   537→                          <Lock className="w-3 h-3" />
+   538→                          <span>256-bit SSL encrypted</span>
+   539→                        </div>
+   540→                      </div>
+   541→                    )}
+   542→                  </div>
+   543→                )}
+   544→
+   545→                {paymentMethod === 'cod' && (
+   546→                  <div className="mt-3 flex items-center gap-2 p-3 bg-amber-50 rounded-lg border border-amber-200">
+   547→                    <Truck className="w-4 h-4 text-amber-600 shrink-0" />
+   548→                    <p className="text-xs text-amber-700">Cash will be collected at the time of delivery. Please keep exact change ready.</p>
+   549→                  </div>
+   550→                )}
+   551→              </CardContent>
+   552→            </Card>
+   553→
+   554→            {/* Order Notes */}
+   555→            <Card className="border-[#F7C8D0]/30 shadow-sm">
+   556→              <CardHeader className="pb-4">
+   557→                <CardTitle className="text-[#0B1F3A] text-lg">Order Notes (Optional)</CardTitle>
+   558→              </CardHeader>
+   559→              <CardContent>
+   560→                <Textarea
+   561→                  value={notes}
+   562→                  onChange={(e) => setNotes(e.target.value)}
+   563→                  placeholder="Any special instructions for delivery (e.g., leave at reception, ring doorbell twice)..."
+   564→                  className="min-h-[80px] border-[#F7C8D0]/50 focus-visible:ring-[#D96C8A]/30 resize-none"
+   565→                  maxLength={500}
+   566→                />
+   567→                <p className="text-[10px] text-[#222222]/40 mt-1 text-right">{notes.length}/500</p>
+   568→              </CardContent>
+   569→            </Card>
+   570→          </div>
+   571→
+   572→          {/* Right Column - Order Summary */}
+   573→          <div className="lg:col-span-1">
+   574→            <Card className="border-[#F7C8D0]/30 shadow-sm sticky top-24">
+   575→              <CardHeader className="pb-4">
+   576→                <CardTitle className="text-[#0B1F3A] text-lg">Order Summary</CardTitle>
+   577→                <p className="text-xs text-[#222222]/50">{cart.length} item{cart.length !== 1 ? 's' : ''} in cart</p>
+   578→              </CardHeader>
+   579→              <CardContent className="space-y-4">
+   580→                {/* Cart Items */}
+   581→                <div className="max-h-72 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
+   582→                  {cart.map((item) => {
+   583→                    const variant = getItemVariant(item)
+   584→                    const price = getItemPrice(item)
+   585→                    const image = item.product.images?.[0]?.url
+   586→                    return (
+   587→                      <div key={item.id} className="flex gap-3 py-2">
+   588→                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden bg-[#FFF5F7] shrink-0">
+   589→                          {image ? (
+   590→                            <img src={image} alt={item.product.name} className="w-full h-full object-cover" />
+   591→                          ) : (
+   592→                            <div className="w-full h-full flex items-center justify-center text-[#D96C8A]/30">
+   593→                              <Truck className="w-6 h-6" />
+   594→                            </div>
+   595→                          )}
+   596→                        </div>
+   597→                        <div className="flex-1 min-w-0">
+   598→                          <p className="text-sm font-medium text-[#222222] truncate">{item.product.name}</p>
+   599→                          {variant && (
+   600→                            <p className="text-[11px] text-[#222222]/50">
+   601→                              {variant.color && <span className="text-[#D96C8A]">{variant.color}</span>}
+   602→                              {variant.color && variant.size && ' / '}
+   603→                              {variant.size && <span>{variant.size}</span>}
+   604→                            </p>
+   605→                          )}
+   606→                          <div className="flex items-center justify-between mt-1">
+   607→                            <span className="text-xs text-[#222222]/50">Qty: {item.quantity}</span>
+   608→                            <span className="text-sm font-semibold text-[#0B1F3A]">
+   609→                              ₹{(price * item.quantity).toLocaleString('en-IN')}
+   610→                            </span>
+   611→                          </div>
+   612→                        </div>
+   613→                      </div>
+   614→                    )
+   615→                  })}
+   616→                </div>
+   617→
+   618→                <Separator className="bg-[#F7C8D0]/30" />
+   619→
+   620→                {/* Coupon */}
+   621→                <div className="space-y-2">
+   622→                  <div className="flex items-center gap-2">
+   623→                    <Tag className="w-4 h-4 text-[#D96C8A]" />
+   624→                    <span className="text-sm font-medium text-[#222222]">Coupon Code</span>
+   625→                  </div>
+   626→                  {couponValidation?.valid ? (
+   627→                    <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+   628→                      <div>
+   629→                        <p className="text-sm font-medium text-green-700">{couponCode.toUpperCase()}</p>
+   630→                        <p className="text-xs text-green-600/70">{couponValidation.message}</p>
+   631→                      </div>
+   632→                      <Button
+   633→                        variant="ghost"
+   634→                        size="sm"
+   635→                        onClick={handleRemoveCoupon}
+   636→                        className="text-red-500 hover:text-red-600 hover:bg-red-50 text-xs h-7 px-2"
+   637→                      >
+   638→                        Remove
+   639→                      </Button>
+   640→                    </div>
+   641→                  ) : (
+   642→                    <div className="flex gap-2">
+   643→                      <Input
+   644→                        value={couponCode}
+   645→                        onChange={(e) => setCouponCode(e.target.value)}
+   646→                        placeholder="Enter coupon code"
+   647→                        className="flex-1 h-9 text-sm border-[#F7C8D0]/50 focus-visible:ring-[#D96C8A]/30"
+   648→                        onKeyDown={(e) => e.key === 'Enter' && handleValidateCoupon()}
+   649→                      />
+   650→                      <Button
+   651→                        variant="outline"
+   652→                        onClick={handleValidateCoupon}
+   653→                        disabled={!couponCode.trim() || validatingCoupon}
+   654→                        className="border-[#D96C8A] text-[#D96C8A] hover:bg-[#FFF5F7] hover:text-[#D96C8A] h-9 px-3 text-sm shrink-0"
+   655→                      >
+   656→                        {validatingCoupon ? '...' : 'Apply'}
+   657→                      </Button>
+   658→                    </div>
+   659→                  )}
+   660→                </div>
+   661→
+   662→                <Separator className="bg-[#F7C8D0]/30" />
+   663→
+   664→                {/* Price Breakdown */}
+   665→                <div className="space-y-2.5">
+   666→                  <div className="flex items-center justify-between text-sm">
+   667→                    <span className="text-[#222222]/70">Subtotal</span>
+   668→                    <span className="text-[#222222]">₹{subtotal.toLocaleString('en-IN')}</span>
+   669→                  </div>
+   670→                  <div className="flex items-center justify-between text-sm">
+   671→                    <span className="text-[#222222]/70">Tax (18% GST)</span>
+   672→                    <span className="text-[#222222]">₹{tax.toLocaleString('en-IN')}</span>
+   673→                  </div>
+   674→                  <div className="flex items-center justify-between text-sm">
+   675→                    <span className="text-[#222222]/70">Shipping</span>
+   676→                    {shipping === 0 ? (
+   677→                      <span className="text-green-600 font-medium text-xs">FREE</span>
+   678→                    ) : (
+   679→                      <span className="text-[#222222]">₹{shipping.toLocaleString('en-IN')}</span>
+   680→                    )}
+   681→                  </div>
+   682→                  {discountAmount > 0 && (
+   683→                    <div className="flex items-center justify-between text-sm">
+   684→                      <span className="text-green-600">Discount</span>
+   685→                      <span className="text-green-600 font-medium">-₹{discountAmount.toLocaleString('en-IN')}</span>
+   686→                    </div>
+   687→                  )}
+   688→                  <Separator className="bg-[#F7C8D0]/30" />
+   689→                  <div className="flex items-center justify-between pt-1">
+   690→                    <span className="font-bold text-[#0B1F3A] text-base">Total</span>
+   691→                    <span className="font-bold text-[#0B1F3A] text-xl">₹{total.toLocaleString('en-IN')}</span>
+   692→                  </div>
+   693→                </div>
+   694→
+   695→                {subtotal < 999 && (
+   696→                  <div className="p-3 bg-[#FFF5F7] rounded-lg border border-[#F7C8D0]/30">
+   697→                    <p className="text-xs text-[#D96C8A] text-center font-medium">
+   698→                      Add ₹{(999 - subtotal).toLocaleString('en-IN')} more for FREE shipping! 🚚
+   699→                    </p>
+   700→                  </div>
+   701→                )}
+   702→
+   703→                {/* Place Order Button */}
+   704→                <Button
+   705→                  onClick={handlePlaceOrder}
+   706→                  disabled={placingOrder || simulatedPayment || !selectedAddressId}
+   707→                  className="w-full bg-[#D96C8A] hover:bg-[#D96C8A]/90 text-white py-6 text-base font-semibold rounded-xl transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+   708→                >
+   709→                  {placingOrder ? (
+   710→                    <span className="flex items-center gap-2">
+   711→                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+   712→                      Placing Order...
+   713→                    </span>
+   714→                  ) : simulatedPayment ? (
+   715→                    <span className="flex items-center gap-2">
+   716→                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+   717→                      Processing Payment...
+   718→                    </span>
+   719→                  ) : (
+   720→                    `Place Order — ₹${total.toLocaleString('en-IN')}`
+   721→                  )}
+   722→                </Button>
+   723→
+   724→                {/* Security Badge */}
+   725→                <div className="flex items-center justify-center gap-2 text-[10px] text-[#222222]/40 pt-1">
+   726→                  <Shield className="w-3.5 h-3.5" />
+   727→                  <span>100% Secure Checkout · SSL Encrypted</span>
+   728→                </div>
+   729→              </CardContent>
+   730→            </Card>
+   731→          </div>
+   732→        </div>
+   733→      </div>
+   734→    </div>
+   735→  )
+   736→}

@@ -11,7 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { MapPin, CreditCard, Truck, Tag, ArrowLeft, Check, Shield, Lock } from 'lucide-react'
+import { MapPin, CreditCard, Truck, Tag, ArrowLeft, Check, Shield, Lock, Smartphone, Copy, CheckCircle2 } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 import type { AddressData } from '@/store/use-store'
 
 import { useTranslation } from '@/i18n/use-language'
@@ -55,7 +56,14 @@ export default function CheckoutPage() {
 
   // Payment state
   const [paymentMethod, setPaymentMethod] = useState('cod')
-  const [simulatedPayment, setSimulatedPayment] = useState(false)
+  const [upiPaymentConfirmed, setUpiPaymentConfirmed] = useState(false)
+  const [copiedUpiId, setCopiedUpiId] = useState(false)
+
+  const handlePaymentMethodChange = (value: string) => {
+    setPaymentMethod(value)
+    setUpiPaymentConfirmed(false)
+    setCopiedUpiId(false)
+  }
 
   // Coupon state
   const [couponCode, setCouponCode] = useState('')
@@ -222,11 +230,9 @@ export default function CheckoutPage() {
       return
     }
 
-    if (paymentMethod !== 'cod') {
-      setSimulatedPayment(true)
-      // Simulate payment processing
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-      setSimulatedPayment(false)
+    if (paymentMethod === 'upi' && !upiPaymentConfirmed) {
+      showToast('Please confirm you have completed the UPI payment', 'error')
+      return
     }
 
     try {
@@ -248,7 +254,10 @@ export default function CheckoutPage() {
         setCart([])
         setCouponCode('')
         setCouponValidation(null)
-        showToast('Order placed successfully! 🎉', 'success')
+        setUpiPaymentConfirmed(false)
+        showToast(paymentMethod === 'upi'
+          ? 'Order placed! Payment will be verified shortly. 🎉'
+          : 'Order placed successfully! 🎉', 'success')
         navigate('orders')
       } else {
         const err = await res.json()
@@ -261,11 +270,12 @@ export default function CheckoutPage() {
     }
   }
 
+  const UPI_ID = 'sagathiyapradip1137-1@okicici'
+  const upiPayUrl = `upi://pay?pa=${UPI_ID}&pn=StyleWithHer&am=${total}&cu=INR`
+
   const paymentMethods = [
     { id: 'cod', label: 'Cash on Delivery', description: 'Pay when your order is delivered', icon: Truck },
-    { id: 'razorpay', label: 'Razorpay (Online Payment)', description: 'Pay securely via Razorpay gateway', icon: CreditCard },
-    { id: 'upi', label: 'UPI', description: 'Google Pay, PhonePe, Paytm, etc.', icon: CreditCard },
-    { id: 'card', label: 'Credit / Debit Card', description: 'Visa, Mastercard, RuPay', icon: CreditCard },
+    { id: 'upi', label: 'UPI Payment', description: 'Pay via Google Pay, PhonePe, Paytm or any UPI app', icon: Smartphone },
   ]
 
   return (
@@ -468,7 +478,7 @@ export default function CheckoutPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod} className="space-y-3">
+                <RadioGroup value={paymentMethod} onValueChange={handlePaymentMethodChange} className="space-y-3">
                   {paymentMethods.map((method) => {
                     const Icon = method.icon
                     return (
@@ -497,55 +507,143 @@ export default function CheckoutPage() {
                   })}
                 </RadioGroup>
 
-                {/* Simulated Payment Area */}
-                {paymentMethod !== 'cod' && (
-                  <div className="mt-4 border-2 border-[#F7C8D0]/50 rounded-xl p-4 sm:p-6 bg-[#FFF5F7]/30">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Lock className="w-4 h-4 text-[#D96C8A]" />
-                      <h4 className="font-semibold text-[#0B1F3A] text-sm">Simulated Payment</h4>
-                      <Badge className="bg-amber-100 text-amber-700 border-0 text-[10px] px-2 py-0">
-                        Demo Mode
-                      </Badge>
+                {/* UPI Payment QR Code Section */}
+                {paymentMethod === 'upi' && (
+                  <div className="mt-4 border-2 border-[#F7C8D0]/50 rounded-xl overflow-hidden bg-[#FFF5F7]/30">
+                    {/* UPI Info Header */}
+                    <div className="bg-[#0B1F3A] px-4 sm:px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shrink-0">
+                          <Smartphone className="w-5 h-5 text-[#0B1F3A]" />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-white text-sm">UPI Payment</h4>
+                          <p className="text-[#F7C8D0] text-xs">Scan QR code or send money to the UPI ID below</p>
+                        </div>
+                      </div>
                     </div>
-                    {simulatedPayment ? (
-                      <div className="flex flex-col items-center gap-3 py-6">
-                        <div className="w-10 h-10 border-3 border-[#D96C8A] border-t-transparent rounded-full animate-spin" />
-                        <p className="text-sm font-medium text-[#222222]">Processing payment...</p>
-                        <p className="text-xs text-[#222222]/50">Please do not close this page</p>
+
+                    <div className="p-4 sm:p-6 space-y-5">
+                      {/* QR Code */}
+                      <div className="flex flex-col items-center">
+                        <div className="bg-white p-4 rounded-2xl shadow-md border border-[#F7C8D0]/30">
+                          <QRCodeSVG
+                            value={upiPayUrl}
+                            size={200}
+                            bgColor="#FFFFFF"
+                            fgColor="#0B1F3A"
+                            level="H"
+                            includeMargin={false}
+                          />
+                        </div>
+                        <p className="text-xs text-[#222222]/40 mt-3">Scan with any UPI app</p>
                       </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-green-200">
-                          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center shrink-0">
-                            <Shield className="w-4 h-4 text-green-600" />
+
+                      <Separator className="bg-[#F7C8D0]/30" />
+
+                      {/* UPI ID Display */}
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium text-[#222222]/60 uppercase tracking-wider">UPI ID</p>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 bg-white border border-[#F7C8D0]/50 rounded-lg px-4 py-3 flex items-center justify-between">
+                            <span className="text-sm font-mono font-semibold text-[#0B1F3A] select-all break-all">{UPI_ID}</span>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(UPI_ID)
+                                setCopiedUpiId(true)
+                                setTimeout(() => setCopiedUpiId(false), 2000)
+                              }}
+                              className="ml-2 shrink-0 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#FFF5F7] transition-colors"
+                              title="Copy UPI ID"
+                            >
+                              {copiedUpiId ? (
+                                <CheckCircle2 className="w-4 h-4 text-green-500" />
+                              ) : (
+                                <Copy className="w-4 h-4 text-[#D96C8A]" />
+                              )}
+                            </button>
                           </div>
-                          <div>
-                            <p className="text-sm font-medium text-green-700">Secure Payment Simulation</p>
-                            <p className="text-xs text-green-600/70">
-                              In production, this would redirect to {paymentMethod === 'razorpay' ? 'Razorpay' : paymentMethod === 'upi' ? 'your UPI app' : 'the card payment gateway'}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="p-3 bg-white rounded-lg border border-gray-100">
-                          <p className="text-xs text-[#222222]/50">
-                            {paymentMethod === 'razorpay' && 'Razorpay supports cards, UPI, wallets, and netbanking. A secure popup would appear for authentication.'}
-                            {paymentMethod === 'upi' && 'You would be redirected to your UPI app (GPay, PhonePe, Paytm) to complete the payment.'}
-                            {paymentMethod === 'card' && 'Enter your card details in a secure iframe. We never store your card information.'}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-[#222222]/40">
-                          <Lock className="w-3 h-3" />
-                          <span>256-bit SSL encrypted</span>
                         </div>
                       </div>
-                    )}
+
+                      <Separator className="bg-[#F7C8D0]/30" />
+
+                      {/* Amount and Payee Info */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-white rounded-lg p-3 border border-gray-100">
+                          <p className="text-[10px] text-[#222222]/40 uppercase tracking-wider">Amount</p>
+                          <p className="text-lg font-bold text-[#0B1F3A]">₹{total.toLocaleString('en-IN')}</p>
+                        </div>
+                        <div className="bg-white rounded-lg p-3 border border-gray-100">
+                          <p className="text-[10px] text-[#222222]/40 uppercase tracking-wider">Payee</p>
+                          <p className="text-sm font-semibold text-[#0B1F3A]">StyleWithHer</p>
+                        </div>
+                      </div>
+
+                      {/* Steps */}
+                      <div className="bg-white rounded-lg p-4 border border-[#F7C8D0]/30">
+                        <p className="text-xs font-semibold text-[#0B1F3A] mb-2">How to pay:</p>
+                        <ol className="space-y-1.5 text-xs text-[#222222]/70">
+                          <li className="flex items-start gap-2">
+                            <span className="w-5 h-5 rounded-full bg-[#D96C8A] text-white flex items-center justify-center shrink-0 text-[10px] font-bold">1</span>
+                            Open any UPI app (Google Pay, PhonePe, Paytm, etc.)
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="w-5 h-5 rounded-full bg-[#D96C8A] text-white flex items-center justify-center shrink-0 text-[10px] font-bold">2</span>
+                            Scan the QR code above or send ₹{total.toLocaleString('en-IN')} to the UPI ID
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="w-5 h-5 rounded-full bg-[#D96C8A] text-white flex items-center justify-center shrink-0 text-[10px] font-bold">3</span>
+                            Complete the payment, then click the button below
+                          </li>
+                        </ol>
+                      </div>
+
+                      {/* Confirm Payment Button */}
+                      <button
+                        onClick={() => {
+                          setUpiPaymentConfirmed(true)
+                          showToast('Payment confirmation noted! You can now place your order.', 'success')
+                        }}
+                        disabled={upiPaymentConfirmed}
+                        className={`w-full py-3.5 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
+                          upiPaymentConfirmed
+                            ? 'bg-green-500 text-white cursor-default'
+                            : 'bg-[#D96C8A] hover:bg-[#D96C8A]/90 text-white'
+                        }`}
+                      >
+                        {upiPaymentConfirmed ? (
+                          <>
+                            <CheckCircle2 className="w-4 h-4" />
+                            Payment Confirmed — Ready to Place Order
+                          </>
+                        ) : (
+                          'I have completed the payment'
+                        )}
+                      </button>
+
+                      {/* Payment Status Info */}
+                      <div className="text-center">
+                        <p className="text-[10px] text-[#222222]/40">Payment statuses: Pending → Payment Submitted → Verified / Failed / Refunded</p>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-xs text-[#222222]/40">
+                        <Lock className="w-3 h-3" />
+                        <span>Secure UPI Payment · Your data is safe</span>
+                      </div>
+                    </div>
                   </div>
                 )}
 
                 {paymentMethod === 'cod' && (
-                  <div className="mt-3 flex items-center gap-2 p-3 bg-amber-50 rounded-lg border border-amber-200">
-                    <Truck className="w-4 h-4 text-amber-600 shrink-0" />
-                    <p className="text-xs text-amber-700">Cash will be collected at the time of delivery. Please keep exact change ready.</p>
+                  <div className="mt-4 space-y-3">
+                    <div className="flex items-center gap-2 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                      <Truck className="w-4 h-4 text-amber-600 shrink-0" />
+                      <p className="text-xs text-amber-700">Cash will be collected at the time of delivery. Please keep exact change ready.</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-[10px] text-[#222222]/40">Payment statuses: Pending → Payment Submitted → Verified / Failed / Refunded</p>
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -703,7 +801,7 @@ export default function CheckoutPage() {
                 {/* Place Order Button */}
                 <Button
                   onClick={handlePlaceOrder}
-                  disabled={placingOrder || simulatedPayment || !selectedAddressId}
+                  disabled={placingOrder || (paymentMethod === 'upi' && !upiPaymentConfirmed) || !selectedAddressId}
                   className="w-full bg-[#D96C8A] hover:bg-[#D96C8A]/90 text-white py-6 text-base font-semibold rounded-xl transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {placingOrder ? (
@@ -711,11 +809,8 @@ export default function CheckoutPage() {
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       Placing Order...
                     </span>
-                  ) : simulatedPayment ? (
-                    <span className="flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Processing Payment...
-                    </span>
+                  ) : paymentMethod === 'upi' && !upiPaymentConfirmed ? (
+                    `Confirm Payment to Place Order — ₹${total.toLocaleString('en-IN')}`
                   ) : (
                     `Place Order — ₹${total.toLocaleString('en-IN')}`
                   )}

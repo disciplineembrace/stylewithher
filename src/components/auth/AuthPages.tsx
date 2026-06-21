@@ -413,8 +413,16 @@ export function ForgotPasswordPage() {
   const onSubmit = async (data: ForgotFormData) => {
     setLoading(true)
     try {
-      // Simulated - no email service
-      await new Promise((r) => setTimeout(r, 1000))
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: data.email }),
+      })
+
+      if (!res.ok) {
+        throw new Error('Failed to send reset link')
+      }
+
       setSent(true)
     } catch {
       showToast('Something went wrong. Please try again.', 'error')

@@ -170,13 +170,18 @@ export async function POST(request: NextRequest) {
 
     const orderNumber = `SWH-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`
 
+    // Determine payment status based on payment method
+    const paymentStatus = 'pending' // Both 'cod' and 'upi' start as pending
+    const resolvedPaymentMethod = paymentMethod || 'cod'
+
     const order = await db.order.create({
       data: {
         orderNumber,
         userId: payload.userId,
         addressId: resolvedAddressId,
         status: 'pending',
-        paymentMethod: paymentMethod || 'cod',
+        paymentMethod: resolvedPaymentMethod,
+        paymentStatus,
         subtotal,
         discount,
         tax,
@@ -185,10 +190,19 @@ export async function POST(request: NextRequest) {
         couponId,
         notes,
         items: { create: orderItems },
+        payments: {
+          create: {
+            userId: payload.userId,
+            amount: total,
+            method: resolvedPaymentMethod,
+            status: 'pending',
+          },
+        },
       },
       include: {
         items: true,
         address: true,
+        payments: true,
       },
     })
 
