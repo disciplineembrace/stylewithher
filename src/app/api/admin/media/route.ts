@@ -3,9 +3,13 @@ import { db } from '@/lib/db'
 import { getUserFromRequest } from '@/lib/auth'
 import { writeFile, mkdir, unlink } from 'fs/promises'
 import path from 'path'
+import { recordAudit } from '@/lib/audit'
+import { getClientIp } from '@/lib/rate-limit'
 
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-const MAX_SIZE = 5 * 1024 * 1024 // 5MB
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
+const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime']
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024 // 10MB for images
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024 // 50MB for videos
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,12 +21,30 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
     }
 
-    const files = await db.mediaFile.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: { user: { select: { name: true, email: true } } },
-    })
+    const { searchParams } = new URL(request.url)
+    const type = searchParams.get('type') // 'image', 'video', or null for all
+    const page = parseInt(searchParams.get('page') || '1', 10)
+    const limit = parseInt(searchParams.get('limit') || '50', 10)
 
-    return NextResponse.json({ files })
+    const where: Record<string, unknown> = {}
+    if (type === 'image') {
+      where.mimeType = { in: ALLOWED_IMAGE_TYPES }
+    } else if (type === 'video') {
+      where.mimeType = { in: ALLOWED_VIDEO_TYPES }
+    }
+
+    const [files, total] = await Promise.all([
+      db.mediaFile.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        include: { user: { select: { name: true, email: true } } },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      db.mediaFile.count({ where }),
+    ])
+
+    return NextResponse.json({ files, total, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } })
   } catch (error) {
     console.error('Media GET error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -46,21 +68,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
 
-    if (!ALLOWED_TYPES.includes(file.type)) {
+    const isImage = ALLOWED_IMAGE_TYPES.includes(file.type)
+    const isVideo = ALLOWED_VIDEO_TYPES.includes(file.type)
+
+    if (!isImage && !isVideo) {
       return NextResponse.json(
-        { error: 'Invalid file type. Only jpg, png, gif, and webp images are allowed.' },
+        { error: 'Invalid file type. Allowed: jpg, png, gif, webp, svg, mp4, webm, mov.' },
         { status: 400 },
       )
     }
 
-    if (file.size > MAX_SIZE) {
-      return NextResponse.json({ error: 'File too large. Maximum size is 5MB.' }, { status: 400 })
+    const maxSize = isImage ? MAX_IMAGE_SIZE : MAX_VIDEO_SIZE
+    if (file.size > maxSize) {
+      return NextResponse.json(
+        { error: `File too large. Maximum size: ${isImage ? '10MB' : '50MB'}.` },
+        { status: 400 },
+      )
     }
 
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads')
+    const uploadDir = path.join(process.cwd(), 'public', 'uploads', isImage ? 'images' : 'videos')
     await mkdir(uploadDir, { recursive: true })
 
     const ext = file.name.split('.').pop()
@@ -68,7 +97,7 @@ export async function POST(request: NextRequest) {
     const filePath = path.join(uploadDir, uniqueName)
 
     await writeFile(filePath, buffer)
-    const url = `/uploads/${uniqueName}`
+    const url = `/uploads/${isImage ? 'images' : 'videos'}/${uniqueName}`
 
     const mediaFile = await db.mediaFile.create({
       data: {
@@ -80,6 +109,10 @@ export async function POST(request: NextRequest) {
         uploadedBy: payload.userId,
       },
     })
+
+    const ip = getClientIp(request)
+    await recordAudit(payload.userId, 'Admin', 'MEDIA_UPLOAD', 
+      `Uploaded ${isImage ? 'image' : 'video'}: ${file.name} (${(file.size / 1024).toFixed(1)}KB)`, ip)
 
     return NextResponse.json({ file: mediaFile }, { status: 201 })
   } catch (error) {
@@ -119,6 +152,11 @@ export async function DELETE(request: NextRequest) {
     }
 
     await db.mediaFile.delete({ where: { id: fileId } })
+
+    const ip = getClientIp(request)
+    await recordAudit(payload.userId, 'Admin', 'MEDIA_DELETE', 
+      `Deleted media: ${existing.filename}`, ip)
+
     return NextResponse.json({ message: 'File deleted successfully' })
   } catch (error) {
     console.error('Media DELETE error:', error)

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getUserFromRequest } from '@/lib/auth'
+import { recordAudit } from '@/lib/audit'
+import { getClientIp } from '@/lib/rate-limit'
 
 export async function GET(request: NextRequest) {
   try {
@@ -35,6 +37,7 @@ export async function GET(request: NextRequest) {
             },
           },
           address: { select: { id: true, fullName: true, phone: true, addressLine1: true, city: true, state: true, pincode: true } },
+          payments: { select: { id: true, amount: true, method: true, status: true, transactionId: true, createdAt: true } },
         },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
@@ -66,7 +69,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { addressId, address: inlineAddress, paymentMethod, couponCode, notes } = body
+    const { addressId, address: inlineAddress, paymentMethod, couponCode, notes, paymentScreenshot } = body
 
     let resolvedAddressId = addressId || null
 
@@ -170,9 +173,13 @@ export async function POST(request: NextRequest) {
 
     const orderNumber = `SWH-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`
 
-    // Determine payment status based on payment method
-    const paymentStatus = 'pending' // Both 'cod' and 'upi' start as pending
-    const resolvedPaymentMethod = paymentMethod || 'cod'
+    // Payment method validation
+    const validPaymentMethods = ['cod', 'upi']
+    const resolvedPaymentMethod = validPaymentMethods.includes(paymentMethod) ? paymentMethod : 'cod'
+
+    // Payment status based on method
+    // COD: pending (paid on delivery), UPI: submitted (awaiting verification)
+    const paymentStatus = resolvedPaymentMethod === 'cod' ? 'pending' : 'submitted'
 
     const order = await db.order.create({
       data: {
@@ -188,14 +195,15 @@ export async function POST(request: NextRequest) {
         shipping,
         total,
         couponId,
-        notes,
+        notes: notes || (paymentScreenshot ? 'UPI payment screenshot submitted' : null),
         items: { create: orderItems },
         payments: {
           create: {
             userId: payload.userId,
             amount: total,
             method: resolvedPaymentMethod,
-            status: 'pending',
+            status: paymentStatus,
+            transactionId: paymentScreenshot ? `UPI-${Date.now()}` : null,
           },
         },
       },
@@ -207,6 +215,12 @@ export async function POST(request: NextRequest) {
     })
 
     await db.cartItem.deleteMany({ where: { userId: payload.userId } })
+
+    // Record audit log
+    const ip = getClientIp(request)
+    const user = await db.user.findUnique({ where: { id: payload.userId } })
+    await recordAudit(payload.userId, user?.name || 'Unknown', 'ORDER_CREATED', 
+      `Order ${orderNumber} created - ₹${total} via ${resolvedPaymentMethod}`, ip)
 
     return NextResponse.json({ order }, { status: 201 })
   } catch (error) {

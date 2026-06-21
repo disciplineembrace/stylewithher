@@ -15,42 +15,34 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1', 10)
     const limit = parseInt(searchParams.get('limit') || '20', 10)
-    const action = searchParams.get('action')
-    const userId = searchParams.get('userId')
-    const search = searchParams.get('search')
+    const status = searchParams.get('status')
+    const method = searchParams.get('method')
 
     const where: Record<string, unknown> = {}
-    if (action) {
-      where.action = { contains: action }
-    }
-    if (userId) {
-      where.userId = userId
-    }
-    if (search) {
-      where.OR = [
-        { action: { contains: search } },
-        { userName: { contains: search } },
-        { details: { contains: search } },
-      ]
-    }
+    if (status) where.status = status
+    if (method) where.method = method
 
-    const [logs, total] = await Promise.all([
-      db.auditLog.findMany({
+    const [payments, total] = await Promise.all([
+      db.payment.findMany({
         where,
+        include: {
+          order: { select: { id: true, orderNumber: true, status: true } },
+          user: { select: { id: true, name: true, email: true } },
+        },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
       }),
-      db.auditLog.count({ where }),
+      db.payment.count({ where }),
     ])
 
     return NextResponse.json({ 
-      logs, 
+      payments, 
       total,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) }
     })
   } catch (error) {
-    console.error('Admin audit logs GET error:', error)
+    console.error('Admin payments GET error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

@@ -53,9 +53,17 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      // Log the reset link for testing (replace with real email service later)
-      const resetLink = `http://localhost:3000/reset?token=${token}`
-      console.log(`PASSWORD_RESET_LINK: ${resetLink}`)
+      // Build reset link using the site's base URL
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL 
+        ? `https://${process.env.VERCEL_URL}` 
+        : 'https://stylewithher.vercel.app'
+      const resetLink = `${baseUrl}/?reset=${token}`
+
+      // Log the reset link (replace with real email service)
+      console.log(`PASSWORD_RESET_LINK for ${cleanEmail}: ${resetLink}`)
+
+      // TODO: Send email via Resend/SendGrid/etc.
+      // For now, the link is logged and can be used for testing
     }
 
     // Always return the same generic message to prevent email enumeration

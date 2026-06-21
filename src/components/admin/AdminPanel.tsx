@@ -67,8 +67,9 @@ const fmtDateTime = (d: string) => new Date(d).toLocaleString('en-IN', { day: '2
 // ─── Nav items (labels translated via SidebarNav component) ─────────────────
 const NAV_ITEMS = [
   { key: 'dashboard', labelKey: 'admin.dashboard', icon: LayoutDashboard },
-  { key: 'products', labelKey: 'admin.products', icon: Package },
   { key: 'orders', labelKey: 'admin.orders', icon: ShoppingBag },
+  { key: 'payments', labelKey: 'admin.payments', icon: DollarSign },
+  { key: 'products', labelKey: 'admin.products', icon: Package },
   { key: 'customers', labelKey: 'admin.customers', icon: Users },
   { key: 'coupons', labelKey: 'admin.coupons', icon: Ticket },
   { key: 'reviews', labelKey: 'admin.reviews', icon: Star },
@@ -76,6 +77,7 @@ const NAV_ITEMS = [
   { key: 'posts', labelKey: 'admin.posts', icon: PenLine },
   { key: 'media', labelKey: 'admin.media', icon: ImageIcon },
   { key: 'inventory', labelKey: 'admin.inventory', icon: Warehouse },
+  { key: 'settings', labelKey: 'admin.settings', icon: TrendingUp },
   { key: 'instagram', labelKey: 'admin.instagram', icon: Instagram },
   { key: 'activity', labelKey: 'admin.activityLogs', icon: Activity },
 ]
@@ -92,6 +94,8 @@ const STATUS_COLORS: Record<string, string> = {
 
 const PAYMENT_COLORS: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800',
+  submitted: 'bg-blue-100 text-blue-800',
+  verified: 'bg-indigo-100 text-indigo-800',
   completed: 'bg-green-100 text-green-800',
   failed: 'bg-red-100 text-red-800',
   refunded: 'bg-orange-100 text-orange-800',
@@ -1332,9 +1336,12 @@ const CONTENT_FIELDS = [
   { key: 'social_instagram', label: 'Instagram URL', type: 'input' },
   { key: 'social_facebook', label: 'Facebook URL', type: 'input' },
   { key: 'social_twitter', label: 'Twitter / X URL', type: 'input' },
+  { key: 'social_youtube', label: 'YouTube URL', type: 'input' },
   { key: 'social_pinterest', label: 'Pinterest URL', type: 'input' },
   { key: 'shipping_policy', label: 'Shipping Policy', type: 'textarea', rows: 5 },
   { key: 'return_policy', label: 'Return Policy', type: 'textarea', rows: 5 },
+  { key: 'privacy_policy', label: 'Privacy Policy', type: 'textarea', rows: 5 },
+  { key: 'terms_of_service', label: 'Terms of Service', type: 'textarea', rows: 5 },
 ]
 
 function ContentTab() {
@@ -1656,6 +1663,396 @@ function InstagramTab() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// PAYMENTS TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+function PaymentsTab() {
+  const { showToast } = useStore()
+  const [payments, setPayments] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [filterStatus, setFilterStatus] = useState<string>('all')
+  const [filterMethod, setFilterMethod] = useState<string>('all')
+
+  const fetchPayments = useCallback(async () => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (filterStatus !== 'all') params.set('status', filterStatus)
+      if (filterMethod !== 'all') params.set('method', filterMethod)
+      const res = await fetch(`/api/admin/payments?${params}`, { headers: authHeaders() })
+      if (!res.ok) throw new Error('Failed to fetch')
+      const json = await res.json()
+      setPayments(json.payments || [])
+    } catch (err: any) {
+      showToast(err.message || 'Error loading payments', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }, [showToast, filterStatus, filterMethod])
+
+  useEffect(() => { fetchPayments() }, [fetchPayments])
+
+  const handlePaymentStatus = async (paymentId: string, orderId: string, newStatus: string) => {
+    setUpdatingId(paymentId)
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: 'PUT',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentStatus: newStatus }),
+      })
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Update failed') }
+      showToast(`Payment status updated to ${newStatus}`)
+      fetchPayments()
+    } catch (err: any) {
+      showToast(err.message || 'Error updating payment', 'error')
+    } finally {
+      setUpdatingId(null)
+    }
+  }
+
+  if (loading) {
+    return <div className="space-y-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <h2 className="text-xl font-bold">Payments ({payments.length})</h2>
+        <div className="flex gap-2">
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-36 h-9 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="submitted">Submitted</SelectItem>
+              <SelectItem value="verified">Verified</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="failed">Failed</SelectItem>
+              <SelectItem value="refunded">Refunded</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterMethod} onValueChange={setFilterMethod}>
+            <SelectTrigger className="w-32 h-9 text-xs"><SelectValue placeholder="Method" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Methods</SelectItem>
+              <SelectItem value="cod">COD</SelectItem>
+              <SelectItem value="upi">UPI</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+        <div className="max-h-[65vh] overflow-y-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-xs">Date</TableHead>
+                <TableHead className="text-xs">Order #</TableHead>
+                <TableHead className="text-xs">Customer</TableHead>
+                <TableHead className="text-xs">Method</TableHead>
+                <TableHead className="text-xs">Amount</TableHead>
+                <TableHead className="text-xs">Status</TableHead>
+                <TableHead className="text-xs text-right">Action</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {payments.map((p) => (
+                <TableRow key={p.id}>
+                  <TableCell className="text-xs">{fmtDateTime(p.createdAt)}</TableCell>
+                  <TableCell className="font-mono text-xs">{p.order?.orderNumber?.slice(0, 16) || '—'}</TableCell>
+                  <TableCell>
+                    <div className="text-sm">{p.user?.name || '—'}</div>
+                    <div className="text-xs text-muted-foreground">{p.user?.email || ''}</div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-xs uppercase">{p.method}</Badge>
+                  </TableCell>
+                  <TableCell className="font-semibold text-sm">₹{fmt(p.amount)}</TableCell>
+                  <TableCell>
+                    <Badge className={PAYMENT_COLORS[p.status] || ''} variant="secondary">{p.status}</Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {updatingId === p.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                    ) : (
+                      <Select value={p.status} onValueChange={(v) => handlePaymentStatus(p.id, p.orderId, v)}>
+                        <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="submitted">Submitted</SelectItem>
+                          <SelectItem value="verified">Verified</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="failed">Failed</SelectItem>
+                          <SelectItem value="refunded">Refunded</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {payments.length === 0 && (
+                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No payments found</TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SETTINGS TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+const SETTINGS_FIELDS = [
+  { key: 'site_name', label: 'Site Name', type: 'input', group: 'General' },
+  { key: 'site_tagline', label: 'Site Tagline', type: 'input', group: 'General' },
+  { key: 'site_description', label: 'Site Description', type: 'textarea', rows: 3, group: 'General' },
+  { key: 'upi_id', label: 'UPI ID', type: 'input', group: 'Payment' },
+  { key: 'currency', label: 'Currency Code', type: 'input', group: 'Payment' },
+  { key: 'currency_symbol', label: 'Currency Symbol', type: 'input', group: 'Payment' },
+  { key: 'social_instagram', label: 'Instagram URL', type: 'input', group: 'Social Links' },
+  { key: 'social_facebook', label: 'Facebook URL', type: 'input', group: 'Social Links' },
+  { key: 'social_twitter', label: 'Twitter / X URL', type: 'input', group: 'Social Links' },
+  { key: 'social_youtube', label: 'YouTube URL', type: 'input', group: 'Social Links' },
+  { key: 'social_pinterest', label: 'Pinterest URL', type: 'input', group: 'Social Links' },
+  { key: 'seo_title', label: 'SEO Title', type: 'input', group: 'SEO' },
+  { key: 'seo_description', label: 'SEO Description', type: 'textarea', rows: 3, group: 'SEO' },
+  { key: 'seo_keywords', label: 'SEO Keywords', type: 'textarea', rows: 2, group: 'SEO' },
+  { key: 'google_analytics_id', label: 'Google Analytics ID', type: 'input', group: 'SEO' },
+]
+
+function SettingsTab() {
+  const { showToast } = useStore()
+  const [settings, setSettings] = useState<Record<string, string>>({})
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  const fetchSettings = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/admin/settings', { headers: authHeaders() })
+      if (!res.ok) throw new Error('Failed to fetch')
+      const json = await res.json()
+      setSettings(json.settings || {})
+    } catch (err: any) {
+      showToast(err.message || 'Error loading settings', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }, [showToast])
+
+  useEffect(() => { fetchSettings() }, [fetchSettings])
+
+  const updateField = (key: string, value: string) => {
+    setSettings((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings }),
+      })
+      if (!res.ok) throw new Error('Save failed')
+      showToast('Settings saved successfully')
+    } catch (err: any) {
+      showToast(err.message || 'Error saving settings', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return <div className="space-y-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
+  }
+
+  // Group settings by group
+  const groups = SETTINGS_FIELDS.reduce((acc, field) => {
+    const g = field.group || 'Other'
+    if (!acc[g]) acc[g] = []
+    acc[g].push(field)
+    return acc
+  }, {} as Record<string, typeof SETTINGS_FIELDS>)
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold">Settings</h2>
+        <Button onClick={handleSave} disabled={saving} className="bg-[#1e9ba6] hover:bg-[#1e9ba6]/90 text-white">
+          {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+          Save Settings
+        </Button>
+      </div>
+
+      {Object.entries(groups).map(([group, fields]) => (
+        <Card key={group} className="border-0 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">{group}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {fields.map((field) => (
+              <div key={field.key} className="space-y-2">
+                <Label htmlFor={`settings-${field.key}`} className="text-sm font-medium">{field.label}</Label>
+                {field.type === 'textarea' ? (
+                  <Textarea
+                    id={`settings-${field.key}`}
+                    value={settings[field.key] || ''}
+                    onChange={(e) => updateField(field.key, e.target.value)}
+                    rows={field.rows || 4}
+                    placeholder={`Enter ${field.label.toLowerCase()}...`}
+                  />
+                ) : (
+                  <Input
+                    id={`settings-${field.key}`}
+                    value={settings[field.key] || ''}
+                    onChange={(e) => updateField(field.key, e.target.value)}
+                    placeholder={`Enter ${field.label.toLowerCase()}...`}
+                  />
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      ))}
+
+      {/* UPI QR Code Preview */}
+      {settings.upi_id && (
+        <Card className="border-0 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">UPI QR Code Preview</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row items-center gap-6">
+              <div className="bg-white p-4 rounded-xl border-2 border-dashed border-[#1e9ba6]/30">
+                <img 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=${encodeURIComponent(settings.upi_id)}&pn=StyleWithHer`} 
+                  alt="UPI QR Code" 
+                  className="w-48 h-48"
+                />
+              </div>
+              <div>
+                <p className="text-sm font-medium mb-1">UPI ID: <span className="font-mono text-[#1e9ba6]">{settings.upi_id}</span></p>
+                <p className="text-sm text-muted-foreground">Customers can scan this QR code to pay via UPI</p>
+                <p className="text-xs text-muted-foreground mt-2">This QR code will be shown to customers during UPI checkout</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ACTIVITY LOGS TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+function ActivityLogsTab() {
+  const { showToast } = useStore()
+  const [logs, setLogs] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [filterAction, setFilterAction] = useState('')
+
+  const fetchLogs = useCallback(async () => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (filterAction) params.set('action', filterAction)
+      if (search) params.set('search', search)
+      const res = await fetch(`/api/admin/audit-logs?${params}`, { headers: authHeaders() })
+      if (!res.ok) throw new Error('Failed to fetch')
+      const json = await res.json()
+      setLogs(json.logs || [])
+    } catch (err: any) {
+      showToast(err.message || 'Error loading logs', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }, [showToast, filterAction, search])
+
+  useEffect(() => { fetchLogs() }, [fetchLogs])
+
+  const getActionColor = (action: string) => {
+    if (action.includes('LOGIN')) return 'bg-blue-100 text-blue-800'
+    if (action.includes('SIGNUP')) return 'bg-green-100 text-green-800'
+    if (action.includes('ORDER')) return 'bg-purple-100 text-purple-800'
+    if (action.includes('PAYMENT')) return 'bg-amber-100 text-amber-800'
+    if (action.includes('DELETE')) return 'bg-red-100 text-red-800'
+    if (action.includes('PASSWORD')) return 'bg-orange-100 text-orange-800'
+    if (action.includes('UPLOAD')) return 'bg-cyan-100 text-cyan-800'
+    return 'bg-gray-100 text-gray-800'
+  }
+
+  if (loading) {
+    return <div className="space-y-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <h2 className="text-xl font-bold">Activity Logs ({logs.length})</h2>
+        <div className="flex gap-2">
+          <div className="relative w-48">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Search logs..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9 text-xs" />
+          </div>
+          <Select value={filterAction} onValueChange={setFilterAction}>
+            <SelectTrigger className="w-36 h-9 text-xs"><SelectValue placeholder="All Actions" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All Actions</SelectItem>
+              <SelectItem value="LOGIN">Login</SelectItem>
+              <SelectItem value="SIGNUP">Signup</SelectItem>
+              <SelectItem value="ORDER">Orders</SelectItem>
+              <SelectItem value="PAYMENT">Payments</SelectItem>
+              <SelectItem value="UPLOAD">Uploads</SelectItem>
+              <SelectItem value="PASSWORD">Password</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+        <div className="max-h-[65vh] overflow-y-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-xs">Time</TableHead>
+                <TableHead className="text-xs">User</TableHead>
+                <TableHead className="text-xs">Action</TableHead>
+                <TableHead className="text-xs hidden md:table-cell">Details</TableHead>
+                <TableHead className="text-xs hidden lg:table-cell">IP</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {logs.map((log) => (
+                <TableRow key={log.id}>
+                  <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{fmtDateTime(log.createdAt)}</TableCell>
+                  <TableCell className="text-sm font-medium">{log.userName}</TableCell>
+                  <TableCell>
+                    <Badge className={getActionColor(log.action)} variant="secondary" style={{ maxWidth: '160px' }}>
+                      <span className="truncate block">{log.action}</span>
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground hidden md:table-cell max-w-[300px] truncate">{log.details || '—'}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground font-mono hidden lg:table-cell">{log.ipAddress || '—'}</TableCell>
+                </TableRow>
+              ))}
+              {logs.length === 0 && (
+                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No activity logs found</TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // MAIN ADMIN PANEL
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function AdminPanel() {
@@ -1667,6 +2064,7 @@ export default function AdminPanel() {
       case 'dashboard': return <DashboardTab />
       case 'products': return <ProductsTab />
       case 'orders': return <OrdersTab />
+      case 'payments': return <PaymentsTab />
       case 'customers': return <CustomersTab />
       case 'coupons': return <CouponsTab />
       case 'reviews': return <ReviewsTab />
@@ -1674,7 +2072,9 @@ export default function AdminPanel() {
       case 'posts': return <PostsTab />
       case 'media': return <MediaTab />
       case 'inventory': return <InventoryTab />
+      case 'settings': return <SettingsTab />
       case 'instagram': return <InstagramTab />
+      case 'activity': return <ActivityLogsTab />
       default: return <DashboardTab />
     }
   }

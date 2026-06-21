@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { signToken, getUserFromRequest } from '@/lib/auth'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { sanitizeEmail, sanitizeInput } from '@/lib/sanitize'
+import { recordAudit } from '@/lib/audit'
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,7 +15,7 @@ export async function GET(request: NextRequest) {
 
     const user = await db.user.findUnique({
       where: { id: payload.userId },
-      select: { id: true, name: true, email: true, role: true, phone: true, avatar: true },
+      select: { id: true, name: true, email: true, role: true, phone: true, avatar: true, isVerified: true, isActive: true },
     })
 
     if (!user) {
@@ -46,14 +47,24 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { action, name, email, password } = body
 
-    // ── Signup ──
+    // ── Signup (customers only — admin is created via seed) ──
     if (action === 'signup') {
       if (!name || !email || !password) {
         return NextResponse.json({ error: 'Name, email, and password are required' }, { status: 400 })
       }
+      if (password.length < 6) {
+        return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 })
+      }
+      if (password.length > 128) {
+        return NextResponse.json({ error: 'Password is too long' }, { status: 400 })
+      }
 
       const cleanEmail = sanitizeEmail(email)
       const cleanName = sanitizeInput(name)
+
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+        return NextResponse.json({ error: 'Invalid email format' }, { status: 400 })
+      }
 
       const existingUser = await db.user.findUnique({ where: { email: cleanEmail } })
       if (existingUser) {
@@ -61,16 +72,18 @@ export async function POST(request: NextRequest) {
       }
 
       const hashedPassword = await bcrypt.hash(password, 12)
-      const userCount = await db.user.count()
       const user = await db.user.create({
         data: {
           name: cleanName,
           email: cleanEmail,
           password: hashedPassword,
-          role: userCount === 0 ? 'admin' : 'customer',
-          isVerified: userCount === 0,
+          role: 'customer',
+          isVerified: false,
         },
       })
+
+      // Record audit log
+      await recordAudit(user.id, user.name, 'SIGNUP', `New customer account created: ${cleanEmail}`, ip)
 
       const token = signToken({ userId: user.id, email: user.email, role: user.role })
       return NextResponse.json({
@@ -108,6 +121,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
     }
 
+    // Record login audit
+    await recordAudit(user.id, user.name, 'LOGIN', `User logged in: ${cleanEmail}`, ip)
+
     const token = signToken({ userId: user.id, email: user.email, role: user.role })
     return NextResponse.json({
       token,
@@ -136,6 +152,9 @@ export async function PUT(request: NextRequest) {
       if (newPassword.length < 6) {
         return NextResponse.json({ error: 'New password must be at least 6 characters' }, { status: 400 })
       }
+      if (newPassword.length > 128) {
+        return NextResponse.json({ error: 'New password is too long' }, { status: 400 })
+      }
 
       const user = await db.user.findUnique({ where: { id: payload.userId } })
       if (!user) {
@@ -157,6 +176,10 @@ export async function PUT(request: NextRequest) {
         where: { id: payload.userId },
         data: { password: hashedNewPassword },
       })
+
+      // Audit password change
+      const ip = getClientIp(request)
+      await recordAudit(payload.userId, user.name, 'PASSWORD_CHANGE', 'User changed their password', ip)
 
       return NextResponse.json({ message: 'Password updated successfully' })
     }
