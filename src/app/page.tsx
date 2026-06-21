@@ -5,6 +5,7 @@ import { useStore } from '@/store/use-store'
 import { useLanguage } from '@/i18n/use-language'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
+import MobileBottomNav from '@/components/layout/MobileBottomNav'
 import HomePage from '@/components/home/HomePage'
 import ProductListing from '@/components/products/ProductListing'
 import ProductDetailPage from '@/components/products/ProductDetailPage'
@@ -108,10 +109,11 @@ export default function App() {
     <div className="min-h-screen flex flex-col bg-white">
       {showSplash && <SplashScreen />}
       <Header />
-      <main className="flex-1">
+      <main className="flex-1 pb-16 lg:pb-0">
         <PageRouter />
       </main>
       <Footer />
+      <MobileBottomNav />
       <Toast />
     </div>
   )

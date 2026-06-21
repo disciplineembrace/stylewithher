@@ -15,27 +15,27 @@ const heroSlides = [
     subtitleKey: 'home.heroSlides.0.subtitle',
     descriptionKey: 'home.heroSlides.0.subtitle',
     ctaKey: 'home.heroSlides.0.cta',
-    gradient: 'from-[#0B1F3A] via-[#0B1F3A]/95 to-[#0B1F3A]/80',
-    accent: '#F7C8D0',
-    image: 'https://placehold.co/600x800/0B1F3A/F7C8D0?text=Her+%26+Him',
+    gradient: 'from-[#0D182A] via-[#0D182A]/95 to-[#162240]/80',
+    accent: '#D4AF37',
+    image: 'https://placehold.co/600x800/0D182A/D4AF37?text=Her+%26+Him',
   },
   {
     headlineKey: 'home.heroSlides.1.title',
     subtitleKey: 'home.heroSlides.1.subtitle',
     descriptionKey: 'home.heroSlides.1.subtitle',
     ctaKey: 'home.heroSlides.1.cta',
-    gradient: 'from-[#D96C8A] via-[#D96C8A]/90 to-[#F7C8D0]/80',
+    gradient: 'from-[#E91663] via-[#E91663]/90 to-[#D4AF37]/80',
     accent: '#FFFFFF',
-    image: 'https://placehold.co/600x800/D96C8A/FFFFFF?text=Spring+2025',
+    image: 'https://placehold.co/600x800/E91663/FFFFFF?text=Spring+2025',
   },
   {
     headlineKey: 'home.heroSlides.3.title',
     subtitleKey: 'home.heroSlides.3.subtitle',
     descriptionKey: 'home.heroSlides.3.subtitle',
     ctaKey: 'home.heroSlides.3.cta',
-    gradient: 'from-[#F7C8D0] via-[#F7C8D0]/90 to-[#FFF5F7]/80',
-    accent: '#0B1F3A',
-    image: 'https://placehold.co/600x800/F7C8D0/0B1F3A?text=Premium+Style',
+    gradient: 'from-[#EBF1FF] via-[#EBF1FF]/90 to-[#F5F7FA]/80',
+    accent: '#0D182A',
+    image: 'https://placehold.co/600x800/EBF1FF/0D182A?text=Premium+Style',
   },
 ]
 
@@ -77,9 +77,9 @@ function SectionHeading({ title, subtitle, light = false }: { title: string; sub
         </p>
       )}
       <div className="flex items-center justify-center gap-2 mt-4">
-        <span className="w-8 h-[2px] bg-[#F7C8D0]" />
-        <span className="w-2 h-2 rounded-full bg-[#D96C8A]" />
-        <span className="w-8 h-[2px] bg-[#F7C8D0]" />
+        <span className="w-8 h-[2px] bg-[#D4AF37]" />
+        <span className="w-2 h-2 rounded-full bg-[#E91663]" />
+        <span className="w-8 h-[2px] bg-[#D4AF37]" />
       </div>
     </div>
   )
@@ -165,7 +165,7 @@ function HeroBanner() {
   const slide = heroSlides[current]
 
   return (
-    <section className="relative w-full h-[500px] sm:h-[560px] lg:h-[620px] overflow-hidden bg-[#0B1F3A]">
+    <section className="relative w-full h-[500px] sm:h-[560px] lg:h-[620px] overflow-hidden bg-[#0D182A]">
       {/* Slides */}
       {heroSlides.map((s, i) => (
         <div
@@ -194,7 +194,7 @@ function HeroBanner() {
                   <Button
                     onClick={() => navigate('products')}
                     size="lg"
-                    className="btn-glow bg-white text-[#0B1F3A] hover:bg-white/90 font-semibold px-8 h-12 rounded-full text-base"
+                    className="btn-glow bg-[#E91663] text-white hover:bg-[#E91663]/90 font-semibold px-8 h-12 rounded-full text-base"
                   >
                     {s.cta} <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
@@ -207,8 +207,8 @@ function HeroBanner() {
                   <div className="w-72 h-96 rounded-2xl overflow-hidden shadow-2xl border border-white/10">
                     <img src={s.image} alt={s.headline} className="w-full h-full object-cover" />
                   </div>
-                  <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-[#D96C8A]/20 rounded-full blur-2xl" />
-                  <div className="absolute -top-4 -left-4 w-32 h-32 bg-[#F7C8D0]/20 rounded-full blur-2xl" />
+                  <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-[#E91663]/20 rounded-full blur-2xl" />
+                  <div className="absolute -top-4 -left-4 w-32 h-32 bg-[#D4AF37]/20 rounded-full blur-2xl" />
                 </div>
               </div>
             </div>
@@ -277,17 +277,17 @@ function CategoriesSection() {
                 onClick={() => navigate('products', { gender: cat.gender, category: cat.slug })}
                 className="group cursor-pointer text-left bg-white rounded-xl overflow-hidden border border-gray-100 card-premium"
               >
-                <div className="aspect-square bg-[#FFF5F7] overflow-hidden relative">
+                <div className="aspect-square bg-[#F5F7FA] overflow-hidden relative">
                   <img
-                    src={cat.image || `https://placehold.co/400x400/FFF5F7/0B1F3A?text=${encodeURIComponent(cat.name)}`}
+                    src={cat.image || `https://placehold.co/400x400/F5F7FA/0D182A?text=${encodeURIComponent(cat.name)}`}
                     alt={cat.name}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     loading="lazy"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0B1F3A]/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#0D182A]/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
                 <div className="p-4 text-center">
-                  <h3 className="font-semibold text-[#222222] text-sm sm:text-base group-hover:text-[#D96C8A] transition-colors">
+                  <h3 className="font-semibold text-[#0D182A] text-sm sm:text-base group-hover:text-[#E91663] transition-colors">
                     {cat.name}
                   </h3>
                   <p className="text-xs text-gray-400 mt-1">
@@ -324,29 +324,29 @@ function FeaturedSection() {
   }
 
   return (
-    <section className="py-16 sm:py-20 bg-[#FFF5F7] animate-fadeIn">
+    <section className="py-16 sm:py-20 bg-[#F5F7FA] animate-fadeIn">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex items-end justify-between mb-10">
           <div>
             <h2 className="text-3xl sm:text-4xl font-bold text-gradient">Featured Collection</h2>
             <p className="text-gray-500 text-base mt-2">Handpicked favorites for the season</p>
             <div className="flex items-center gap-2 mt-3">
-              <span className="w-8 h-[2px] bg-[#F7C8D0]" />
-              <span className="w-2 h-2 rounded-full bg-[#D96C8A]" />
-              <span className="w-8 h-[2px] bg-[#F7C8D0]" />
+              <span className="w-8 h-[2px] bg-[#D4AF37]" />
+              <span className="w-2 h-2 rounded-full bg-[#E91663]" />
+              <span className="w-8 h-[2px] bg-[#D4AF37]" />
             </div>
           </div>
           <div className="hidden sm:flex gap-2">
             <button
               onClick={() => scroll('left')}
-              className="w-10 h-10 rounded-full border border-[#D96C8A]/30 flex items-center justify-center text-[#D96C8A] hover:bg-[#D96C8A] hover:text-white transition-all"
+              className="w-10 h-10 rounded-full border border-[#E91663]/30 flex items-center justify-center text-[#E91663] hover:bg-[#E91663] hover:text-white transition-all"
               aria-label="Scroll left"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
             <button
               onClick={() => scroll('right')}
-              className="w-10 h-10 rounded-full border border-[#D96C8A]/30 flex items-center justify-center text-[#D96C8A] hover:bg-[#D96C8A] hover:text-white transition-all"
+              className="w-10 h-10 rounded-full border border-[#E91663]/30 flex items-center justify-center text-[#E91663] hover:bg-[#E91663] hover:text-white transition-all"
               aria-label="Scroll right"
             >
               <ChevronRight className="h-5 w-5" />
@@ -379,19 +379,19 @@ function PromoBanner() {
   return (
     <section className="py-16 sm:py-20 animate-fadeIn">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="relative rounded-2xl overflow-hidden bg-gradient-to-r from-[#0B1F3A] via-[#142d50] to-[#D96C8A] p-10 sm:p-14 lg:p-16">
+        <div className="relative rounded-2xl overflow-hidden bg-gradient-to-r from-[#0D182A] via-[#162240] to-[#E91663] p-10 sm:p-14 lg:p-16">
           {/* Decorative elements */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-[#F7C8D0]/10 rounded-full -translate-y-1/2 translate-x-1/4 blur-3xl" />
+          <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4AF37]/10 rounded-full -translate-y-1/2 translate-x-1/4 blur-3xl" />
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/4 blur-2xl" />
-          <div className="absolute top-1/2 right-1/4 w-3 h-3 bg-[#F7C8D0] rounded-full opacity-60" />
+          <div className="absolute top-1/2 right-1/4 w-3 h-3 bg-[#D4AF37] rounded-full opacity-60" />
           <div className="absolute top-1/3 right-1/3 w-2 h-2 bg-white rounded-full opacity-40" />
-          <div className="absolute bottom-1/3 left-1/3 w-2 h-2 bg-[#D96C8A] rounded-full opacity-50" />
+          <div className="absolute bottom-1/3 left-1/3 w-2 h-2 bg-[#E91663] rounded-full opacity-50" />
 
           <div className="relative z-10 text-center max-w-2xl mx-auto">
-            <p className="text-[#F7C8D0] text-sm font-medium tracking-widest uppercase mb-4">Limited Time Offer</p>
+            <p className="text-[#D4AF37] text-sm font-medium tracking-widest uppercase mb-4">Limited Time Offer</p>
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight mb-4">
               Complete Your
-              <span className="block text-[#F7C8D0]">Couple Look</span>
+              <span className="block text-[#D4AF37]">Couple Look</span>
             </h2>
             <p className="text-white/70 text-base sm:text-lg mb-8 leading-relaxed">
               Shop matching sets for him & her and get an exclusive 20% off on your first couple order. 
@@ -595,7 +595,7 @@ function InstagramFeedSection() {
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                 loading="lazy"
               />
-              <div className="absolute inset-0 bg-[#D96C8A]/0 group-hover:bg-[#D96C8A]/50 transition-colors duration-300 flex items-center justify-center">
+              <div className="absolute inset-0 bg-[#E91663]/0 group-hover:bg-[#E91663]/50 transition-colors duration-300 flex items-center justify-center">
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center gap-2 text-white">
                   <Heart className="h-6 w-6 fill-white" />
                 </div>
@@ -641,7 +641,7 @@ export default function HomePage() {
         query="newArrival=true"
         limit={4}
         columns="grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
-        bgClass="bg-[#FFF5F7]"
+        bgClass="bg-[#F5F7FA]"
         viewAllParams={{ newArrival: 'true' }}
       />
 

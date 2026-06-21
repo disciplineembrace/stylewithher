@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   description: "India's premium couple clothing & matching fashion store. Discover matching t-shirts, hoodies, jackets, and accessories for couples. Free shipping on orders above Rs.999.",
   keywords: ["couple clothing", "matching fashion", "couple t-shirts", "couple hoodies", "couple outfits", "StyleWithHer", "premium fashion", "couple wear India"],
   authors: [{ name: "StyleWithHer" }],
-  icons: { icon: "https://placehold.co/32x32/0B1F3A/F7C8D0?text=S" },
+  icons: { icon: "https://placehold.co/32x32/0D182A/E91663?text=S" },
   openGraph: {
     title: "StyleWithHer | Premium Couple Fashion",
     description: "Style Together, Stay Together. India's premium couple clothing brand.",
