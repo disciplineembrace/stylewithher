@@ -305,6 +305,7 @@
   "admin": {
     "dashboard": "Dashboard",
     "products": "Products",
+    "categories": "Categories",
     "orders": "Orders",
     "payments": "Payments",
     "customers": "Customers",

@@ -305,6 +305,7 @@
   "admin": {
     "dashboard": "डैशबोर्ड",
     "products": "उत्पाद",
+    "categories": "श्रेणियाँ",
     "orders": "ऑर्डर",
     "payments": "भुगतान",
     "customers": "ग्राहक",

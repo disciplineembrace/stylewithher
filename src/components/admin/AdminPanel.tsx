@@ -53,6 +53,7 @@ import {
   Upload,
   Activity,
   Copy,
+  Tags,
 } from 'lucide-react'
 import AdminProductManager from './AdminProductManager'
 
@@ -72,6 +73,7 @@ const NAV_ITEMS = [
   { key: 'orders', labelKey: 'admin.orders', icon: ShoppingBag },
   { key: 'payments', labelKey: 'admin.payments', icon: DollarSign },
   { key: 'products', labelKey: 'admin.products', icon: Package },
+  { key: 'categories', labelKey: 'admin.categories', icon: Tags },
   { key: 'customers', labelKey: 'admin.customers', icon: Users },
   { key: 'coupons', labelKey: 'admin.coupons', icon: Ticket },
   { key: 'reviews', labelKey: 'admin.reviews', icon: Star },
@@ -2212,6 +2214,303 @@ function MediaTab() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CATEGORIES TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+function CategoriesTab() {
+  const { showToast } = useStore()
+  const { t } = useTranslation()
+  const [categories, setCategories] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [editingCat, setEditingCat] = useState<any>(null)
+  const [saving, setSaving] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const emptyForm = { name: '', slug: '', description: '', gender: 'unisex', isActive: true, sortOrder: 0 }
+  const [form, setForm] = useState(emptyForm)
+
+  const fetchCategories = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/admin/categories', { headers: authHeaders() })
+      if (!res.ok) throw new Error('Failed to fetch categories')
+      const json = await res.json()
+      setCategories(json.categories || [])
+    } catch (err: any) {
+      showToast(err.message || 'Error loading categories', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }, [showToast])
+
+  useEffect(() => { fetchCategories() }, [fetchCategories])
+
+  const openCreate = () => { setEditingCat(null); setForm(emptyForm); setShowForm(true) }
+  const openEdit = (cat: any) => {
+    setEditingCat(cat)
+    setForm({
+      name: cat.name || '',
+      slug: cat.slug || '',
+      description: cat.description || '',
+      gender: cat.gender || 'unisex',
+      isActive: cat.isActive,
+      sortOrder: cat.sortOrder || 0,
+    })
+    setShowForm(true)
+  }
+
+  const handleSave = async () => {
+    if (!form.name.trim()) { showToast('Category name is required', 'error'); return }
+    setSaving(true)
+    try {
+      const url = editingCat ? `/api/admin/categories/${editingCat.id}` : '/api/admin/categories'
+      const method = editingCat ? 'PUT' : 'POST'
+      const res = await fetch(url, {
+        method,
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Failed to save category')
+      }
+      showToast(editingCat ? 'Category updated!' : 'Category created!', 'success')
+      setShowForm(false)
+      fetchCategories()
+    } catch (err: any) {
+      showToast(err.message || 'Error saving category', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await fetch(`/api/admin/categories/${id}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Failed to delete')
+      }
+      showToast('Category deleted!', 'success')
+      fetchCategories()
+    } catch (err: any) {
+      showToast(err.message || 'Error deleting category', 'error')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  const toggleActive = async (cat: any) => {
+    try {
+      const res = await fetch(`/api/admin/categories/${cat.id}`, {
+        method: 'PUT',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !cat.isActive }),
+      })
+      if (!res.ok) throw new Error('Failed to toggle')
+      fetchCategories()
+    } catch (err: any) {
+      showToast(err.message, 'error')
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-4 p-4 md:p-6">
+        <Skeleton className="h-8 w-48" />
+        {[1,2,3].map(i => <Skeleton key={i} className="h-16 w-full" />)}
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-4 md:p-6 space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h2 className="text-lg font-semibold text-[#0B1F3A]">{t('admin.categories')}</h2>
+          <p className="text-xs text-muted-foreground">{categories.length} categories total</p>
+        </div>
+        <Button onClick={openCreate} className="bg-[#0B1F3A] hover:bg-[#0B1F3A]/90 text-white" size="sm">
+          <Plus className="w-4 h-4 mr-1" /> Add Category
+        </Button>
+      </div>
+
+      {/* Categories List */}
+      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-[#F8F9FA]">
+              <TableHead className="text-xs font-semibold text-[#0B1F3A]">Name</TableHead>
+              <TableHead className="text-xs font-semibold text-[#0B1F3A] hidden sm:table-cell">Slug</TableHead>
+              <TableHead className="text-xs font-semibold text-[#0B1F3A] hidden md:table-cell">Gender</TableHead>
+              <TableHead className="text-xs font-semibold text-[#0B1F3A] hidden md:table-cell">Products</TableHead>
+              <TableHead className="text-xs font-semibold text-[#0B1F3A]">Status</TableHead>
+              <TableHead className="text-xs font-semibold text-[#0B1F3A] text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {categories.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-10 text-sm text-muted-foreground">
+                  No categories yet. Click "Add Category" to create one.
+                </TableCell>
+              </TableRow>
+            ) : (
+              categories.map((cat) => (
+                <TableRow key={cat.id} className="hover:bg-[#FFF5F7]/50">
+                  <TableCell>
+                    <div>
+                      <p className="font-medium text-sm text-[#0B1F3A]">{cat.name}</p>
+                      {cat.description && (
+                        <p className="text-[11px] text-muted-foreground sm:hidden">{cat.description.slice(0, 40)}...</p>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="hidden sm:table-cell">
+                    <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{cat.slug}</code>
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    <Badge variant="outline" className="text-[10px] capitalize">{cat.gender}</Badge>
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    <span className="text-sm">{cat._count?.products || 0}</span>
+                  </TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={cat.isActive}
+                      onCheckedChange={() => toggleActive(cat)}
+                      className="data-[state=checked]:bg-[#E91663]"
+                    />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(cat)} className="h-7 w-7 p-0">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </Button>
+                      <AlertDialog open={deletingId === cat.id} onOpenChange={(open) => { if (!open) setDeletingId(null) }}>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="sm" onClick={() => setDeletingId(cat.id)} className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete "{cat.name}"?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {cat._count?.products > 0
+                                ? `Cannot delete — this category has ${cat._count.products} product(s). Remove or reassign them first.`
+                                : 'This action cannot be undone.'}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              disabled={cat._count?.products > 0}
+                              onClick={() => handleDelete(cat.id)}
+                              className="bg-red-500 hover:bg-red-600"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Create/Edit Dialog */}
+      <Dialog open={showForm} onOpenChange={setShowForm}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingCat ? 'Edit Category' : 'Add New Category'}</DialogTitle>
+            <DialogDescription>
+              {editingCat ? 'Update category details below.' : 'Create a new product category.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label>Category Name *</Label>
+              <Input
+                value={form.name}
+                onChange={(e) => {
+                  setForm({ ...form, name: e.target.value, slug: form.slug || '' })
+                }}
+                placeholder="e.g. T-Shirts"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>URL Slug</Label>
+              <Input
+                value={form.slug}
+                onChange={(e) => setForm({ ...form, slug: e.target.value })}
+                placeholder="auto-generated-from-name"
+              />
+              <p className="text-[10px] text-muted-foreground">Leave empty to auto-generate from name</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Description</Label>
+              <Textarea
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                placeholder="Brief description of the category..."
+                rows={2}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Gender</Label>
+                <Select value={form.gender} onValueChange={(v) => setForm({ ...form, gender: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="women">Women</SelectItem>
+                    <SelectItem value="men">Men</SelectItem>
+                    <SelectItem value="unisex">Unisex</SelectItem>
+                    <SelectItem value="couple">Couple</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Sort Order</Label>
+                <Input
+                  type="number"
+                  value={form.sortOrder}
+                  onChange={(e) => setForm({ ...form, sortOrder: parseInt(e.target.value) || 0 })}
+                  placeholder="0"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={form.isActive}
+                onCheckedChange={(v) => setForm({ ...form, isActive: v })}
+                className="data-[state=checked]:bg-[#E91663]"
+              />
+              <Label className="text-sm">Active (visible on storefront)</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild><Button variant="outline">{t('admin.cancel')}</Button></DialogClose>
+            <Button onClick={handleSave} disabled={saving || !form.name.trim()} className="bg-[#0B1F3A] hover:bg-[#0B1F3A]/90 text-white">
+              {saving && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+              {t('admin.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // MAIN ADMIN PANEL
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function AdminPanel() {
@@ -2222,6 +2521,7 @@ export default function AdminPanel() {
     switch (adminTab) {
       case 'dashboard': return <DashboardTab />
       case 'products': return <AdminProductManager />
+      case 'categories': return <CategoriesTab />
       case 'orders': return <OrdersTab />
       case 'payments': return <PaymentsTab />
       case 'customers': return <CustomersTab />

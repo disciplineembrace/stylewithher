@@ -1,0 +1,2002 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useCallback } from 'react'
+     4→import { useStore } from '@/store/use-store'
+     5→import { useTranslation } from '@/i18n/use-language'
+     6→import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+     7→import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+     8→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog'
+     9→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    10→import { Switch } from '@/components/ui/switch'
+    11→import { Input } from '@/components/ui/input'
+    12→import { Label } from '@/components/ui/label'
+    13→import { Button } from '@/components/ui/button'
+    14→import { Badge } from '@/components/ui/badge'
+    15→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    16→import { Separator } from '@/components/ui/separator'
+    17→import { Textarea } from '@/components/ui/textarea'
+    18→import { Skeleton } from '@/components/ui/skeleton'
+    19→import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet'
+    20→import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
+    21→import {
+    22→  LayoutDashboard,
+    23→  Package,
+    24→  ShoppingBag,
+    25→  Users,
+    26→  Ticket,
+    27→  Star,
+    28→  FileText,
+    29→  Warehouse,
+    30→  ArrowLeft,
+    31→  Plus,
+    32→  Pencil,
+    33→  Trash2,
+    34→  Search,
+    35→  Menu,
+    36→  DollarSign,
+    37→  TrendingUp,
+    38→  AlertTriangle,
+    39→  CheckCircle2,
+    40→  XCircle,
+    41→  Clock,
+    42→  Loader2,
+    43→  Save,
+    44→  StarHalf,
+    45→  RefreshCw,
+    46→  ChevronRight,
+    47→  Image as ImageIcon,
+    48→  Instagram,
+    49→  ExternalLink,
+    50→  BarChart3,
+    51→  PlusCircle,
+    52→  PenLine,
+    53→  Upload,
+    54→  Activity,
+    55→  Copy,
+    56→} from 'lucide-react'
+    57→import AdminProductManager from './AdminProductManager'
+    58→
+    59→// ─── Helper ───────────────────────────────────────────────────────────────────
+    60→const authHeaders = () => {
+    61→  const u = useStore.getState().user
+    62→  return u?.token ? { Authorization: `Bearer ${u.token}` } : {}
+    63→}
+    64→
+    65→const fmt = (n: number) => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(n)
+    66→const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+    67→const fmtDateTime = (d: string) => new Date(d).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    68→
+    69→// ─── Nav items (labels translated via SidebarNav component) ─────────────────
+    70→const NAV_ITEMS = [
+    71→  { key: 'dashboard', labelKey: 'admin.dashboard', icon: LayoutDashboard },
+    72→  { key: 'orders', labelKey: 'admin.orders', icon: ShoppingBag },
+    73→  { key: 'payments', labelKey: 'admin.payments', icon: DollarSign },
+    74→  { key: 'products', labelKey: 'admin.products', icon: Package },
+    75→  { key: 'customers', labelKey: 'admin.customers', icon: Users },
+    76→  { key: 'coupons', labelKey: 'admin.coupons', icon: Ticket },
+    77→  { key: 'reviews', labelKey: 'admin.reviews', icon: Star },
+    78→  { key: 'content', labelKey: 'admin.content', icon: FileText },
+    79→  { key: 'posts', labelKey: 'admin.posts', icon: PenLine },
+    80→  { key: 'media', labelKey: 'admin.media', icon: ImageIcon },
+    81→  { key: 'inventory', labelKey: 'admin.inventory', icon: Warehouse },
+    82→  { key: 'settings', labelKey: 'admin.settings', icon: TrendingUp },
+    83→  { key: 'instagram', labelKey: 'admin.instagram', icon: Instagram },
+    84→  { key: 'activity', labelKey: 'admin.activityLogs', icon: Activity },
+    85→]
+    86→
+    87→const STATUS_COLORS: Record<string, string> = {
+    88→  pending: 'bg-yellow-100 text-yellow-800',
+    89→  confirmed: 'bg-blue-100 text-blue-800',
+    90→  processing: 'bg-purple-100 text-purple-800',
+    91→  shipped: 'bg-cyan-100 text-cyan-800',
+    92→  delivered: 'bg-green-100 text-green-800',
+    93→  cancelled: 'bg-red-100 text-red-800',
+    94→  returned: 'bg-orange-100 text-orange-800',
+    95→}
+    96→
+    97→const PAYMENT_COLORS: Record<string, string> = {
+    98→  pending: 'bg-yellow-100 text-yellow-800',
+    99→  submitted: 'bg-blue-100 text-blue-800',
+   100→  verified: 'bg-indigo-100 text-indigo-800',
+   101→  completed: 'bg-green-100 text-green-800',
+   102→  failed: 'bg-red-100 text-red-800',
+   103→  refunded: 'bg-orange-100 text-orange-800',
+   104→}
+   105→
+   106→// ═══════════════════════════════════════════════════════════════════════════════
+   107→// SIDEBAR NAV
+   108→// ═══════════════════════════════════════════════════════════════════════════════
+   109→function SidebarNav({ className }: { className?: string }) {
+   110→  const { adminTab, setAdminTab, navigate } = useStore()
+   111→  const { t } = useTranslation()
+   112→
+   113→  return (
+   114→    <nav className={`flex flex-col gap-1 px-3 py-4 ${className || ''}`}>
+   115→      <div className="mb-6 px-3 flex flex-col items-center">
+   116→        <img src="/logo.png" alt="StyleWithHer" className="h-10 w-auto object-contain mb-1" />
+   117→        <span className="text-[#F7C8D0] font-bold text-base tracking-wide leading-tight">Admin Panel</span>
+   118→      </div>
+   119→      <Separator className="bg-white/10 mb-2" />
+   120→      {NAV_ITEMS.map((item) => {
+   121→        const Icon = item.icon
+   122→        const isActive = adminTab === item.key
+   123→        return (
+   124→          <button
+   125→            key={item.key}
+   126→            onClick={() => setAdminTab(item.key)}
+   127→            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer ${
+   128→              isActive
+   129→                ? 'bg-[#1e9ba6]/20 text-[#f9b233]'
+   130→                : 'text-white/70 hover:bg-white/5 hover:text-white'
+   131→            }`}
+   132→          >
+   133→            <Icon className="h-4 w-4 shrink-0" />
+   134→            <span>{t(item.labelKey)}</span>
+   135→            {isActive && <ChevronRight className="h-3 w-3 ml-auto text-[#f9b233]" />}
+   136→          </button>
+   137→        )
+   138→      })}
+   139→      <Separator className="bg-white/10 my-2" />
+   140→      <button
+   141→        onClick={() => navigate('home')}
+   142→        className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/70 hover:bg-white/5 hover:text-white transition-all duration-200 cursor-pointer"
+   143→      >
+   144→        <ArrowLeft className="h-4 w-4 shrink-0" />
+   145→        <span>Back to Store</span>
+   146→      </button>
+   147→    </nav>
+   148→  )
+   149→}
+   150→
+   151→// ═══════════════════════════════════════════════════════════════════════════════
+   152→// DASHBOARD TAB
+   153→// ═══════════════════════════════════════════════════════════════════════════════
+   154→function DashboardTab() {
+   155→  const { showToast } = useStore()
+   156→  const [data, setData] = useState<any>(null)
+   157→  const [loading, setLoading] = useState(true)
+   158→
+   159→  const fetchDashboard = useCallback(async () => {
+   160→    setLoading(true)
+   161→    try {
+   162→      const res = await fetch('/api/admin', { headers: authHeaders() })
+   163→      if (!res.ok) throw new Error('Failed to fetch dashboard')
+   164→      const json = await res.json()
+   165→      setData(json)
+   166→    } catch (err: any) {
+   167→      showToast(err.message || 'Error loading dashboard', 'error')
+   168→    } finally {
+   169→      setLoading(false)
+   170→    }
+   171→  }, [showToast])
+   172→
+   173→  useEffect(() => { fetchDashboard() }, [fetchDashboard])
+   174→
+   175→  if (loading) {
+   176→    return (
+   177→      <div className="space-y-6">
+   178→        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   179→          {[...Array(4)].map((_, i) => (
+   180→            <Card key={i}><CardContent className="p-6"><Skeleton className="h-24 w-full" /></CardContent></Card>
+   181→          ))}
+   182→        </div>
+   183→        <Card><CardContent className="p-6"><Skeleton className="h-72 w-full" /></CardContent></Card>
+   184→      </div>
+   185→    )
+   186→  }
+   187→
+   188→  if (!data) return <p className="text-muted-foreground">No data available.</p>
+   189→
+   190→  const stats = [
+   191→    { label: 'Total Revenue', value: `₹${fmt(data.totalSales)}`, icon: DollarSign, color: 'bg-[#4a5a6a]/10 text-[#4a5a6a]' },
+   192→    { label: 'Total Orders', value: data.totalOrders, icon: ShoppingBag, color: 'bg-[#1e9ba6]/10 text-[#1e9ba6]' },
+   193→    { label: 'Total Customers', value: data.totalCustomers, icon: Users, color: 'bg-[#f9b233]/10 text-[#f9b233]' },
+   194→    { label: 'Total Products', value: data.totalProducts, icon: Package, color: 'bg-orange-100 text-orange-700' },
+   195→  ]
+   196→
+   197→  const statusColors: Record<string, string> = {
+   198→    pending: 'bg-yellow-100 text-yellow-800',
+   199→    confirmed: 'bg-blue-100 text-blue-800',
+   200→    processing: 'bg-purple-100 text-purple-800',
+   201→    shipped: 'bg-cyan-100 text-cyan-800',
+   202→    delivered: 'bg-green-100 text-green-800',
+   203→    cancelled: 'bg-red-100 text-red-800',
+   204→    returned: 'bg-orange-100 text-orange-800',
+   205→  }
+   206→
+   207→  return (
+   208→    <div className="space-y-6">
+   209→      {/* Stat Cards */}
+   210→      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   211→        {stats.map((s) => {
+   212→          const Icon = s.icon
+   213→          return (
+   214→            <Card key={s.label} className="border-0 shadow-sm hover:shadow-md transition-shadow">
+   215→              <CardContent className="p-5">
+   216→                <div className="flex items-center justify-between">
+   217→                  <div>
+   218→                    <p className="text-sm text-muted-foreground">{s.label}</p>
+   219→                    <p className="text-2xl font-bold mt-1">{s.value}</p>
+   220→                  </div>
+   221→                  <div className={`p-3 rounded-xl ${s.color}`}>
+   222→                    <Icon className="h-5 w-5" />
+   223→                  </div>
+   224→                </div>
+   225→              </CardContent>
+   226→            </Card>
+   227→          )
+   228→        })}
+   229→      </div>
+   230→
+   231→      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+   232→        {/* Revenue Chart */}
+   233→        <Card className="lg:col-span-2 border-0 shadow-sm">
+   234→          <CardHeader className="pb-2">
+   235→            <CardTitle className="text-lg font-semibold">Revenue Overview</CardTitle>
+   236→          </CardHeader>
+   237→          <CardContent className="pt-0">
+   238→            <div className="h-72">
+   239→              {data.revenueByMonth && data.revenueByMonth.length > 0 ? (
+   240→                <ResponsiveContainer width="100%" height="100%">
+   241→                  <BarChart data={data.revenueByMonth} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+   242→                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+   243→                    <XAxis dataKey="month" tick={{ fontSize: 12 }} tickFormatter={(v: string) => { const [y, m] = v.split('-'); const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return months[parseInt(m, 10) - 1] + ' ' + y.slice(2); }} />
+   244→                    <YAxis tick={{ fontSize: 12 }} tickFormatter={(v: number) => `₹${(v / 1000).toFixed(0)}k`} />
+   245→                    <Tooltip
+   246→                      formatter={(value: number) => [`₹${fmt(value)}`, 'Revenue']}
+   247→                      labelFormatter={(label: string) => { const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; const [y, m] = label.split('-'); return months[parseInt(m, 10) - 1] + ' ' + y; }}
+   248→                      contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+   249→                    />
+   250→                    <Bar dataKey="revenue" fill="#1e9ba6" radius={[6, 6, 0, 0]} />
+   251→                  </BarChart>
+   252→                </ResponsiveContainer>
+   253→              ) : (
+   254→                <div className="flex items-center justify-center h-full text-muted-foreground">No revenue data available</div>
+   255→              )}
+   256→            </div>
+   257→          </CardContent>
+   258→        </Card>
+   259→
+   260→        {/* Order Status Distribution */}
+   261→        <Card className="border-0 shadow-sm">
+   262→          <CardHeader className="pb-2">
+   263→            <CardTitle className="text-lg font-semibold">Order Status</CardTitle>
+   264→          </CardHeader>
+   265→          <CardContent className="pt-0">
+   266→            <div className="space-y-3">
+   267→              {Object.entries(data.orderStatusCounts || {}).map(([status, count]) => (
+   268→                <div key={status} className="flex items-center justify-between">
+   269→                  <Badge className={statusColors[status] || 'bg-gray-100 text-gray-800'} variant="secondary">
+   270→                    {status.charAt(0).toUpperCase() + status.slice(1)}
+   271→                  </Badge>
+   272→                  <span className="text-sm font-semibold">{count as number}</span>
+   273→                </div>
+   274→              ))}
+   275→              {(data.orderStatusCounts && Object.keys(data.orderStatusCounts).length === 0) && (
+   276→                <p className="text-sm text-muted-foreground text-center py-4">No orders yet</p>
+   277→              )}
+   278→            </div>
+   279→          </CardContent>
+   280→        </Card>
+   281→      </div>
+   282→
+   283→      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+   284→        {/* Recent Orders */}
+   285→        <Card className="border-0 shadow-sm">
+   286→          <CardHeader className="pb-2">
+   287→            <CardTitle className="text-lg font-semibold">Recent Orders</CardTitle>
+   288→          </CardHeader>
+   289→          <CardContent className="pt-0">
+   290→            <div className="max-h-96 overflow-y-auto">
+   291→              <Table>
+   292→                <TableHeader>
+   293→                  <TableRow>
+   294→                    <TableHead className="text-xs">Order #</TableHead>
+   295→                    <TableHead className="text-xs">Customer</TableHead>
+   296→                    <TableHead className="text-xs">Total</TableHead>
+   297→                    <TableHead className="text-xs">Status</TableHead>
+   298→                  </TableRow>
+   299→                </TableHeader>
+   300→                <TableBody>
+   301→                  {(data.recentOrders || []).slice(0, 5).map((order: any) => (
+   302→                    <TableRow key={order.id}>
+   303→                      <TableCell className="text-xs font-mono">{order.orderNumber?.slice(0, 16)}</TableCell>
+   304→                      <TableCell className="text-xs">{order.user?.name || '—'}</TableCell>
+   305→                      <TableCell className="text-xs font-medium">₹{fmt(order.total)}</TableCell>
+   306→                      <TableCell>
+   307→                        <Badge className={statusColors[order.status] || ''} variant="secondary">
+   308→                          {order.status}
+   309→                        </Badge>
+   310→                      </TableCell>
+   311→                    </TableRow>
+   312→                  ))}
+   313→                </TableBody>
+   314→              </Table>
+   315→            </div>
+   316→          </CardContent>
+   317→        </Card>
+   318→
+   319→        {/* Top Products */}
+   320→        <Card className="border-0 shadow-sm">
+   321→          <CardHeader className="pb-2">
+   322→            <CardTitle className="text-lg font-semibold">Top Products</CardTitle>
+   323→          </CardHeader>
+   324→          <CardContent className="pt-0">
+   325→            <div className="max-h-96 overflow-y-auto space-y-3">
+   326→              {(data.topProducts || []).map((p: any, idx: number) => (
+   327→                <div key={p.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
+   328→                  <div className="flex items-center justify-center w-7 h-7 rounded-full bg-[#F7C8D0]/20 text-[#0B1F3A] text-xs font-bold">
+   329→                    {idx + 1}
+   330→                  </div>
+   331→                  <div className="flex-1 min-w-0">
+   332→                    <p className="text-sm font-medium truncate">{p.name}</p>
+   333→                    <p className="text-xs text-muted-foreground">₹{fmt(p.salePrice || p.basePrice)} • {p.totalSold} sold</p>
+   334→                  </div>
+   335→                </div>
+   336→              ))}
+   337→              {(!data.topProducts || data.topProducts.length === 0) && (
+   338→                <p className="text-sm text-muted-foreground text-center py-4">No sales data yet</p>
+   339→              )}
+   340→            </div>
+   341→          </CardContent>
+   342→        </Card>
+   343→      </div>
+   344→
+   345→      {/* Low Stock Alerts */}
+   346→      <Card className="border-0 shadow-sm">
+   347→        <CardHeader className="pb-2">
+   348→          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+   349→            <AlertTriangle className="h-5 w-5 text-amber-500" />
+   350→            Low Stock Alerts
+   351→          </CardTitle>
+   352→        </CardHeader>
+   353→        <CardContent className="pt-0">
+   354→          <div className="max-h-96 overflow-y-auto">
+   355→            <Table>
+   356→              <TableHeader>
+   357→                <TableRow>
+   358→                  <TableHead className="text-xs">Product</TableHead>
+   359→                  <TableHead className="text-xs">Variant</TableHead>
+   360→                  <TableHead className="text-xs">Stock</TableHead>
+   361→                </TableRow>
+   362→              </TableHeader>
+   363→              <TableBody>
+   364→                {(data.lowStockProducts || []).map((item: any) => (
+   365→                  <TableRow key={item.id}>
+   366→                    <TableCell className="text-sm font-medium">{item.variant?.product?.name || '—'}</TableCell>
+   367→                    <TableCell className="text-xs text-muted-foreground">{item.variant?.color} / {item.variant?.size}</TableCell>
+   368→                    <TableCell>
+   369→                      <Badge variant={item.quantity === 0 ? 'destructive' : 'secondary'} className={item.quantity === 0 ? '' : 'bg-amber-100 text-amber-800'}>
+   370→                        {item.quantity}
+   371→                      </Badge>
+   372→                    </TableCell>
+   373→                  </TableRow>
+   374→                ))}
+   375→                {(!data.lowStockProducts || data.lowStockProducts.length === 0) && (
+   376→                  <TableRow><TableCell colSpan={3} className="text-center text-sm text-muted-foreground py-4">All stock levels healthy</TableCell></TableRow>
+   377→                )}
+   378→              </TableBody>
+   379→            </Table>
+   380→          </div>
+   381→        </CardContent>
+   382→      </Card>
+   383→    </div>
+   384→  )
+   385→}
+   386→
+   387→// PRODUCTS TAB — uses AdminProductManager component
+   388→
+   389→// ═══════════════════════════════════════════════════════════════════════════════
+   390→// ORDERS TAB
+   391→// ═══════════════════════════════════════════════════════════════════════════════
+   392→function OrdersTab() {
+   393→  const { showToast } = useStore()
+   394→  const [orders, setOrders] = useState<any[]>([])
+   395→  const [loading, setLoading] = useState(true)
+   396→  const [updatingId, setUpdatingId] = useState<string | null>(null)
+   397→
+   398→  const fetchOrders = useCallback(async () => {
+   399→    setLoading(true)
+   400→    try {
+   401→      // Admin dashboard has recentOrders, but for full list we use the admin endpoint
+   402→      // The orders endpoint is user-scoped, so we fetch from admin for recent orders and combine
+   403→      const res = await fetch('/api/admin', { headers: authHeaders() })
+   404→      if (!res.ok) throw new Error('Failed to fetch')
+   405→      const json = await res.json()
+   406→      // The admin endpoint returns recentOrders (10). For a full list we show these for now.
+   407→      // To get more, the admin could have a separate endpoint, but we work with what we have.
+   408→      setOrders(json.recentOrders || [])
+   409→    } catch (err: any) {
+   410→      showToast(err.message || 'Error loading orders', 'error')
+   411→    } finally {
+   412→      setLoading(false)
+   413→    }
+   414→  }, [showToast])
+   415→
+   416→  useEffect(() => { fetchOrders() }, [fetchOrders])
+   417→
+   418→  const handleStatusUpdate = async (orderId: string, newStatus: string) => {
+   419→    setUpdatingId(orderId)
+   420→    try {
+   421→      const res = await fetch(`/api/orders/${orderId}`, {
+   422→        method: 'PUT',
+   423→        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+   424→        body: JSON.stringify({ status: newStatus }),
+   425→      })
+   426→      if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Update failed') }
+   427→      showToast(`Order status updated to ${newStatus}`)
+   428→      fetchOrders()
+   429→    } catch (err: any) {
+   430→      showToast(err.message || 'Error updating order', 'error')
+   431→    } finally {
+   432→      setUpdatingId(null)
+   433→    }
+   434→  }
+   435→
+   436→  if (loading) {
+   437→    return <div className="space-y-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
+   438→  }
+   439→
+   440→  return (
+   441→    <div className="space-y-4">
+   442→      <div className="flex items-center justify-between">
+   443→        <h2 className="text-xl font-bold">Orders ({orders.length})</h2>
+   444→        <Button variant="outline" size="sm" onClick={fetchOrders} disabled={loading}>
+   445→          <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} /> Refresh
+   446→        </Button>
+   447→      </div>
+   448→
+   449→      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+   450→        <div className="max-h-[65vh] overflow-y-auto">
+   451→          <Table>
+   452→            <TableHeader>
+   453→              <TableRow>
+   454→                <TableHead className="text-xs">Order #</TableHead>
+   455→                <TableHead className="text-xs">Customer</TableHead>
+   456→                <TableHead className="text-xs hidden lg:table-cell">Date</TableHead>
+   457→                <TableHead className="text-xs hidden sm:table-cell">Items</TableHead>
+   458→                <TableHead className="text-xs">Total</TableHead>
+   459→                <TableHead className="text-xs">Status</TableHead>
+   460→                <TableHead className="text-xs hidden md:table-cell">Payment</TableHead>
+   461→                <TableHead className="text-xs text-right">Action</TableHead>
+   462→              </TableRow>
+   463→            </TableHeader>
+   464→            <TableBody>
+   465→              {orders.map((order) => (
+   466→                <TableRow key={order.id}>
+   467→                  <TableCell className="font-mono text-xs">{order.orderNumber?.slice(0, 16)}</TableCell>
+   468→                  <TableCell>
+   469→                    <div className="text-sm font-medium">{order.user?.name || '—'}</div>
+   470→                    <div className="text-xs text-muted-foreground">{order.user?.email || ''}</div>
+   471→                  </TableCell>
+   472→                  <TableCell className="text-xs hidden lg:table-cell">{fmtDate(order.createdAt)}</TableCell>
+   473→                  <TableCell className="text-xs hidden sm:table-cell">{order.items?.length || 0} item(s)</TableCell>
+   474→                  <TableCell className="text-sm font-semibold">₹{fmt(order.total)}</TableCell>
+   475→                  <TableCell>
+   476→                    <Badge className={STATUS_COLORS[order.status] || ''} variant="secondary">{order.status}</Badge>
+   477→                  </TableCell>
+   478→                  <TableCell className="hidden md:table-cell">
+   479→                    <Badge className={PAYMENT_COLORS[order.paymentStatus] || ''} variant="secondary">{order.paymentStatus}</Badge>
+   480→                  </TableCell>
+   481→                  <TableCell className="text-right">
+   482→                    {updatingId === order.id ? (
+   483→                      <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+   484→                    ) : (
+   485→                      <Select value={order.status} onValueChange={(v) => handleStatusUpdate(order.id, v)}>
+   486→                        <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
+   487→                        <SelectContent>
+   488→                          {['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'].map((s) => (
+   489→                            <SelectItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>
+   490→                          ))}
+   491→                        </SelectContent>
+   492→                      </Select>
+   493→                    )}
+   494→                  </TableCell>
+   495→                </TableRow>
+   496→              ))}
+   497→              {orders.length === 0 && (
+   498→                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No orders found</TableCell></TableRow>
+   499→              )}
+   500→            </TableBody>
+   501→          </Table>
+   502→        </div>
+   503→      </div>
+   504→    </div>
+   505→  )
+   506→}
+   507→
+   508→// ═══════════════════════════════════════════════════════════════════════════════
+   509→// CUSTOMERS TAB
+   510→// ═══════════════════════════════════════════════════════════════════════════════
+   511→function CustomersTab() {
+   512→  const { showToast } = useStore()
+   513→  const [customers, setCustomers] = useState<any[]>([])
+   514→  const [loading, setLoading] = useState(true)
+   515→  const [togglingId, setTogglingId] = useState<string | null>(null)
+   516→
+   517→  const fetchCustomers = useCallback(async () => {
+   518→    setLoading(true)
+   519→    try {
+   520→      const res = await fetch('/api/admin/customers?limit=100', { headers: authHeaders() })
+   521→      if (!res.ok) throw new Error('Failed to fetch')
+   522→      const json = await res.json()
+   523→      setCustomers(json.customers || [])
+   524→    } catch (err: any) {
+   525→      showToast(err.message || 'Error loading customers', 'error')
+   526→    } finally {
+   527→      setLoading(false)
+   528→    }
+   529→  }, [showToast])
+   530→
+   531→  useEffect(() => { fetchCustomers() }, [fetchCustomers])
+   532→
+   533→  const toggleActive = async (customer: any) => {
+   534→    setTogglingId(customer.id)
+   535→    try {
+   536→      const res = await fetch('/api/admin/customers', {
+   537→        method: 'PUT',
+   538→        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+   539→        body: JSON.stringify({ userId: customer.id, isActive: !customer.isActive }),
+   540→      })
+   541→      if (!res.ok) throw new Error('Update failed')
+   542→      showToast(`${customer.name} ${!customer.isActive ? 'activated' : 'deactivated'}`)
+   543→      fetchCustomers()
+   544→    } catch (err: any) {
+   545→      showToast(err.message || 'Error updating customer', 'error')
+   546→    } finally {
+   547→      setTogglingId(null)
+   548→    }
+   549→  }
+   550→
+   551→  if (loading) {
+   552→    return <div className="space-y-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+   553→  }
+   554→
+   555→  return (
+   556→    <div className="space-y-4">
+   557→      <h2 className="text-xl font-bold">Customers ({customers.length})</h2>
+   558→      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+   559→        <div className="max-h-[65vh] overflow-y-auto">
+   560→          <Table>
+   561→            <TableHeader>
+   562→              <TableRow>
+   563→                <TableHead className="text-xs">Name</TableHead>
+   564→                <TableHead className="text-xs">Email</TableHead>
+   565→                <TableHead className="text-xs hidden sm:table-cell">Phone</TableHead>
+   566→                <TableHead className="text-xs hidden md:table-cell">Role</TableHead>
+   567→                <TableHead className="text-xs">Active</TableHead>
+   568→                <TableHead className="text-xs hidden lg:table-cell">Orders</TableHead>
+   569→                <TableHead className="text-xs hidden lg:table-cell">Joined</TableHead>
+   570→                <TableHead className="text-xs text-right">Action</TableHead>
+   571→              </TableRow>
+   572→            </TableHeader>
+   573→            <TableBody>
+   574→              {customers.map((c) => (
+   575→                <TableRow key={c.id}>
+   576→                  <TableCell className="font-medium text-sm">{c.name}</TableCell>
+   577→                  <TableCell className="text-sm text-muted-foreground">{c.email}</TableCell>
+   578→                  <TableCell className="text-sm hidden sm:table-cell">{c.phone || '—'}</TableCell>
+   579→                  <TableCell className="hidden md:table-cell"><Badge variant="secondary">{c.role || 'customer'}</Badge></TableCell>
+   580→                  <TableCell>
+   581→                    <Badge variant="secondary" className={c.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+   582→                      {c.isActive ? 'Active' : 'Inactive'}
+   583→                    </Badge>
+   584→                  </TableCell>
+   585→                  <TableCell className="hidden lg:table-cell text-sm">{c._count?.orders || 0}</TableCell>
+   586→                  <TableCell className="hidden lg:table-cell text-xs text-muted-foreground">{fmtDate(c.createdAt)}</TableCell>
+   587→                  <TableCell className="text-right">
+   588→                    {togglingId === c.id ? (
+   589→                      <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+   590→                    ) : (
+   591→                      <Button
+   592→                        variant="ghost" size="sm"
+   593→                        className={c.isActive ? 'text-red-500 hover:text-red-700 hover:bg-red-50' : 'text-green-600 hover:text-green-800 hover:bg-green-50'}
+   594→                        onClick={() => toggleActive(c)}
+   595→                      >
+   596→                        {c.isActive ? 'Deactivate' : 'Activate'}
+   597→                      </Button>
+   598→                    )}
+   599→                  </TableCell>
+   600→                </TableRow>
+   601→              ))}
+   602→              {customers.length === 0 && (
+   603→                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No customers found</TableCell></TableRow>
+   604→              )}
+   605→            </TableBody>
+   606→          </Table>
+   607→        </div>
+   608→      </div>
+   609→    </div>
+   610→  )
+   611→}
+   612→
+   613→// ═══════════════════════════════════════════════════════════════════════════════
+   614→// COUPONS TAB
+   615→// ═══════════════════════════════════════════════════════════════════════════════
+   616→interface CouponFormState {
+   617→  code: string; description: string; discountType: string; discountValue: string;
+   618→  minOrder: string; maxDiscount: string; usageLimit: string; startDate: string; endDate: string;
+   619→}
+   620→
+   621→const emptyCouponForm: CouponFormState = {
+   622→  code: '', description: '', discountType: 'percentage', discountValue: '',
+   623→  minOrder: '', maxDiscount: '', usageLimit: '', startDate: '', endDate: '',
+   624→}
+   625→
+   626→function CouponForm({ form, setForm, loading, onSubmit, submitLabel }: {
+   627→  form: CouponFormState; setForm: (f: CouponFormState) => void; loading: boolean; onSubmit: () => void; submitLabel: string;
+   628→}) {
+   629→  const update = (field: keyof CouponFormState, value: string) => setForm({ ...form, [field]: value })
+   630→
+   631→  return (
+   632→    <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+   633→      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   634→        <div className="space-y-2">
+   635→          <Label>Coupon Code *</Label>
+   636→          <Input value={form.code} onChange={(e) => update('code', e.target.value.toUpperCase())} placeholder="SAVE20" />
+   637→        </div>
+   638→        <div className="space-y-2">
+   639→          <Label>Discount Type</Label>
+   640→          <Select value={form.discountType} onValueChange={(v) => update('discountType', v)}>
+   641→            <SelectTrigger><SelectValue /></SelectTrigger>
+   642→            <SelectContent>
+   643→              <SelectItem value="percentage">Percentage (%)</SelectItem>
+   644→              <SelectItem value="fixed">Fixed Amount (₹)</SelectItem>
+   645→            </SelectContent>
+   646→          </Select>
+   647→        </div>
+   648→      </div>
+   649→      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   650→        <div className="space-y-2">
+   651→          <Label>Discount Value *</Label>
+   652→          <Input type="number" value={form.discountValue} onChange={(e) => update('discountValue', e.target.value)} placeholder={form.discountType === 'percentage' ? '20' : '500'} />
+   653→        </div>
+   654→        <div className="space-y-2">
+   655→          <Label>Min Order Amount (₹)</Label>
+   656→          <Input type="number" value={form.minOrder} onChange={(e) => update('minOrder', e.target.value)} placeholder="0" />
+   657→        </div>
+   658→      </div>
+   659→      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   660→        <div className="space-y-2">
+   661→          <Label>Max Discount (₹)</Label>
+   662→          <Input type="number" value={form.maxDiscount} onChange={(e) => update('maxDiscount', e.target.value)} placeholder="No limit" />
+   663→        </div>
+   664→        <div className="space-y-2">
+   665→          <Label>Usage Limit</Label>
+   666→          <Input type="number" value={form.usageLimit} onChange={(e) => update('usageLimit', e.target.value)} placeholder="Unlimited" />
+   667→        </div>
+   668→      </div>
+   669→      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   670→        <div className="space-y-2">
+   671→          <Label>Start Date *</Label>
+   672→          <Input type="date" value={form.startDate} onChange={(e) => update('startDate', e.target.value)} />
+   673→        </div>
+   674→        <div className="space-y-2">
+   675→          <Label>End Date *</Label>
+   676→          <Input type="date" value={form.endDate} onChange={(e) => update('endDate', e.target.value)} />
+   677→        </div>
+   678→      </div>
+   679→      <div className="space-y-2">
+   680→        <Label>Description</Label>
+   681→        <Input value={form.description} onChange={(e) => update('description', e.target.value)} placeholder="Flat 20% off on all orders" />
+   682→      </div>
+   683→      <div className="flex justify-end pt-2">
+   684→        <Button onClick={onSubmit} disabled={loading || !form.code || !form.discountValue || !form.startDate || !form.endDate}>
+   685→          {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+   686→          {submitLabel}
+   687→        </Button>
+   688→      </div>
+   689→    </div>
+   690→  )
+   691→}
+   692→
+   693→function CouponsTab() {
+   694→  const { showToast } = useStore()
+   695→  const [coupons, setCoupons] = useState<any[]>([])
+   696→  const [loading, setLoading] = useState(true)
+   697→  const [formOpen, setFormOpen] = useState(false)
+   698→  const [editingId, setEditingId] = useState<string | null>(null)
+   699→  const [form, setForm] = useState<CouponFormState>(emptyCouponForm)
+   700→  const [submitting, setSubmitting] = useState(false)
+   701→  const [deleteId, setDeleteId] = useState<string | null>(null)
+   702→
+   703→  const fetchCoupons = useCallback(async () => {
+   704→    setLoading(true)
+   705→    try {
+   706→      const res = await fetch('/api/coupons', { headers: authHeaders() })
+   707→      if (!res.ok) throw new Error('Failed to fetch')
+   708→      const json = await res.json()
+   709→      setCoupons(json.coupons || [])
+   710→    } catch (err: any) {
+   711→      showToast(err.message || 'Error loading coupons', 'error')
+   712→    } finally {
+   713→      setLoading(false)
+   714→    }
+   715→  }, [showToast])
+   716→
+   717→  useEffect(() => { fetchCoupons() }, [fetchCoupons])
+   718→
+   719→  const openCreate = () => { setEditingId(null); setForm(emptyCouponForm); setFormOpen(true) }
+   720→
+   721→  const openEdit = (c: any) => {
+   722→    setEditingId(c.id)
+   723→    setForm({
+   724→      code: c.code, description: c.description || '',
+   725→      discountType: c.discountType, discountValue: String(c.discountValue),
+   726→      minOrder: String(c.minOrder || ''), maxDiscount: c.maxDiscount != null ? String(c.maxDiscount) : '',
+   727→      usageLimit: c.usageLimit != null ? String(c.usageLimit) : '',
+   728→      startDate: c.startDate?.slice(0, 10) || '', endDate: c.endDate?.slice(0, 10) || '',
+   729→    })
+   730→    setFormOpen(true)
+   731→  }
+   732→
+   733→  const handleSubmit = async () => {
+   734→    setSubmitting(true)
+   735→    try {
+   736→      const body = { ...form, discountValue: parseFloat(form.discountValue) }
+   737→      if (editingId) {
+   738→        const res = await fetch('/api/coupons', {
+   739→          method: 'PUT', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editingId, ...body }),
+   740→        })
+   741→        if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Update failed') }
+   742→        showToast('Coupon updated')
+   743→      } else {
+   744→        const res = await fetch('/api/coupons', {
+   745→          method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+   746→        })
+   747→        if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Create failed') }
+   748→        showToast('Coupon created')
+   749→      }
+   750→      setFormOpen(false)
+   751→      fetchCoupons()
+   752→    } catch (err: any) {
+   753→      showToast(err.message || 'Error saving coupon', 'error')
+   754→    } finally {
+   755→      setSubmitting(false)
+   756→    }
+   757→  }
+   758→
+   759→  const handleDelete = async () => {
+   760→    if (!deleteId) return
+   761→    try {
+   762→      const res = await fetch(`/api/coupons?id=${deleteId}`, { method: 'DELETE', headers: authHeaders() })
+   763→      if (!res.ok) throw new Error('Delete failed')
+   764→      showToast('Coupon deleted')
+   765→      setDeleteId(null)
+   766→      fetchCoupons()
+   767→    } catch (err: any) {
+   768→      showToast(err.message || 'Error deleting coupon', 'error')
+   769→    }
+   770→  }
+   771→
+   772→  if (loading) {
+   773→    return <div className="space-y-4">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
+   774→  }
+   775→
+   776→  return (
+   777→    <div className="space-y-4">
+   778→      <div className="flex items-center justify-between">
+   779→        <h2 className="text-xl font-bold">Coupons ({coupons.length})</h2>
+   780→        <Dialog open={formOpen} onOpenChange={(open) => { setFormOpen(open); if (!open) setEditingId(null) }}>
+   781→          <DialogTrigger asChild>
+   782→            <Button onClick={openCreate} className="bg-[#1e9ba6] hover:bg-[#1e9ba6]/90 text-white">
+   783→              <Plus className="h-4 w-4 mr-2" /> Create Coupon
+   784→            </Button>
+   785→          </DialogTrigger>
+   786→          <DialogContent className="sm:max-w-lg">
+   787→            <DialogHeader>
+   788→              <DialogTitle>{editingId ? 'Edit Coupon' : 'Create Coupon'}</DialogTitle>
+   789→              <DialogDescription>{editingId ? 'Update coupon details.' : 'Set up a new discount coupon.'}</DialogDescription>
+   790→            </DialogHeader>
+   791→            <CouponForm form={form} setForm={setForm} loading={submitting} onSubmit={handleSubmit} submitLabel={editingId ? 'Update' : 'Create'} />
+   792→          </DialogContent>
+   793→        </Dialog>
+   794→      </div>
+   795→
+   796→      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+   797→        <div className="max-h-[65vh] overflow-y-auto">
+   798→          <Table>
+   799→            <TableHeader>
+   800→              <TableRow>
+   801→                <TableHead className="text-xs">Code</TableHead>
+   802→                <TableHead className="text-xs hidden sm:table-cell">Description</TableHead>
+   803→                <TableHead className="text-xs">Discount</TableHead>
+   804→                <TableHead className="text-xs hidden md:table-cell">Min Order</TableHead>
+   805→                <TableHead className="text-xs">Usage</TableHead>
+   806→                <TableHead className="text-xs hidden lg:table-cell">Valid Until</TableHead>
+   807→                <TableHead className="text-xs">Active</TableHead>
+   808→                <TableHead className="text-xs text-right">Actions</TableHead>
+   809→              </TableRow>
+   810→            </TableHeader>
+   811→            <TableBody>
+   812→              {coupons.map((c) => (
+   813→                <TableRow key={c.id}>
+   814→                  <TableCell className="font-mono font-bold text-sm">{c.code}</TableCell>
+   815→                  <TableCell className="text-sm text-muted-foreground hidden sm:table-cell max-w-[200px] truncate">{c.description || '—'}</TableCell>
+   816→                  <TableCell className="text-sm font-semibold">
+   817→                    {c.discountType === 'percentage' ? `${c.discountValue}%` : `₹${fmt(c.discountValue)}`}
+   818→                  </TableCell>
+   819→                  <TableCell className="text-sm hidden md:table-cell">₹{fmt(c.minOrder || 0)}</TableCell>
+   820→                  <TableCell className="text-sm">
+   821→                    <span className={c.usageLimit && c.usedCount >= c.usageLimit ? 'text-red-600 font-semibold' : ''}>
+   822→                      {c.usedCount}{c.usageLimit ? `/${c.usageLimit}` : ''}
+   823→                    </span>
+   824→                  </TableCell>
+   825→                  <TableCell className="text-xs hidden lg:table-cell">{fmtDate(c.endDate)}</TableCell>
+   826→                  <TableCell>
+   827→                    <Badge variant="secondary" className={c.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}>
+   828→                      {c.isActive ? 'Active' : 'Inactive'}
+   829→                    </Badge>
+   830→                  </TableCell>
+   831→                  <TableCell className="text-right">
+   832→                    <div className="flex items-center justify-end gap-1">
+   833→                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(c)}><Pencil className="h-3.5 w-3.5" /></Button>
+   834→                      <AlertDialog open={deleteId === c.id} onOpenChange={(open) => !open && setDeleteId(null)}>
+   835→                        <AlertDialogTrigger asChild>
+   836→                          <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => setDeleteId(c.id)}>
+   837→                            <Trash2 className="h-3.5 w-3.5" />
+   838→                          </Button>
+   839→                        </AlertDialogTrigger>
+   840→                        <AlertDialogContent>
+   841→                          <AlertDialogHeader>
+   842→                            <AlertDialogTitle>Delete Coupon</AlertDialogTitle>
+   843→                            <AlertDialogDescription>Delete coupon &quot;{c.code}&quot;? This cannot be undone.</AlertDialogDescription>
+   844→                          </AlertDialogHeader>
+   845→                          <AlertDialogFooter>
+   846→                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+   847→                            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+   848→                          </AlertDialogFooter>
+   849→                        </AlertDialogContent>
+   850→                      </AlertDialog>
+   851→                    </div>
+   852→                  </TableCell>
+   853→                </TableRow>
+   854→              ))}
+   855→              {coupons.length === 0 && (
+   856→                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No coupons found</TableCell></TableRow>
+   857→              )}
+   858→            </TableBody>
+   859→          </Table>
+   860→        </div>
+   861→      </div>
+   862→    </div>
+   863→  )
+   864→}
+   865→
+   866→// ═══════════════════════════════════════════════════════════════════════════════
+   867→// REVIEWS TAB
+   868→// ═══════════════════════════════════════════════════════════════════════════════
+   869→function StarRating({ rating, size = 'sm' }: { rating: number; size?: 'sm' | 'md' }) {
+   870→  const sz = size === 'sm' ? 'h-3.5 w-3.5' : 'h-5 w-5'
+   871→  return (
+   872→    <div className="flex items-center gap-0.5">
+   873→      {[1, 2, 3, 4, 5].map((star) => (
+   874→        <Star
+   875→          key={star}
+   876→          className={`${sz} ${star <= rating ? 'text-amber-400 fill-amber-400' : 'text-gray-300'}`}
+   877→        />
+   878→      ))}
+   879→    </div>
+   880→  )
+   881→}
+   882→
+   883→function ReviewsTab() {
+   884→  const { showToast } = useStore()
+   885→  const [reviews, setReviews] = useState<any[]>([])
+   886→  const [loading, setLoading] = useState(true)
+   887→  const [actionLoading, setActionLoading] = useState<string | null>(null)
+   888→  const [deleteId, setDeleteId] = useState<string | null>(null)
+   889→
+   890→  const fetchReviews = useCallback(async () => {
+   891→    setLoading(true)
+   892→    try {
+   893→      const res = await fetch('/api/admin/reviews?limit=100', { headers: authHeaders() })
+   894→      if (!res.ok) throw new Error('Failed to fetch')
+   895→      const json = await res.json()
+   896→      setReviews(json.reviews || [])
+   897→    } catch (err: any) {
+   898→      showToast(err.message || 'Error loading reviews', 'error')
+   899→    } finally {
+   900→      setLoading(false)
+   901→    }
+   902→  }, [showToast])
+   903→
+   904→  useEffect(() => { fetchReviews() }, [fetchReviews])
+   905→
+   906→  const handleApprove = async (review: any) => {
+   907→    setActionLoading(review.id)
+   908→    try {
+   909→      const res = await fetch('/api/admin/reviews', {
+   910→        method: 'PUT',
+   911→        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+   912→        body: JSON.stringify({ reviewId: review.id, isApproved: !review.isApproved }),
+   913→      })
+   914→      if (!res.ok) throw new Error('Update failed')
+   915→      showToast(review.isApproved ? 'Review unapproved' : 'Review approved')
+   916→      fetchReviews()
+   917→    } catch (err: any) {
+   918→      showToast(err.message || 'Error updating review', 'error')
+   919→    } finally {
+   920→      setActionLoading(null)
+   921→    }
+   922→  }
+   923→
+   924→  const handleDelete = async () => {
+   925→    if (!deleteId) return
+   926→    setActionLoading(deleteId)
+   927→    try {
+   928→      const res = await fetch(`/api/admin/reviews?reviewId=${deleteId}`, { method: 'DELETE', headers: authHeaders() })
+   929→      if (!res.ok) throw new Error('Delete failed')
+   930→      showToast('Review deleted')
+   931→      setDeleteId(null)
+   932→      fetchReviews()
+   933→    } catch (err: any) {
+   934→      showToast(err.message || 'Error deleting review', 'error')
+   935→    } finally {
+   936→      setActionLoading(null)
+   937→    }
+   938→  }
+   939→
+   940→  if (loading) {
+   941→    return <div className="space-y-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
+   942→  }
+   943→
+   944→  return (
+   945→    <div className="space-y-4">
+   946→      <h2 className="text-xl font-bold">Reviews ({reviews.length})</h2>
+   947→      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+   948→        <div className="max-h-[65vh] overflow-y-auto">
+   949→          <Table>
+   950→            <TableHeader>
+   951→              <TableRow>
+   952→                <TableHead className="text-xs">Product</TableHead>
+   953→                <TableHead className="text-xs hidden sm:table-cell">Customer</TableHead>
+   954→                <TableHead className="text-xs">Rating</TableHead>
+   955→                <TableHead className="text-xs hidden md:table-cell">Title</TableHead>
+   956→                <TableHead className="text-xs hidden lg:table-cell">Date</TableHead>
+   957→                <TableHead className="text-xs">Status</TableHead>
+   958→                <TableHead className="text-xs text-right">Actions</TableHead>
+   959→              </TableRow>
+   960→            </TableHeader>
+   961→            <TableBody>
+   962→              {reviews.map((r) => (
+   963→                <TableRow key={r.id}>
+   964→                  <TableCell className="text-sm font-medium max-w-[150px] truncate">{r.product?.name || '—'}</TableCell>
+   965→                  <TableCell className="text-sm hidden sm:table-cell">{r.user?.name || '—'}</TableCell>
+   966→                  <TableCell><StarRating rating={r.rating} /></TableCell>
+   967→                  <TableCell className="text-sm text-muted-foreground hidden md:table-cell max-w-[200px] truncate">{r.title || '—'}</TableCell>
+   968→                  <TableCell className="text-xs text-muted-foreground hidden lg:table-cell">{fmtDate(r.createdAt)}</TableCell>
+   969→                  <TableCell>
+   970→                    <Badge variant="secondary" className={r.isApproved ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+   971→                      {r.isApproved ? 'Approved' : 'Pending'}
+   972→                    </Badge>
+   973→                  </TableCell>
+   974→                  <TableCell className="text-right">
+   975→                    <div className="flex items-center justify-end gap-1">
+   976→                      <Button
+   977→                        variant="ghost" size="sm" className="h-8 text-xs"
+   978→                        onClick={() => handleApprove(r)}
+   979→                        disabled={actionLoading === r.id}
+   980→                      >
+   981→                        {actionLoading === r.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : r.isApproved ? 'Unapprove' : 'Approve'}
+   982→                      </Button>
+   983→                      <AlertDialog open={deleteId === r.id} onOpenChange={(open) => !open && setDeleteId(null)}>
+   984→                        <AlertDialogTrigger asChild>
+   985→                          <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => setDeleteId(r.id)}>
+   986→                            <Trash2 className="h-3.5 w-3.5" />
+   987→                          </Button>
+   988→                        </AlertDialogTrigger>
+   989→                        <AlertDialogContent>
+   990→                          <AlertDialogHeader>
+   991→                            <AlertDialogTitle>Delete Review</AlertDialogTitle>
+   992→                            <AlertDialogDescription>Delete this review? This cannot be undone.</AlertDialogDescription>
+   993→                          </AlertDialogHeader>
+   994→                          <AlertDialogFooter>
+   995→                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+   996→                            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+   997→                          </AlertDialogFooter>
+   998→                        </AlertDialogContent>
+   999→                      </AlertDialog>
+  1000→                    </div>
+  1001→                  </TableCell>
+  1002→                </TableRow>
+  1003→              ))}
+  1004→              {reviews.length === 0 && (
+  1005→                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No reviews found</TableCell></TableRow>
+  1006→              )}
+  1007→            </TableBody>
+  1008→          </Table>
+  1009→        </div>
+  1010→      </div>
+  1011→    </div>
+  1012→  )
+  1013→}
+  1014→
+  1015→// ═══════════════════════════════════════════════════════════════════════════════
+  1016→// CONTENT TAB
+  1017→// ═══════════════════════════════════════════════════════════════════════════════
+  1018→const CONTENT_FIELDS = [
+  1019→  { key: 'about_us', label: 'About Us', type: 'textarea', rows: 6 },
+  1020→  { key: 'contact_email', label: 'Contact Email', type: 'input' },
+  1021→  { key: 'contact_phone', label: 'Contact Phone', type: 'input' },
+  1022→  { key: 'contact_address', label: 'Contact Address', type: 'textarea', rows: 3 },
+  1023→  { key: 'social_instagram', label: 'Instagram URL', type: 'input' },
+  1024→  { key: 'social_facebook', label: 'Facebook URL', type: 'input' },
+  1025→  { key: 'social_twitter', label: 'Twitter / X URL', type: 'input' },
+  1026→  { key: 'social_youtube', label: 'YouTube URL', type: 'input' },
+  1027→  { key: 'social_pinterest', label: 'Pinterest URL', type: 'input' },
+  1028→  { key: 'shipping_policy', label: 'Shipping Policy', type: 'textarea', rows: 5 },
+  1029→  { key: 'return_policy', label: 'Return Policy', type: 'textarea', rows: 5 },
+  1030→  { key: 'privacy_policy', label: 'Privacy Policy', type: 'textarea', rows: 5 },
+  1031→  { key: 'terms_of_service', label: 'Terms of Service', type: 'textarea', rows: 5 },
+  1032→]
+  1033→
+  1034→function ContentTab() {
+  1035→  const { showToast } = useStore()
+  1036→  const [content, setContent] = useState<Record<string, string>>({})
+  1037→  const [loading, setLoading] = useState(true)
+  1038→  const [saving, setSaving] = useState(false)
+  1039→
+  1040→  const fetchContent = useCallback(async () => {
+  1041→    setLoading(true)
+  1042→    try {
+  1043→      const res = await fetch('/api/admin/content', { headers: authHeaders() })
+  1044→      if (!res.ok) throw new Error('Failed to fetch')
+  1045→      const json = await res.json()
+  1046→      const map: Record<string, string> = {}
+  1047→      for (const item of json.content || []) {
+  1048→        map[item.key] = item.value
+  1049→      }
+  1050→      setContent(map)
+  1051→    } catch (err: any) {
+  1052→      showToast(err.message || 'Error loading content', 'error')
+  1053→    } finally {
+  1054→      setLoading(false)
+  1055→    }
+  1056→  }, [showToast])
+  1057→
+  1058→  useEffect(() => { fetchContent() }, [fetchContent])
+  1059→
+  1060→  const updateField = (key: string, value: string) => {
+  1061→    setContent((prev) => ({ ...prev, [key]: value }))
+  1062→  }
+  1063→
+  1064→  const handleSave = async () => {
+  1065→    setSaving(true)
+  1066→    try {
+  1067→      const contentArray = CONTENT_FIELDS.map((f) => ({
+  1068→        key: f.key,
+  1069→        value: content[f.key] || '',
+  1070→        type: 'text',
+  1071→      }))
+  1072→      const res = await fetch('/api/admin/content', {
+  1073→        method: 'PUT',
+  1074→        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+  1075→        body: JSON.stringify({ content: contentArray }),
+  1076→      })
+  1077→      if (!res.ok) throw new Error('Save failed')
+  1078→      showToast('Content saved successfully')
+  1079→    } catch (err: any) {
+  1080→      showToast(err.message || 'Error saving content', 'error')
+  1081→    } finally {
+  1082→      setSaving(false)
+  1083→    }
+  1084→  }
+  1085→
+  1086→  if (loading) {
+  1087→    return <div className="space-y-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
+  1088→  }
+  1089→
+  1090→  return (
+  1091→    <div className="space-y-6">
+  1092→      <div className="flex items-center justify-between">
+  1093→        <h2 className="text-xl font-bold">Site Content</h2>
+  1094→        <Button onClick={handleSave} disabled={saving} className="bg-[#1e9ba6] hover:bg-[#1e9ba6]/90 text-white">
+  1095→          {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+  1096→          Save Changes
+  1097→        </Button>
+  1098→      </div>
+  1099→
+  1100→      <div className="bg-white rounded-xl border shadow-sm p-6 space-y-6">
+  1101→        {CONTENT_FIELDS.map((field) => (
+  1102→          <div key={field.key} className="space-y-2">
+  1103→            <Label htmlFor={`content-${field.key}`} className="text-sm font-medium">{field.label}</Label>
+  1104→            {field.type === 'textarea' ? (
+  1105→              <Textarea
+  1106→                id={`content-${field.key}`}
+  1107→                value={content[field.key] || ''}
+  1108→                onChange={(e) => updateField(field.key, e.target.value)}
+  1109→                rows={field.rows || 4}
+  1110→                placeholder={`Enter ${field.label.toLowerCase()}...`}
+  1111→              />
+  1112→            ) : (
+  1113→              <Input
+  1114→                id={`content-${field.key}`}
+  1115→                value={content[field.key] || ''}
+  1116→                onChange={(e) => updateField(field.key, e.target.value)}
+  1117→                placeholder={`Enter ${field.label.toLowerCase()}...`}
+  1118→              />
+  1119→            )}
+  1120→          </div>
+  1121→        ))}
+  1122→      </div>
+  1123→    </div>
+  1124→  )
+  1125→}
+  1126→
+  1127→// ═══════════════════════════════════════════════════════════════════════════════
+  1128→// INVENTORY TAB
+  1129→// ═══════════════════════════════════════════════════════════════════════════════
+  1130→function InventoryTab() {
+  1131→  const { showToast } = useStore()
+  1132→  const [inventory, setInventory] = useState<any[]>([])
+  1133→  const [loading, setLoading] = useState(true)
+  1134→  const [search, setSearch] = useState('')
+  1135→
+  1136→  const fetchInventory = useCallback(async () => {
+  1137→    setLoading(true)
+  1138→    try {
+  1139→      const res = await fetch('/api/products?limit=100', { headers: authHeaders() })
+  1140→      if (!res.ok) throw new Error('Failed to fetch')
+  1141→      const json = await res.json()
+  1142→      const items: any[] = []
+  1143→      for (const product of json.products || []) {
+  1144→        for (const variant of product.variants || []) {
+  1145→          items.push({
+  1146→            productId: product.id,
+  1147→            productName: product.name,
+  1148→            productImage: product.images?.[0]?.url || null,
+  1149→            variantId: variant.id,
+  1150→            color: variant.color,
+  1151→            size: variant.size,
+  1152→            sku: variant.sku,
+  1153→            stock: variant.inventory?.quantity || 0,
+  1154→            lowStock: variant.inventory?.lowStock || 5,
+  1155→          })
+  1156→        }
+  1157→      }
+  1158→      setInventory(items)
+  1159→    } catch (err: any) {
+  1160→      showToast(err.message || 'Error loading inventory', 'error')
+  1161→    } finally {
+  1162→      setLoading(false)
+  1163→    }
+  1164→  }, [showToast])
+  1165→
+  1166→  useEffect(() => { fetchInventory() }, [fetchInventory])
+  1167→
+  1168→  const filtered = search
+  1169→    ? inventory.filter((item) => item.productName.toLowerCase().includes(search.toLowerCase()))
+  1170→    : inventory
+  1171→
+  1172→  const getStockStatus = (stock: number, lowStock: number) => {
+  1173→    if (stock === 0) return { label: 'Out of Stock', className: 'bg-red-100 text-red-800', dot: 'bg-red-500' }
+  1174→    if (stock <= lowStock) return { label: 'Low Stock', className: 'bg-amber-100 text-amber-800', dot: 'bg-amber-500' }
+  1175→    return { label: 'In Stock', className: 'bg-green-100 text-green-800', dot: 'bg-green-500' }
+  1176→  }
+  1177→
+  1178→  if (loading) {
+  1179→    return <div className="space-y-4"><Skeleton className="h-10 w-60" />{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+  1180→  }
+  1181→
+  1182→  return (
+  1183→    <div className="space-y-4">
+  1184→      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+  1185→        <h2 className="text-xl font-bold">Inventory ({filtered.length})</h2>
+  1186→        <div className="relative w-full sm:w-64">
+  1187→          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+  1188→          <Input
+  1189→            placeholder="Search by product name..."
+  1190→            value={search}
+  1191→            onChange={(e) => setSearch(e.target.value)}
+  1192→            className="pl-9 h-9"
+  1193→          />
+  1194→        </div>
+  1195→      </div>
+  1196→
+  1197→      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+  1198→        <div className="max-h-[65vh] overflow-y-auto">
+  1199→          <Table>
+  1200→            <TableHeader>
+  1201→              <TableRow>
+  1202→                <TableHead className="text-xs">Product</TableHead>
+  1203→                <TableHead className="text-xs hidden sm:table-cell">Variant</TableHead>
+  1204→                <TableHead className="text-xs hidden md:table-cell">SKU</TableHead>
+  1205→                <TableHead className="text-xs">Stock</TableHead>
+  1206→                <TableHead className="text-xs hidden lg:table-cell">Threshold</TableHead>
+  1207→                <TableHead className="text-xs">Status</TableHead>
+  1208→              </TableRow>
+  1209→            </TableHeader>
+  1210→            <TableBody>
+  1211→              {filtered.map((item) => {
+  1212→                const status = getStockStatus(item.stock, item.lowStock)
+  1213→                return (
+  1214→                  <TableRow key={item.variantId}>
+  1215→                    <TableCell>
+  1216→                      <div className="flex items-center gap-2">
+  1217→                        {item.productImage && (
+  1218→                          <img src={item.productImage} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0" />
+  1219→                        )}
+  1220→                        <span className="text-sm font-medium truncate max-w-[180px]">{item.productName}</span>
+  1221→                      </div>
+  1222→                    </TableCell>
+  1223→                    <TableCell className="text-sm text-muted-foreground hidden sm:table-cell">
+  1224→                      <span className="inline-flex items-center gap-1">
+  1225→                        <span className="w-3 h-3 rounded-full border border-gray-300" style={{ backgroundColor: item.color.toLowerCase() === 'white' || item.color.toLowerCase() === 'off white' ? '#f5f5f5' : item.color }} />
+  1226→                        {item.color} / {item.size}
+  1227→                      </span>
+  1228→                    </TableCell>
+  1229→                    <TableCell className="font-mono text-xs hidden md:table-cell">{item.sku}</TableCell>
+  1230→                    <TableCell className="font-semibold text-sm">{item.stock}</TableCell>
+  1231→                    <TableCell className="text-sm text-muted-foreground hidden lg:table-cell">{item.lowStock}</TableCell>
+  1232→                    <TableCell>
+  1233→                      <Badge variant="secondary" className={status.className}>
+  1234→                        <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${status.dot}`} />
+  1235→                        {status.label}
+  1236→                      </Badge>
+  1237→                    </TableCell>
+  1238→                  </TableRow>
+  1239→                )
+  1240→              })}
+  1241→              {filtered.length === 0 && (
+  1242→                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">{search ? 'No matching items' : 'No inventory data'}</TableCell></TableRow>
+  1243→              )}
+  1244→            </TableBody>
+  1245→          </Table>
+  1246→        </div>
+  1247→      </div>
+  1248→    </div>
+  1249→  )
+  1250→}
+  1251→
+  1252→// ═══════════════════════════════════════════════════════════════════════════════
+  1253→// INSTAGRAM TAB
+  1254→// ═══════════════════════════════════════════════════════════════════════════════
+  1255→function InstagramTab() {
+  1256→  const IG_LINK = 'https://instagram.com/Style_withher01'
+  1257→
+  1258→  const statCards = [
+  1259→    { label: 'Followers', icon: Users, color: 'bg-[#1e9ba6]/10 text-[#1e9ba6]' },
+  1260→    { label: 'Posts', icon: ImageIcon, color: 'bg-[#f9b233]/10 text-[#f9b233]' },
+  1261→    { label: 'Engagement Rate', icon: BarChart3, color: 'bg-[#1e9ba6]/10 text-[#1e9ba6]' },
+  1262→  ]
+  1263→
+  1264→  return (
+  1265→    <div className="space-y-6">
+  1266→      {/* Connected Account Card */}
+  1267→      <Card className="border-0 shadow-sm">
+  1268→        <CardHeader className="pb-4">
+  1269→          <div className="flex items-center justify-between">
+  1270→            <div className="flex items-center gap-3">
+  1271→              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#f9b233] via-[#D96C8A] to-[#833AB4] flex items-center justify-center">
+  1272→                <Instagram className="h-6 w-6 text-white" />
+  1273→              </div>
+  1274→              <div>
+  1275→                <CardTitle className="text-lg text-[#4a5a6a]">@Style_withher01</CardTitle>
+  1276→                <a href={IG_LINK} target="_blank" rel="noopener noreferrer" className="text-sm text-[#1e9ba6] hover:underline flex items-center gap-1">
+  1277→                  {IG_LINK.replace('https://', '')} <ExternalLink className="h-3 w-3" />
+  1278→                </a>
+  1279→              </div>
+  1280→            </div>
+  1281→            <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+  1282→              <CheckCircle2 className="h-3 w-3 mr-1" /> Connected
+  1283→            </Badge>
+  1284→          </div>
+  1285→        </CardHeader>
+  1286→      </Card>
+  1287→
+  1288→      {/* Quick Actions */}
+  1289→      <Card className="border-0 shadow-sm">
+  1290→        <CardHeader>
+  1291→          <CardTitle className="text-base text-[#4a5a6a]">Quick Actions</CardTitle>
+  1292→        </CardHeader>
+  1293→        <CardContent>
+  1294→          <div className="flex flex-wrap gap-3">
+  1295→            <a href={IG_LINK} target="_blank" rel="noopener noreferrer">
+  1296→              <Button className="bg-[#1e9ba6] hover:bg-[#1e9ba6]/90 text-white">
+  1297→                <Instagram className="h-4 w-4 mr-2" /> Open Instagram
+  1298→              </Button>
+  1299→            </a>
+  1300→            <a href={IG_LINK} target="_blank" rel="noopener noreferrer">
+  1301→              <Button variant="outline" className="border-[#1e9ba6]/30 text-[#1e9ba6] hover:bg-[#1e9ba6]/10">
+  1302→                <ExternalLink className="h-4 w-4 mr-2" /> View Profile
+  1303→              </Button>
+  1304→            </a>
+  1305→            <a href={IG_LINK} target="_blank" rel="noopener noreferrer">
+  1306→              <Button variant="outline" className="border-[#f9b233]/30 text-[#f9b233] hover:bg-[#f9b233]/10">
+  1307→                <PlusCircle className="h-4 w-4 mr-2" /> Create Post
+  1308→              </Button>
+  1309→            </a>
+  1310→          </div>
+  1311→        </CardContent>
+  1312→      </Card>
+  1313→
+  1314→      {/* Stats Placeholder */}
+  1315→      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+  1316→        {statCards.map((s) => {
+  1317→          const Icon = s.icon
+  1318→          return (
+  1319→            <Card key={s.label} className="border-0 shadow-sm">
+  1320→              <CardContent className="p-5">
+  1321→                <div className="flex items-center gap-3 mb-3">
+  1322→                  <div className={`w-10 h-10 rounded-lg ${s.color} flex items-center justify-center`}>
+  1323→                    <Icon className="h-5 w-5" />
+  1324→                  </div>
+  1325→                  <p className="text-sm text-muted-foreground font-medium">{s.label}</p>
+  1326→                </div>
+  1327→                <p className="text-sm text-[#4a5a6a]/60 italic">Connect Meta API to view {s.label.toLowerCase()}</p>
+  1328→              </CardContent>
+  1329→            </Card>
+  1330→          )
+  1331→        })}
+  1332→      </div>
+  1333→
+  1334→      {/* Info Note */}
+  1335→      <Card className="border-0 shadow-sm bg-[#f9b233]/5 border border-[#f9b233]/20">
+  1336→        <CardContent className="p-5">
+  1337→          <div className="flex gap-3">
+  1338→            <AlertTriangle className="h-5 w-5 text-[#f9b233] shrink-0 mt-0.5" />
+  1339→            <div>
+  1340→              <p className="text-sm font-medium text-[#4a5a6a] mb-1">Meta Business Account Required</p>
+  1341→              <p className="text-sm text-[#4a5a6a]/70 leading-relaxed">
+  1342→                Full Instagram Graph API integration requires Meta Business Account setup. Connect your Meta Business account to enable automatic posting, analytics, and comment management.
+  1343→              </p>
+  1344→            </div>
+  1345→          </div>
+  1346→        </CardContent>
+  1347→      </Card>
+  1348→    </div>
+  1349→  )
+  1350→}
+  1351→
+  1352→// ═══════════════════════════════════════════════════════════════════════════════
+  1353→// PAYMENTS TAB
+  1354→// ═══════════════════════════════════════════════════════════════════════════════
+  1355→function PaymentsTab() {
+  1356→  const { showToast } = useStore()
+  1357→  const [payments, setPayments] = useState<any[]>([])
+  1358→  const [loading, setLoading] = useState(true)
+  1359→  const [updatingId, setUpdatingId] = useState<string | null>(null)
+  1360→  const [filterStatus, setFilterStatus] = useState<string>('all')
+  1361→  const [filterMethod, setFilterMethod] = useState<string>('all')
+  1362→
+  1363→  const fetchPayments = useCallback(async () => {
+  1364→    setLoading(true)
+  1365→    try {
+  1366→      const params = new URLSearchParams()
+  1367→      if (filterStatus !== 'all') params.set('status', filterStatus)
+  1368→      if (filterMethod !== 'all') params.set('method', filterMethod)
+  1369→      const res = await fetch(`/api/admin/payments?${params}`, { headers: authHeaders() })
+  1370→      if (!res.ok) throw new Error('Failed to fetch')
+  1371→      const json = await res.json()
+  1372→      setPayments(json.payments || [])
+  1373→    } catch (err: any) {
+  1374→      showToast(err.message || 'Error loading payments', 'error')
+  1375→    } finally {
+  1376→      setLoading(false)
+  1377→    }
+  1378→  }, [showToast, filterStatus, filterMethod])
+  1379→
+  1380→  useEffect(() => { fetchPayments() }, [fetchPayments])
+  1381→
+  1382→  const handlePaymentStatus = async (paymentId: string, orderId: string, newStatus: string) => {
+  1383→    setUpdatingId(paymentId)
+  1384→    try {
+  1385→      const res = await fetch(`/api/orders/${orderId}`, {
+  1386→        method: 'PUT',
+  1387→        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+  1388→        body: JSON.stringify({ paymentStatus: newStatus }),
+  1389→      })
+  1390→      if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Update failed') }
+  1391→      showToast(`Payment status updated to ${newStatus}`)
+  1392→      fetchPayments()
+  1393→    } catch (err: any) {
+  1394→      showToast(err.message || 'Error updating payment', 'error')
+  1395→    } finally {
+  1396→      setUpdatingId(null)
+  1397→    }
+  1398→  }
+  1399→
+  1400→  if (loading) {
+  1401→    return <div className="space-y-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
+  1402→  }
+  1403→
+  1404→  return (
+  1405→    <div className="space-y-4">
+  1406→      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+  1407→        <h2 className="text-xl font-bold">Payments ({payments.length})</h2>
+  1408→        <div className="flex gap-2">
+  1409→          <Select value={filterStatus} onValueChange={setFilterStatus}>
+  1410→            <SelectTrigger className="w-36 h-9 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+  1411→            <SelectContent>
+  1412→              <SelectItem value="all">All Status</SelectItem>
+  1413→              <SelectItem value="pending">Pending</SelectItem>
+  1414→              <SelectItem value="submitted">Submitted</SelectItem>
+  1415→              <SelectItem value="verified">Verified</SelectItem>
+  1416→              <SelectItem value="completed">Completed</SelectItem>
+  1417→              <SelectItem value="failed">Failed</SelectItem>
+  1418→              <SelectItem value="refunded">Refunded</SelectItem>
+  1419→            </SelectContent>
+  1420→          </Select>
+  1421→          <Select value={filterMethod} onValueChange={setFilterMethod}>
+  1422→            <SelectTrigger className="w-32 h-9 text-xs"><SelectValue placeholder="Method" /></SelectTrigger>
+  1423→            <SelectContent>
+  1424→              <SelectItem value="all">All Methods</SelectItem>
+  1425→              <SelectItem value="cod">COD</SelectItem>
+  1426→              <SelectItem value="upi">UPI</SelectItem>
+  1427→            </SelectContent>
+  1428→          </Select>
+  1429→        </div>
+  1430→      </div>
+  1431→
+  1432→      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+  1433→        <div className="max-h-[65vh] overflow-y-auto">
+  1434→          <Table>
+  1435→            <TableHeader>
+  1436→              <TableRow>
+  1437→                <TableHead className="text-xs">Date</TableHead>
+  1438→                <TableHead className="text-xs">Order #</TableHead>
+  1439→                <TableHead className="text-xs">Customer</TableHead>
+  1440→                <TableHead className="text-xs">Method</TableHead>
+  1441→                <TableHead className="text-xs">Amount</TableHead>
+  1442→                <TableHead className="text-xs">Status</TableHead>
+  1443→                <TableHead className="text-xs text-right">Action</TableHead>
+  1444→              </TableRow>
+  1445→            </TableHeader>
+  1446→            <TableBody>
+  1447→              {payments.map((p) => (
+  1448→                <TableRow key={p.id}>
+  1449→                  <TableCell className="text-xs">{fmtDateTime(p.createdAt)}</TableCell>
+  1450→                  <TableCell className="font-mono text-xs">{p.order?.orderNumber?.slice(0, 16) || '—'}</TableCell>
+  1451→                  <TableCell>
+  1452→                    <div className="text-sm">{p.user?.name || '—'}</div>
+  1453→                    <div className="text-xs text-muted-foreground">{p.user?.email || ''}</div>
+  1454→                  </TableCell>
+  1455→                  <TableCell>
+  1456→                    <Badge variant="outline" className="text-xs uppercase">{p.method}</Badge>
+  1457→                  </TableCell>
+  1458→                  <TableCell className="font-semibold text-sm">₹{fmt(p.amount)}</TableCell>
+  1459→                  <TableCell>
+  1460→                    <Badge className={PAYMENT_COLORS[p.status] || ''} variant="secondary">{p.status}</Badge>
+  1461→                  </TableCell>
+  1462→                  <TableCell className="text-right">
+  1463→                    {updatingId === p.id ? (
+  1464→                      <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+  1465→                    ) : (
+  1466→                      <Select value={p.status} onValueChange={(v) => handlePaymentStatus(p.id, p.orderId, v)}>
+  1467→                        <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
+  1468→                        <SelectContent>
+  1469→                          <SelectItem value="pending">Pending</SelectItem>
+  1470→                          <SelectItem value="submitted">Submitted</SelectItem>
+  1471→                          <SelectItem value="verified">Verified</SelectItem>
+  1472→                          <SelectItem value="completed">Completed</SelectItem>
+  1473→                          <SelectItem value="failed">Failed</SelectItem>
+  1474→                          <SelectItem value="refunded">Refunded</SelectItem>
+  1475→                        </SelectContent>
+  1476→                      </Select>
+  1477→                    )}
+  1478→                  </TableCell>
+  1479→                </TableRow>
+  1480→              ))}
+  1481→              {payments.length === 0 && (
+  1482→                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No payments found</TableCell></TableRow>
+  1483→              )}
+  1484→            </TableBody>
+  1485→          </Table>
+  1486→        </div>
+  1487→      </div>
+  1488→    </div>
+  1489→  )
+  1490→}
+  1491→
+  1492→// ═══════════════════════════════════════════════════════════════════════════════
+  1493→// SETTINGS TAB
+  1494→// ═══════════════════════════════════════════════════════════════════════════════
+  1495→const SETTINGS_FIELDS = [
+  1496→  { key: 'site_name', label: 'Site Name', type: 'input', group: 'General' },
+  1497→  { key: 'site_tagline', label: 'Site Tagline', type: 'input', group: 'General' },
+  1498→  { key: 'site_description', label: 'Site Description', type: 'textarea', rows: 3, group: 'General' },
+  1499→  { key: 'upi_id', label: 'UPI ID', type: 'input', group: 'Payment' },
+  1500→  { key: 'currency', label: 'Currency Code', type: 'input', group: 'Payment' },
+  1501→  { key: 'currency_symbol', label: 'Currency Symbol', type: 'input', group: 'Payment' },
+  1502→  { key: 'social_instagram', label: 'Instagram URL', type: 'input', group: 'Social Links' },
+  1503→  { key: 'social_facebook', label: 'Facebook URL', type: 'input', group: 'Social Links' },
+  1504→  { key: 'social_twitter', label: 'Twitter / X URL', type: 'input', group: 'Social Links' },
+  1505→  { key: 'social_youtube', label: 'YouTube URL', type: 'input', group: 'Social Links' },
+  1506→  { key: 'social_pinterest', label: 'Pinterest URL', type: 'input', group: 'Social Links' },
+  1507→  { key: 'seo_title', label: 'SEO Title', type: 'input', group: 'SEO' },
+  1508→  { key: 'seo_description', label: 'SEO Description', type: 'textarea', rows: 3, group: 'SEO' },
+  1509→  { key: 'seo_keywords', label: 'SEO Keywords', type: 'textarea', rows: 2, group: 'SEO' },
+  1510→  { key: 'google_analytics_id', label: 'Google Analytics ID', type: 'input', group: 'SEO' },
+  1511→]
+  1512→
+  1513→function SettingsTab() {
+  1514→  const { showToast } = useStore()
+  1515→  const [settings, setSettings] = useState<Record<string, string>>({})
+  1516→  const [loading, setLoading] = useState(true)
+  1517→  const [saving, setSaving] = useState(false)
+  1518→
+  1519→  const fetchSettings = useCallback(async () => {
+  1520→    setLoading(true)
+  1521→    try {
+  1522→      const res = await fetch('/api/admin/settings', { headers: authHeaders() })
+  1523→      if (!res.ok) throw new Error('Failed to fetch')
+  1524→      const json = await res.json()
+  1525→      setSettings(json.settings || {})
+  1526→    } catch (err: any) {
+  1527→      showToast(err.message || 'Error loading settings', 'error')
+  1528→    } finally {
+  1529→      setLoading(false)
+  1530→    }
+  1531→  }, [showToast])
+  1532→
+  1533→  useEffect(() => { fetchSettings() }, [fetchSettings])
+  1534→
+  1535→  const updateField = (key: string, value: string) => {
+  1536→    setSettings((prev) => ({ ...prev, [key]: value }))
+  1537→  }
+  1538→
+  1539→  const handleSave = async () => {
+  1540→    setSaving(true)
+  1541→    try {
+  1542→      const res = await fetch('/api/admin/settings', {
+  1543→        method: 'PUT',
+  1544→        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+  1545→        body: JSON.stringify({ settings }),
+  1546→      })
+  1547→      if (!res.ok) throw new Error('Save failed')
+  1548→      showToast('Settings saved successfully')
+  1549→    } catch (err: any) {
+  1550→      showToast(err.message || 'Error saving settings', 'error')
+  1551→    } finally {
+  1552→      setSaving(false)
+  1553→    }
+  1554→  }
+  1555→
+  1556→  if (loading) {
+  1557→    return <div className="space-y-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
+  1558→  }
+  1559→
+  1560→  // Group settings by group
+  1561→  const groups = SETTINGS_FIELDS.reduce((acc, field) => {
+  1562→    const g = field.group || 'Other'
+  1563→    if (!acc[g]) acc[g] = []
+  1564→    acc[g].push(field)
+  1565→    return acc
+  1566→  }, {} as Record<string, typeof SETTINGS_FIELDS>)
+  1567→
+  1568→  return (
+  1569→    <div className="space-y-6">
+  1570→      <div className="flex items-center justify-between">
+  1571→        <h2 className="text-xl font-bold">Settings</h2>
+  1572→        <Button onClick={handleSave} disabled={saving} className="bg-[#1e9ba6] hover:bg-[#1e9ba6]/90 text-white">
+  1573→          {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+  1574→          Save Settings
+  1575→        </Button>
+  1576→      </div>
+  1577→
+  1578→      {Object.entries(groups).map(([group, fields]) => (
+  1579→        <Card key={group} className="border-0 shadow-sm">
+  1580→          <CardHeader className="pb-3">
+  1581→            <CardTitle className="text-base">{group}</CardTitle>
+  1582→          </CardHeader>
+  1583→          <CardContent className="space-y-4">
+  1584→            {fields.map((field) => (
+  1585→              <div key={field.key} className="space-y-2">
+  1586→                <Label htmlFor={`settings-${field.key}`} className="text-sm font-medium">{field.label}</Label>
+  1587→                {field.type === 'textarea' ? (
+  1588→                  <Textarea
+  1589→                    id={`settings-${field.key}`}
+  1590→                    value={settings[field.key] || ''}
+  1591→                    onChange={(e) => updateField(field.key, e.target.value)}
+  1592→                    rows={field.rows || 4}
+  1593→                    placeholder={`Enter ${field.label.toLowerCase()}...`}
+  1594→                  />
+  1595→                ) : (
+  1596→                  <Input
+  1597→                    id={`settings-${field.key}`}
+  1598→                    value={settings[field.key] || ''}
+  1599→                    onChange={(e) => updateField(field.key, e.target.value)}
+  1600→                    placeholder={`Enter ${field.label.toLowerCase()}...`}
+  1601→                  />
+  1602→                )}
+  1603→              </div>
+  1604→            ))}
+  1605→          </CardContent>
+  1606→        </Card>
+  1607→      ))}
+  1608→
+  1609→      {/* UPI QR Code Preview */}
+  1610→      {settings.upi_id && (
+  1611→        <Card className="border-0 shadow-sm">
+  1612→          <CardHeader className="pb-3">
+  1613→            <CardTitle className="text-base">UPI QR Code Preview</CardTitle>
+  1614→          </CardHeader>
+  1615→          <CardContent>
+  1616→            <div className="flex flex-col sm:flex-row items-center gap-6">
+  1617→              <div className="bg-white p-4 rounded-xl border-2 border-dashed border-[#1e9ba6]/30">
+  1618→                <img 
+  1619→                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=${encodeURIComponent(settings.upi_id)}&pn=StyleWithHer`} 
+  1620→                  alt="UPI QR Code" 
+  1621→                  className="w-48 h-48"
+  1622→                />
+  1623→              </div>
+  1624→              <div>
+  1625→                <p className="text-sm font-medium mb-1">UPI ID: <span className="font-mono text-[#1e9ba6]">{settings.upi_id}</span></p>
+  1626→                <p className="text-sm text-muted-foreground">Customers can scan this QR code to pay via UPI</p>
+  1627→                <p className="text-xs text-muted-foreground mt-2">This QR code will be shown to customers during UPI checkout</p>
+  1628→              </div>
+  1629→            </div>
+  1630→          </CardContent>
+  1631→        </Card>
+  1632→      )}
+  1633→    </div>
+  1634→  )
+  1635→}
+  1636→
+  1637→// ═══════════════════════════════════════════════════════════════════════════════
+  1638→// ACTIVITY LOGS TAB
+  1639→// ═══════════════════════════════════════════════════════════════════════════════
+  1640→function ActivityLogsTab() {
+  1641→  const { showToast } = useStore()
+  1642→  const [logs, setLogs] = useState<any[]>([])
+  1643→  const [loading, setLoading] = useState(true)
+  1644→  const [search, setSearch] = useState('')
+  1645→  const [filterAction, setFilterAction] = useState('')
+  1646→
+  1647→  const fetchLogs = useCallback(async () => {
+  1648→    setLoading(true)
+  1649→    try {
+  1650→      const params = new URLSearchParams()
+  1651→      if (filterAction) params.set('action', filterAction)
+  1652→      if (search) params.set('search', search)
+  1653→      const res = await fetch(`/api/admin/audit-logs?${params}`, { headers: authHeaders() })
+  1654→      if (!res.ok) throw new Error('Failed to fetch')
+  1655→      const json = await res.json()
+  1656→      setLogs(json.logs || [])
+  1657→    } catch (err: any) {
+  1658→      showToast(err.message || 'Error loading logs', 'error')
+  1659→    } finally {
+  1660→      setLoading(false)
+  1661→    }
+  1662→  }, [showToast, filterAction, search])
+  1663→
+  1664→  useEffect(() => { fetchLogs() }, [fetchLogs])
+  1665→
+  1666→  const getActionColor = (action: string) => {
+  1667→    if (action.includes('LOGIN')) return 'bg-blue-100 text-blue-800'
+  1668→    if (action.includes('SIGNUP')) return 'bg-green-100 text-green-800'
+  1669→    if (action.includes('ORDER')) return 'bg-purple-100 text-purple-800'
+  1670→    if (action.includes('PAYMENT')) return 'bg-amber-100 text-amber-800'
+  1671→    if (action.includes('DELETE')) return 'bg-red-100 text-red-800'
+  1672→    if (action.includes('PASSWORD')) return 'bg-orange-100 text-orange-800'
+  1673→    if (action.includes('UPLOAD')) return 'bg-cyan-100 text-cyan-800'
+  1674→    return 'bg-gray-100 text-gray-800'
+  1675→  }
+  1676→
+  1677→  if (loading) {
+  1678→    return <div className="space-y-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+  1679→  }
+  1680→
+  1681→  return (
+  1682→    <div className="space-y-4">
+  1683→      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+  1684→        <h2 className="text-xl font-bold">Activity Logs ({logs.length})</h2>
+  1685→        <div className="flex gap-2">
+  1686→          <div className="relative w-48">
+  1687→            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+  1688→            <Input placeholder="Search logs..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9 text-xs" />
+  1689→          </div>
+  1690→          <Select value={filterAction} onValueChange={setFilterAction}>
+  1691→            <SelectTrigger className="w-36 h-9 text-xs"><SelectValue placeholder="All Actions" /></SelectTrigger>
+  1692→            <SelectContent>
+  1693→              <SelectItem value="">All Actions</SelectItem>
+  1694→              <SelectItem value="LOGIN">Login</SelectItem>
+  1695→              <SelectItem value="SIGNUP">Signup</SelectItem>
+  1696→              <SelectItem value="ORDER">Orders</SelectItem>
+  1697→              <SelectItem value="PAYMENT">Payments</SelectItem>
+  1698→              <SelectItem value="UPLOAD">Uploads</SelectItem>
+  1699→              <SelectItem value="PASSWORD">Password</SelectItem>
+  1700→            </SelectContent>
+  1701→          </Select>
+  1702→        </div>
+  1703→      </div>
+  1704→
+  1705→      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+  1706→        <div className="max-h-[65vh] overflow-y-auto">
+  1707→          <Table>
+  1708→            <TableHeader>
+  1709→              <TableRow>
+  1710→                <TableHead className="text-xs">Time</TableHead>
+  1711→                <TableHead className="text-xs">User</TableHead>
+  1712→                <TableHead className="text-xs">Action</TableHead>
+  1713→                <TableHead className="text-xs hidden md:table-cell">Details</TableHead>
+  1714→                <TableHead className="text-xs hidden lg:table-cell">IP</TableHead>
+  1715→              </TableRow>
+  1716→            </TableHeader>
+  1717→            <TableBody>
+  1718→              {logs.map((log) => (
+  1719→                <TableRow key={log.id}>
+  1720→                  <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{fmtDateTime(log.createdAt)}</TableCell>
+  1721→                  <TableCell className="text-sm font-medium">{log.userName}</TableCell>
+  1722→                  <TableCell>
+  1723→                    <Badge className={getActionColor(log.action)} variant="secondary" style={{ maxWidth: '160px' }}>
+  1724→                      <span className="truncate block">{log.action}</span>
+  1725→                    </Badge>
+  1726→                  </TableCell>
+  1727→                  <TableCell className="text-xs text-muted-foreground hidden md:table-cell max-w-[300px] truncate">{log.details || '—'}</TableCell>
+  1728→                  <TableCell className="text-xs text-muted-foreground font-mono hidden lg:table-cell">{log.ipAddress || '—'}</TableCell>
+  1729→                </TableRow>
+  1730→              ))}
+  1731→              {logs.length === 0 && (
+  1732→                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No activity logs found</TableCell></TableRow>
+  1733→              )}
+  1734→            </TableBody>
+  1735→          </Table>
+  1736→        </div>
+  1737→      </div>
+  1738→    </div>
+  1739→  )
+  1740→}
+  1741→
+  1742→// ═══════════════════════════════════════════════════════════════════════════════
+  1743→// POSTS TAB
+  1744→// ═══════════════════════════════════════════════════════════════════════════════
+  1745→function PostsTab() {
+  1746→  const { showToast } = useStore()
+  1747→  const { t } = useTranslation()
+  1748→  const [posts, setPosts] = useState<any[]>([])
+  1749→  const [loading, setLoading] = useState(true)
+  1750→  const [showForm, setShowForm] = useState(false)
+  1751→  const [editingPost, setEditingPost] = useState<any>(null)
+  1752→  const [saving, setSaving] = useState(false)
+  1753→  const [filterStatus, setFilterStatus] = useState('all')
+  1754→
+  1755→  const emptyForm = { title: '', content: '', excerpt: '', category: '', tags: '', featuredImage: '', status: 'draft' as string, scheduledAt: '' }
+  1756→  const [form, setForm] = useState(emptyForm)
+  1757→
+  1758→  const fetchPosts = useCallback(async () => {
+  1759→    setLoading(true)
+  1760→    try {
+  1761→      const params = filterStatus !== 'all' ? `?status=${filterStatus}` : ''
+  1762→      const res = await fetch(`/api/admin/posts${params}`, { headers: authHeaders() })
+  1763→      if (!res.ok) throw new Error('Failed to fetch posts')
+  1764→      const json = await res.json()
+  1765→      setPosts(json.posts || [])
+  1766→    } catch (err: any) {
+  1767→      showToast(err.message || 'Error loading posts', 'error')
+  1768→    } finally {
+  1769→      setLoading(false)
+  1770→    }
+  1771→  }, [filterStatus, showToast])
+  1772→
+  1773→  useEffect(() => { fetchPosts() }, [fetchPosts])
+  1774→
+  1775→  const openCreate = () => { setEditingPost(null); setForm(emptyForm); setShowForm(true) }
+  1776→  const openEdit = (post: any) => {
+  1777→    setEditingPost(post)
+  1778→    setForm({
+  1779→      title: post.title || '',
+  1780→      content: post.content || '',
+  1781→      excerpt: post.excerpt || '',
+  1782→      category: post.category || '',
+  1783→      tags: post.tags || '',
+  1784→      featuredImage: post.featuredImage || '',
+  1785→      status: post.status || 'draft',
+  1786→      scheduledAt: post.scheduledAt ? new Date(post.scheduledAt).toISOString().slice(0, 16) : '',
+  1787→    })
+  1788→    setShowForm(true)
+  1789→  }
+  1790→
+  1791→  const handleSave = async () => {
+  1792→    if (!form.title.trim()) { showToast('Title is required', 'error'); return }
+  1793→    setSaving(true)
+  1794→    try {
+  1795→      const url = editingPost ? `/api/admin/posts/${editingPost.id}` : '/api/admin/posts'
+  1796→      const method = editingPost ? 'PUT' : 'POST'
+  1797→      const body: any = { ...form }
+  1798→      if (body.status === 'draft' || !body.status) body.scheduledAt = null
+  1799→
+  1800→      const res = await fetch(url, {
+  1801→        method,
+  1802→        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+  1803→        body: JSON.stringify(body),
+  1804→      })
+  1805→      if (!res.ok) {
+  1806→        const err = await res.json()
+  1807→        throw new Error(err.error || 'Failed to save post')
+  1808→      }
+  1809→      showToast(editingPost ? 'Post updated!' : 'Post created!', 'success')
+  1810→      setShowForm(false)
+  1811→      fetchPosts()
+  1812→    } catch (err: any) {
+  1813→      showToast(err.message || 'Error saving post', 'error')
+  1814→    } finally {
+  1815→      setSaving(false)
+  1816→    }
+  1817→  }
+  1818→
+  1819→  const handleDelete = async (id: string) => {
+  1820→    if (!confirm('Are you sure you want to delete this post?')) return
+  1821→    try {
+  1822→      const res = await fetch(`/api/admin/posts/${id}`, { method: 'DELETE', headers: authHeaders() })
+  1823→      if (!res.ok) throw new Error('Failed to delete post')
+  1824→      showToast('Post deleted!', 'success')
+  1825→      fetchPosts()
+  1826→    } catch (err: any) {
+  1827→      showToast(err.message || 'Error deleting post', 'error')
+  1828→    }
+  1829→  }
+  1830→
+  1831→  const handleStatusChange = async (post: any, newStatus: string) => {
+  1832→    try {
+  1833→      const res = await fetch(`/api/admin/posts/${post.id}`, {
+  1834→        method: 'PUT',
+  1835→        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+  1836→        body: JSON.stringify({ status: newStatus }),
+  1837→      })
+  1838→      if (!res.ok) throw new Error('Failed to update status')
+  1839→      showToast(`Post ${newStatus}!`, 'success')
+  1840→      fetchPosts()
+  1841→    } catch (err: any) {
+  1842→      showToast(err.message || 'Error updating status', 'error')
+  1843→    }
+  1844→  }
+  1845→
+  1846→  const statusBadge = (status: string) => {
+  1847→    const colors: Record<string, string> = {
+  1848→      draft: 'bg-gray-100 text-gray-700',
+  1849→      published: 'bg-green-100 text-green-800',
+  1850→      scheduled: 'bg-blue-100 text-blue-800',
+  1851→    }
+  1852→    return <Badge className={`${colors[status] || 'bg-gray-100 text-gray-700'} text-xs`} variant="secondary">{status}</Badge>
+  1853→  }
+  1854→
+  1855→  if (loading) return <div className="space-y-4"><Skeleton className="h-12 w-full" /><Skeleton className="h-64 w-full" /><Skeleton className="h-64 w-full" /></div>
+  1856→
+  1857→  return (
+  1858→    <div className="space-y-4">
+  1859→      {/* Header */}
+  1860→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+  1861→        <div>
+  1862→          <p className="text-sm text-muted-foreground">{posts.length} post{posts.length !== 1 ? 's' : ''} found</p>
+  1863→        </div>
+  1864→        <div className="flex items-center gap-2">
+  1865→          <Select value={filterStatus} onValueChange={setFilterStatus}>
+  1866→            <SelectTrigger className="w-36 h-9 text-sm"><SelectValue /></SelectTrigger>
+  1867→            <SelectContent>
+  1868→              <SelectItem value="all">All Status</SelectItem>
+  1869→              <SelectItem value="draft">Draft</SelectItem>
+  1870→              <SelectItem value="published">Published</SelectItem>
+  1871→              <SelectItem value="scheduled">Scheduled</SelectItem>
+  1872→            </SelectContent>
+  1873→          </Select>
+  1874→          <Button onClick={openCreate} className="bg-[#0B1F3A] hover:bg-[#0B1F3A]/90 text-white h-9">
+  1875→            <Plus className="h-4 w-4 mr-2" /> Add Post
+  1876→          </Button>
+  1877→        </div>
+  1878→      </div>
+  1879→
+  1880→      {/* Posts List */}
+  1881→      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+  1882→        <div className="max-h-[65vh] overflow-y-auto">
+  1883→          <Table>
+  1884→            <TableHeader>
+  1885→              <TableRow>
+  1886→                <TableHead className="text-xs">Title</TableHead>
+  1887→                <TableHead className="text-xs hidden md:table-cell">Category</TableHead>
+  1888→                <TableHead className="text-xs">Status</TableHead>
+  1889→                <TableHead className="text-xs hidden lg:table-cell">Date</TableHead>
+  1890→                <TableHead className="text-xs text-right">Actions</TableHead>
+  1891→              </TableRow>
+  1892→            </TableHeader>
+  1893→            <TableBody>
+  1894→              {posts.map((post) => (
+  1895→                <TableRow key={post.id}>
+  1896→                  <TableCell>
+  1897→                    <div>
+  1898→                      <p className="text-sm font-medium text-[#0B1F3A]">{post.title}</p>
+  1899→                      {post.excerpt && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1 max-w-[250px]">{post.excerpt}</p>}
+  1900→                    </div>
+  1901→                  </TableCell>
+  1902→                  <TableCell className="text-sm hidden md:table-cell">{post.category || '—'}</TableCell>
+  1903→                  <TableCell>{statusBadge(post.status)}</TableCell>
+  1904→                  <TableCell className="text-xs text-muted-foreground hidden lg:table-cell whitespace-nowrap">{fmtDate(post.createdAt)}</TableCell>
+  1905→                  <TableCell>
+  1906→                    <div className="flex items-center justify-end gap-1">
+  1907→                      {post.status === 'draft' && (
+  1908→                        <Button size="sm" variant="ghost" className="h-7 text-xs text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => handleStatusChange(post, 'published')}>
+  1909→                          <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Publish
+  1910→                        </Button>
+  1911→                      )}
+  1912→                      {post.status === 'published' && (
+  1913→                        <Button size="sm" variant="ghost" className="h-7 text-xs text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50" onClick={() => handleStatusChange(post, 'draft')}>
+  1914→                          <XCircle className="h-3.5 w-3.5 mr-1" /> Unpublish
+  1915→                        </Button>
+  1916→                      )}
+  1917→                      <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => openEdit(post)}><Pencil className="h-3.5 w-3.5" /></Button>
+  1918→                      <Button size="sm" variant="ghost" className="h-7 text-xs text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => handleDelete(post.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+  1919→                    </div>
+  1920→                  </TableCell>
+  1921→                </TableRow>
+  1922→              ))}
+  1923→              {posts.length === 0 && (
+  1924→                <TableRow><TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+  1925→                  <FileText className="h-10 w-10 mx-auto mb-2 opacity-30" />
+  1926→                  <p>No posts yet. Create your first post!</p>
+  1927→                </TableCell></TableRow>
+  1928→              )}
+  1929→            </TableBody>
+  1930→          </Table>
+  1931→        </div>
+  1932→      </div>
+  1933→
+  1934→      {/* Create/Edit Dialog */}
+  1935→      <Dialog open={showForm} onOpenChange={setShowForm}>
+  1936→        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+  1937→          <DialogHeader>
+  1938→            <DialogTitle>{editingPost ? 'Edit Post' : 'Create New Post'}</DialogTitle>
+  1939→            <DialogDescription>{editingPost ? 'Update post details below.' : 'Fill in the details to create a new post.'}</DialogDescription>
+  1940→          </DialogHeader>
+  1941→          <div className="space-y-4 py-2">
+  1942→            <div className="space-y-2">
+  1943→              <Label>Title *</Label>
+  1944→              <Input value={form.title} onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Enter post title..." />
+  1945→            </div>
+  1946→            <div className="space-y-2">
+  1947→              <Label>Excerpt</Label>
+  1948→              <Textarea value={form.excerpt} onChange={(e) => setForm(f => ({ ...f, excerpt: e.target.value }))} placeholder="Brief summary..." rows={2} />
+  1949→            </div>
+  1950→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+  1951→              <div className="space-y-2">
+  1952→                <Label>Category</Label>
+  1953→                <Input value={form.category} onChange={(e) => setForm(f => ({ ...f, category: e.target.value }))} placeholder="e.g. Fashion Tips" />
+  1954→              </div>
+  1955→              <div className="space-y-2">
+  1956→                <Label>Tags (comma-separated)</Label>
+  1957→                <Input value={form.tags} onChange={(e) => setForm(f => ({ ...f, tags: e.target.value }))} placeholder="fashion, style, couple" />
+  1958→              </div>
+  1959→            </div>
+  1960→            <div className="space-y-2">
+  1961→              <Label>Featured Image URL</Label>
+  1962→              <Input value={form.featuredImage} onChange={(e) => setForm(f => ({ ...f, featuredImage: e.target.value }))} placeholder="https://... or /uploads/..." />
+  1963→              {form.featuredImage && (
+  1964→                <div className="mt-2 rounded-lg overflow-hidden border max-h-40 bg-gray-50">
+  1965→                  <img src={form.featuredImage} alt="Preview" className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+  1966→                </div>
+  1967→              )}
+  1968→            </div>
+  1969→            <div className="space-y-2">
+  1970→              <Label>Content</Label>
+  1971→              <Textarea value={form.content} onChange={(e) => setForm(f => ({ ...f, content: e.target.value }))} placeholder="Write your post content here... (HTML supported)" rows={8} className="font-mono text-sm" />
+  1972→            </div>
+  1973→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+  1974→              <div className="space-y-2">
+  1975→                <Label>Status</Label>
+  1976→                <Select value={form.status} onValueChange={(v) => setForm(f => ({ ...f, status: v }))}>
+  1977→                  <SelectTrigger><SelectValue /></SelectTrigger>
+  1978→                  <SelectContent>
+  1979→                    <SelectItem value="draft">Draft</SelectItem>
+  1980→                    <SelectItem value="published">Published</SelectItem>
+  1981→                    <SelectItem value="scheduled">Scheduled</SelectItem>
+  1982→                  </SelectContent>
+  1983→                </Select>
+  1984→              </div>
+  1985→              {form.status === 'scheduled' && (
+  1986→                <div className="space-y-2">
+  1987→                  <Label>Schedule At</Label>
+  1988→                  <Input type="datetime-local" value={form.scheduledAt} onChange={(e) => setForm(f => ({ ...f, scheduledAt: e.target.value }))} />
+  1989→                </div>
+  1990→              )}
+  1991→            </div>
+  1992→          </div>
+  1993→          <DialogFooter>
+  1994→            <DialogClose asChild><Button variant="outline">{t('admin.cancel')}</Button></DialogClose>
+  1995→            <Button onClick={handleSave} disabled={saving} className="bg-[#0B1F3A] hover:bg-[#0B1F3A]/90 text-white">
+  1996→              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+  1997→              {editingPost ? 'Update Post' : 'Create Post'}
+  1998→            </Button>
+  1999→          </DialogFooter>
+  2000→        </DialogContent>
+
+[showing lines 1-2000 of 2277; use offset=2001 with limit to continue reading]
