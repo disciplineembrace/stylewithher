@@ -112,7 +112,9 @@ function ImageUploader({ images, setImages, helperText }: {
   helperText?: string
 }) {
   const { t } = useTranslation()
+  const { showToast } = useStore()
   const [uploading, setUploading] = useState(false)
+  const [uploadCount, setUploadCount] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
 
@@ -120,10 +122,12 @@ function ImageUploader({ images, setImages, helperText }: {
     setUploading(true)
     const fileArray = Array.from(files)
     const validFiles = fileArray.filter(f => f.type.startsWith('image/') && f.size <= 10 * 1024 * 1024)
-    if (validFiles.length === 0) { setUploading(false); return }
+    if (validFiles.length === 0) { showToast('No valid images selected. Use JPG, PNG, WebP, or GIF under 10MB.', 'error'); setUploading(false); return }
 
     const results: ProductImage[] = []
-    for (const file of validFiles) {
+    for (let i = 0; i < validFiles.length; i++) {
+      const file = validFiles[i]
+      setUploadCount(`${i + 1}/${validFiles.length}`)
       try {
         const fd = new FormData()
         fd.append('file', file)
@@ -131,12 +135,19 @@ function ImageUploader({ images, setImages, helperText }: {
         if (res.ok) {
           const data = await res.json()
           results.push({ url: data.file.url, alt: file.name, sortOrder: images.length + results.length, isNew: true })
+        } else {
+          const err = await res.json().catch(() => ({ error: 'Upload failed' }))
+          showToast(`${file.name}: ${err.error || 'Upload failed'}`, 'error')
         }
-      } catch { /* skip failed */ }
+      } catch (err: any) {
+        showToast(`${file.name}: ${err.message || 'Network error'}`, 'error')
+      }
     }
     if (results.length > 0) {
       setImages([...images, ...results])
+      showToast(`${results.length} photo${results.length > 1 ? 's' : ''} uploaded successfully!`, 'success')
     }
+    setUploadCount('')
     setUploading(false)
   }
 
@@ -201,9 +212,9 @@ function ImageUploader({ images, setImages, helperText }: {
         <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => e.target.files && uploadFiles(e.target.files)} />
         <Upload className={`h-8 w-8 mx-auto mb-2 ${dragOver ? 'text-[#D96C8A]' : 'text-gray-400'}`} />
         <p className="text-sm font-medium text-gray-700">
-          {uploading ? 'Uploading & compressing...' : 'Click to upload or drag & drop'}
+          {uploading ? `Uploading ${uploadCount} — compressing & optimizing...` : 'Click to upload or drag & drop'}
         </p>
-        <p className="text-xs text-muted-foreground mt-1">JPG, PNG, WebP, GIF — Max 10MB each — Auto-compressed for fast loading</p>
+        <p className="text-xs text-muted-foreground mt-1">JPG, PNG, WebP, GIF — Max 10MB each — Multiple photos supported — Auto-compressed</p>
       </div>
 
       {/* Image Grid */}

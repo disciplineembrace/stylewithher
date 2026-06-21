@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getUserFromRequest } from '@/lib/auth'
-import { writeFile, mkdir, unlink } from 'fs/promises'
-import path from 'path'
 import { recordAudit } from '@/lib/audit'
 import { getClientIp } from '@/lib/rate-limit'
 
@@ -37,12 +35,7 @@ async function compressImage(buffer: Buffer, mimeType: string): Promise<{ buffer
       img = img.resize(MAX_DIMENSION, MAX_DIMENSION, { fit: 'inside', withoutEnlargement: true })
     }
 
-    // Convert to WebP for better compression (unless it's already a small PNG/JPEG)
-    if (mimeType !== 'image/webp') {
-      const output = await img.webp({ quality: QUALITY }).toBuffer()
-      return { buffer: output, ext: 'webp', mimeType: 'image/webp' }
-    }
-
+    // Convert to WebP for better compression
     const output = await img.webp({ quality: QUALITY }).toBuffer()
     return { buffer: output, ext: 'webp', mimeType: 'image/webp' }
   } catch (err) {
@@ -108,33 +101,29 @@ export async function POST(request: NextRequest) {
 
     const bytes = await file.arrayBuffer()
     let buffer = Buffer.from(bytes)
-
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', isImage ? 'images' : 'videos')
-    await mkdir(uploadDir, { recursive: true })
-
-    let finalExt = file.name.split('.').pop() || 'jpg'
-    let finalMimeType = file.type
     let originalSize = file.size
 
     // Compress images automatically
+    let finalMimeType = file.type
     if (isImage) {
       const compressed = await compressImage(buffer, file.type)
       buffer = compressed.buffer
-      finalExt = compressed.ext
       finalMimeType = compressed.mimeType
       console.log(`Image compressed: ${(originalSize / 1024).toFixed(1)}KB → ${(buffer.length / 1024).toFixed(1)}KB (${Math.round((1 - buffer.length / originalSize) * 100)}% reduction)`)
     }
 
-    const uniqueName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${finalExt}`
-    const filePath = path.join(uploadDir, uniqueName)
-
-    await writeFile(filePath, buffer)
-    const url = `/uploads/${isImage ? 'images' : 'videos'}/${uniqueName}`
+    // Store as base64 data URL (works on serverless / Vercel — no filesystem needed)
+    const base64 = buffer.toString('base64')
+    const dataUrl = `data:${finalMimeType};base64,${base64}`
 
     const mediaFile = await db.mediaFile.create({
       data: {
-        filename: file.name, url, mimeType: finalMimeType, size: buffer.length,
-        alt: formData.get('alt') as string || null, uploadedBy: payload.userId,
+        filename: file.name,
+        url: dataUrl,
+        mimeType: finalMimeType,
+        size: buffer.length,
+        alt: formData.get('alt') as string || null,
+        uploadedBy: payload.userId,
       },
     })
 
@@ -165,7 +154,6 @@ export async function DELETE(request: NextRequest) {
     const existing = await db.mediaFile.findUnique({ where: { id: fileId } })
     if (!existing) return NextResponse.json({ error: 'File not found' }, { status: 404 })
 
-    try { await unlink(path.join(process.cwd(), 'public', existing.url)) } catch { /* */ }
     await db.mediaFile.delete({ where: { id: fileId } })
 
     const ip = getClientIp(request)
