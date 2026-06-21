@@ -10,3 +10,4 @@ download/
 worklog.md
 prisma/.env
 db/
+.vercel
