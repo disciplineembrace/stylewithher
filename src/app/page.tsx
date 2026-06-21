@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useStore } from '@/store/use-store'
+import { useLanguage } from '@/i18n/use-language'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 import HomePage from '@/components/home/HomePage'
@@ -13,6 +14,7 @@ import CheckoutPage from '@/components/checkout/CheckoutPage'
 import { OrdersListPage, OrderDetailPage } from '@/components/orders/OrdersPage'
 import { LoginPage, SignupPage, ProfilePage, ForgotPasswordPage } from '@/components/auth/AuthPages'
 import AdminPanel from '@/components/admin/AdminPanel'
+import SplashScreen from '@/components/splash/SplashScreen'
 import { X, CheckCircle, AlertCircle, Info } from 'lucide-react'
 
 function Toast() {
@@ -88,8 +90,23 @@ function PageRouter() {
 }
 
 export default function App() {
+  const [showSplash, setShowSplash] = useState(false)
+  const init = useLanguage((s) => s.init)
+
+  useEffect(() => {
+    // Check if user has already selected a language
+    const saved = localStorage.getItem('stylewithher-locale')
+    if (saved && (saved === 'en' || saved === 'hi' || saved === 'gu')) {
+      init() // just set the saved locale
+    } else {
+      setShowSplash(true)
+      init() // initialize with default 'en' first
+    }
+  }, [init])
+
   return (
     <div className="min-h-screen flex flex-col bg-white">
+      {showSplash && <SplashScreen />}
       <Header />
       <main className="flex-1">
         <PageRouter />

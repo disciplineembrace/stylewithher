@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Heart, ArrowLeft, ShoppingBag, Trash2, Loader2 } from 'lucide-react'
 import ProductCard from '@/components/shared/ProductCard'
 
+import { useTranslation } from '@/i18n/use-language'
 interface WishlistItemApi {
   id: string
   userId: string
@@ -25,6 +26,7 @@ interface WishlistItemApi {
 }
 
 export function WishlistPage() {
+  const { t } = useTranslation()
   const { user, isAuthenticated, navigate, toggleWishlist, setWishlistIds, showToast } = useStore()
   const [wishlistItems, setWishlistItems] = useState<WishlistItemApi[]>([])
   const [loading, setLoading] = useState(true)

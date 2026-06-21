@@ -9,38 +9,39 @@ import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Package, Truck, CheckCircle, Check, Clock, XCircle, ArrowLeft, RotateCcw, MapPin, CreditCard, Copy } from 'lucide-react'
 
+import { useTranslation } from '@/i18n/use-language'
 // ─── Status Helpers ────────────────────────────────────────────────────────────
 
 const STATUS_STEPS = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'] as const
 
-function getStatusBadge(status: string) {
+function getStatusBadge(status: string, t: (k: string) => string) {
   const map: Record<string, { label: string; className: string }> = {
-    pending: { label: 'Pending', className: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
-    confirmed: { label: 'Confirmed', className: 'bg-blue-100 text-blue-700 border-blue-200' },
-    processing: { label: 'Processing', className: 'bg-purple-100 text-purple-700 border-purple-200' },
-    shipped: { label: 'Shipped', className: 'bg-orange-100 text-orange-700 border-orange-200' },
-    delivered: { label: 'Delivered', className: 'bg-green-100 text-green-700 border-green-200' },
-    cancelled: { label: 'Cancelled', className: 'bg-red-100 text-red-700 border-red-200' },
+    pending: { label: t('orders.pending'), className: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+    confirmed: { label: t('orders.confirmed'), className: 'bg-blue-100 text-blue-700 border-blue-200' },
+    processing: { label: t('orders.processing'), className: 'bg-purple-100 text-purple-700 border-purple-200' },
+    shipped: { label: t('orders.shipped'), className: 'bg-orange-100 text-orange-700 border-orange-200' },
+    delivered: { label: t('orders.delivered'), className: 'bg-green-100 text-green-700 border-green-200' },
+    cancelled: { label: t('orders.cancelled'), className: 'bg-red-100 text-red-700 border-red-200' },
   }
   return map[status] || { label: status, className: 'bg-gray-100 text-gray-700 border-gray-200' }
 }
 
-function getPaymentMethodLabel(method: string) {
+function getPaymentMethodLabel(method: string, t: (k: string) => string) {
   const map: Record<string, string> = {
-    cod: 'Cash on Delivery',
-    razorpay: 'Razorpay',
-    upi: 'UPI',
-    card: 'Credit/Debit Card',
+    cod: t('checkout.cod'),
+    razorpay: t('checkout.razorpay'),
+    upi: t('checkout.upi'),
+    card: t('checkout.card'),
   }
   return map[method] || method
 }
 
-function getPaymentStatusBadge(status: string) {
+function getPaymentStatusBadge(status: string, t: (k: string) => string) {
   const map: Record<string, { label: string; className: string }> = {
-    pending: { label: 'Pending', className: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
-    completed: { label: 'Paid', className: 'bg-green-100 text-green-700 border-green-200' },
-    failed: { label: 'Failed', className: 'bg-red-100 text-red-700 border-red-200' },
-    refunded: { label: 'Refunded', className: 'bg-blue-100 text-blue-700 border-blue-200' },
+    pending: { label: t('orders.pending'), className: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+    completed: { label: t('orders.paid'), className: 'bg-green-100 text-green-700 border-green-200' },
+    failed: { label: t('orders.failed'), className: 'bg-red-100 text-red-700 border-red-200' },
+    refunded: { label: t('orders.refunded'), className: 'bg-blue-100 text-blue-700 border-blue-200' },
   }
   return map[status] || { label: status, className: 'bg-gray-100 text-gray-700 border-gray-200' }
 }
@@ -56,6 +57,7 @@ function formatDate(dateStr: string) {
 // ─── Orders List Page ─────────────────────────────────────────────────────────
 
 export function OrdersListPage() {
+  const { t } = useTranslation()
   const { navigate, pageParams, user, isAuthenticated, showToast } = useStore()
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -98,7 +100,7 @@ export function OrdersListPage() {
   })
 
   const filterTabs = [
-    { id: 'all', label: 'All' },
+    { id: 'all', label: t('orders.all') },
     { id: 'pending', label: 'Pending' },
     { id: 'delivered', label: 'Delivered' },
     { id: 'cancelled', label: 'Cancelled' },
@@ -176,7 +178,7 @@ export function OrdersListPage() {
           /* Order Cards */
           <div className="space-y-4">
             {filteredOrders.map((order) => {
-              const badge = getStatusBadge(order.status)
+              const badge = getStatusBadge(order.status, t)
               return (
                 <button
                   key={order.id}
@@ -209,7 +211,7 @@ export function OrdersListPage() {
                         <div className="flex items-center gap-4">
                           <div className="text-right">
                             <p className="font-bold text-[#0B1F3A] text-lg">₹{order.total.toLocaleString('en-IN')}</p>
-                            <p className="text-[10px] text-[#222222]/40">{getPaymentMethodLabel(order.paymentMethod)}</p>
+                            <p className="text-[10px] text-[#222222]/40">{getPaymentMethodLabel(order.paymentMethod, t)}</p>
                           </div>
                           <ArrowLeft className="w-4 h-4 text-[#D96C8A] rotate-180 group-hover:translate-x-1 transition-transform" />
                         </div>
@@ -383,8 +385,8 @@ export function OrderDetailPage() {
 
   if (!order) return null
 
-  const statusBadge = getStatusBadge(order.status)
-  const paymentBadge = getPaymentStatusBadge(order.paymentStatus)
+  const statusBadge = getStatusBadge(order.status, t)
+  const paymentBadge = getPaymentStatusBadge(order.paymentStatus, t)
   const canCancel = order.status === 'pending' || order.status === 'confirmed'
 
   const stepIcons: Record<string, React.ReactNode> = {
@@ -654,7 +656,7 @@ export function OrderDetailPage() {
               <CardContent className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-[#222222]/50">Method</span>
-                  <span className="text-sm font-medium text-[#222222]">{getPaymentMethodLabel(order.paymentMethod)}</span>
+                  <span className="text-sm font-medium text-[#222222]">{getPaymentMethodLabel(order.paymentMethod, t)}</span>
                 </div>
                 <Separator className="bg-[#F7C8D0]/20" />
                 <div className="flex items-center justify-between">

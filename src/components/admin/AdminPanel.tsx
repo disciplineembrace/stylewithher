@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useStore } from '@/store/use-store'
+import { useTranslation } from '@/i18n/use-language'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog'
@@ -63,20 +64,20 @@ const fmt = (n: number) => new Intl.NumberFormat('en-IN', { maximumFractionDigit
 const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
 const fmtDateTime = (d: string) => new Date(d).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
-// ─── Nav items ────────────────────────────────────────────────────────────────
+// ─── Nav items (labels translated via SidebarNav component) ─────────────────
 const NAV_ITEMS = [
-  { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { key: 'products', label: 'Products', icon: Package },
-  { key: 'orders', label: 'Orders', icon: ShoppingBag },
-  { key: 'customers', label: 'Customers', icon: Users },
-  { key: 'coupons', label: 'Coupons', icon: Ticket },
-  { key: 'reviews', label: 'Reviews', icon: Star },
-  { key: 'content', label: 'Content', icon: FileText },
-  { key: 'posts', label: 'Posts', icon: PenLine },
-  { key: 'media', label: 'Media', icon: ImageIcon },
-  { key: 'inventory', label: 'Inventory', icon: Warehouse },
-  { key: 'instagram', label: 'Instagram', icon: Instagram },
-  { key: 'activity', label: 'Activity Logs', icon: Activity },
+  { key: 'dashboard', labelKey: 'admin.dashboard', icon: LayoutDashboard },
+  { key: 'products', labelKey: 'admin.products', icon: Package },
+  { key: 'orders', labelKey: 'admin.orders', icon: ShoppingBag },
+  { key: 'customers', labelKey: 'admin.customers', icon: Users },
+  { key: 'coupons', labelKey: 'admin.coupons', icon: Ticket },
+  { key: 'reviews', labelKey: 'admin.reviews', icon: Star },
+  { key: 'content', labelKey: 'admin.content', icon: FileText },
+  { key: 'posts', labelKey: 'admin.posts', icon: PenLine },
+  { key: 'media', labelKey: 'admin.media', icon: ImageIcon },
+  { key: 'inventory', labelKey: 'admin.inventory', icon: Warehouse },
+  { key: 'instagram', labelKey: 'admin.instagram', icon: Instagram },
+  { key: 'activity', labelKey: 'admin.activityLogs', icon: Activity },
 ]
 
 const STATUS_COLORS: Record<string, string> = {
@@ -101,6 +102,7 @@ const PAYMENT_COLORS: Record<string, string> = {
 // ═══════════════════════════════════════════════════════════════════════════════
 function SidebarNav({ className }: { className?: string }) {
   const { adminTab, setAdminTab, navigate } = useStore()
+  const { t } = useTranslation()
 
   return (
     <nav className={`flex flex-col gap-1 px-3 py-4 ${className || ''}`}>
@@ -123,7 +125,7 @@ function SidebarNav({ className }: { className?: string }) {
             }`}
           >
             <Icon className="h-4 w-4 shrink-0" />
-            <span>{item.label}</span>
+            <span>{t(item.labelKey)}</span>
             {isActive && <ChevronRight className="h-3 w-3 ml-auto text-[#f9b233]" />}
           </button>
         )

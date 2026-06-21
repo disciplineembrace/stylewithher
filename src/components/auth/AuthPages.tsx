@@ -17,6 +17,7 @@ import { User, Mail, Lock, Phone, MapPin, Trash2, Plus, ArrowLeft, Eye, EyeOff, 
 import type { AddressData } from '@/store/use-store'
 import { Skeleton } from '@/components/ui/skeleton'
 
+import { useTranslation } from '@/i18n/use-language'
 // ─── Zod Schemas ────────────────────────────────────────────────────────────
 
 const loginSchema = z.object({
@@ -105,6 +106,7 @@ function LoadingSpinner() {
 // ─── Login Page ─────────────────────────────────────────────────────────────
 
 export function LoginPage() {
+  const { t } = useTranslation()
   const { setUser, navigate, showToast } = useStore()
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)

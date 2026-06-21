@@ -6,7 +6,9 @@ import { Badge } from '@/components/ui/badge'
 import { useStore, ProductData } from '@/store/use-store'
 import { useState } from 'react'
 
+import { useTranslation } from '@/i18n/use-language'
 export default function ProductCard({ product }: { product: ProductData }) {
+  const { t } = useTranslation()
   const { navigate, user, isAuthenticated, toggleWishlist, isInWishlist, showToast } = useStore()
   const [imgLoaded, setImgLoaded] = useState(false)
   const inWishlist = isInWishlist(product.id)

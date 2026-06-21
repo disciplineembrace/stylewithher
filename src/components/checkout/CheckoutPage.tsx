@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { MapPin, CreditCard, Truck, Tag, ArrowLeft, Check, Shield, Lock } from 'lucide-react'
 import type { AddressData } from '@/store/use-store'
 
+import { useTranslation } from '@/i18n/use-language'
 interface CouponValidation {
   valid: boolean
   code: string
@@ -24,6 +25,7 @@ interface CouponValidation {
 }
 
 export default function CheckoutPage() {
+  const { t } = useTranslation()
   const {
     navigate,
     isAuthenticated,

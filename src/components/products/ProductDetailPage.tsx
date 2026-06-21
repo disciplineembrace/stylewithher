@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
+import { useTranslation } from '@/i18n/use-language'
 import {
   Dialog,
   DialogContent,
@@ -97,6 +98,7 @@ function DetailSkeleton() {
 }
 
 export default function ProductDetailPage() {
+  const { t } = useTranslation()
   const { pageParams, previousPage, navigate, user, isAuthenticated, toggleWishlist, isInWishlist, showToast, setCart } = useStore()
 
   const productId = pageParams.id || ''

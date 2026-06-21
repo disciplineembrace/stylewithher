@@ -9,6 +9,7 @@ import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Trash2, Minus, Plus, ShoppingBag, ArrowRight, Tag, ArrowLeft, Gift, Truck, Loader2 } from 'lucide-react'
 
+import { useTranslation } from '@/i18n/use-language'
 interface CartItemApi {
   id: string
   userId: string
@@ -40,6 +41,7 @@ interface CouponResult {
 }
 
 export function CartPage() {
+  const { t } = useTranslation()
   const { user, isAuthenticated, navigate, setCart, removeFromCartOptimistic, updateCartQuantityOptimistic, showToast } = useStore()
   const [cartItems, setCartItems] = useState<CartItemApi[]>([])
   const [loading, setLoading] = useState(true)

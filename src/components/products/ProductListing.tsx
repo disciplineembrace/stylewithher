@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Slider } from '@/components/ui/slider'
 import { Star, SlidersHorizontal, X, ChevronDown, ChevronUp, Search } from 'lucide-react'
 
+import { useTranslation } from '@/i18n/use-language'
 const COLORS = [
   'Navy Blue', 'Soft Pink', 'White', 'Black', 'Blush',
   'Rose', 'Charcoal', 'Cream', 'Lavender', 'Sage Green',
@@ -21,13 +22,6 @@ const COLORS = [
 const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
 
 const GENDERS = ['Men', 'Women', 'Couple', 'Unisex']
-
-const SORT_OPTIONS = [
-  { value: 'newest', label: 'Latest' },
-  { value: 'popular', label: 'Popularity' },
-  { value: 'price-asc', label: 'Price: Low to High' },
-  { value: 'price-desc', label: 'Price: High to Low' },
-]
 
 interface FilterSectionProps {
   title: string
@@ -68,7 +62,15 @@ function ProductGridSkeleton() {
 }
 
 export default function ProductListing() {
+  const { t } = useTranslation()
   const { searchQuery, pageParams, navigate, showToast } = useStore()
+
+  const SORT_OPTIONS = [
+    { value: 'newest', label: t('products.sortLatest') },
+    { value: 'popular', label: t('products.sortPopular') },
+    { value: 'price-asc', label: t('products.sortPriceLow') },
+    { value: 'price-desc', label: t('products.sortPriceHigh') },
+  ]
 
   // Data
   const [products, setProducts] = useState<ProductData[]>([])

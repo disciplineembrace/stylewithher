@@ -7,31 +7,32 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { Star, Shield, Truck, RotateCcw, CreditCard, ArrowRight, ChevronLeft, ChevronRight, Heart, Instagram } from 'lucide-react'
 
-// ─── Hero Carousel Data ──────────────────────────────────────────────────────
+import { useTranslation } from '@/i18n/use-language'
+// ─── Hero Carousel Data (static visual, translated in component) ──────────────
 const heroSlides = [
   {
-    headline: 'Match Together,',
-    subtitle: 'Love Together',
-    description: 'Discover our curated collection of premium couple clothing designed to make every moment together special.',
-    cta: 'Shop Couples Collection',
+    headlineKey: 'home.heroSlides.0.title',
+    subtitleKey: 'home.heroSlides.0.subtitle',
+    descriptionKey: 'home.heroSlides.0.subtitle',
+    ctaKey: 'home.heroSlides.0.cta',
     gradient: 'from-[#0B1F3A] via-[#0B1F3A]/95 to-[#0B1F3A]/80',
     accent: '#F7C8D0',
     image: 'https://placehold.co/600x800/0B1F3A/F7C8D0?text=Her+%26+Him',
   },
   {
-    headline: 'New Arrivals',
-    subtitle: 'Spring 2025 Collection',
-    description: 'Trendy matching sets that celebrate your unique bond. Premium fabrics, timeless designs.',
-    cta: 'Explore New Arrivals',
+    headlineKey: 'home.heroSlides.1.title',
+    subtitleKey: 'home.heroSlides.1.subtitle',
+    descriptionKey: 'home.heroSlides.1.subtitle',
+    ctaKey: 'home.heroSlides.1.cta',
     gradient: 'from-[#D96C8A] via-[#D96C8A]/90 to-[#F7C8D0]/80',
     accent: '#FFFFFF',
     image: 'https://placehold.co/600x800/D96C8A/FFFFFF?text=Spring+2025',
   },
   {
-    headline: 'Premium Quality,',
-    subtitle: 'Perfect Fit',
-    description: 'Crafted with love for couples who appreciate the finest materials and impeccable style.',
-    cta: 'Shop Best Sellers',
+    headlineKey: 'home.heroSlides.3.title',
+    subtitleKey: 'home.heroSlides.3.subtitle',
+    descriptionKey: 'home.heroSlides.3.subtitle',
+    ctaKey: 'home.heroSlides.3.cta',
     gradient: 'from-[#F7C8D0] via-[#F7C8D0]/90 to-[#FFF5F7]/80',
     accent: '#0B1F3A',
     image: 'https://placehold.co/600x800/F7C8D0/0B1F3A?text=Premium+Style',
@@ -609,6 +610,7 @@ function InstagramFeedSection() {
 
 // ─── Main HomePage Component ─────────────────────────────────────────────────
 export default function HomePage() {
+  const { t } = useTranslation()
   return (
     <main>
       {/* 1. Hero Banner */}
